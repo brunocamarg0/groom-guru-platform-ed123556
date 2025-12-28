@@ -30,12 +30,30 @@ export default function EditarBarbearia() {
   const toast = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [barbearia, setBarbearia] = useState<Barbearia | undefined>();
+  const [formData, setFormData] = useState<Partial<Barbearia>>({
+    nome: "",
+    cnpjCpf: "",
+    responsavel: "",
+    plano: "basico",
+    email: "",
+    telefone: "",
+    endereco: "",
+  });
 
   useEffect(() => {
     if (id) {
       const data = getBarbearia(id);
       if (data) {
         setBarbearia(data);
+        setFormData({
+          nome: data.nome,
+          cnpjCpf: data.cnpjCpf,
+          responsavel: data.responsavel,
+          plano: data.plano,
+          email: data.email || "",
+          telefone: data.telefone || "",
+          endereco: data.endereco || "",
+        });
       } else {
         toast({
           title: "Barbearia não encontrada",
@@ -48,32 +66,14 @@ export default function EditarBarbearia() {
   }, [id, getBarbearia, navigate, toast]);
 
   if (!barbearia) {
-    return null;
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <p className="text-muted-foreground">Carregando dados da barbearia...</p>
+        </div>
+      </div>
+    );
   }
-
-  const [formData, setFormData] = useState<Partial<Barbearia>>({
-    nome: barbearia.nome,
-    cnpjCpf: barbearia.cnpjCpf,
-    responsavel: barbearia.responsavel,
-    plano: barbearia.plano,
-    email: barbearia.email,
-    telefone: barbearia.telefone,
-    endereco: barbearia.endereco,
-  });
-
-  useEffect(() => {
-    if (barbearia) {
-      setFormData({
-        nome: barbearia.nome,
-        cnpjCpf: barbearia.cnpjCpf,
-        responsavel: barbearia.responsavel,
-        plano: barbearia.plano,
-        email: barbearia.email,
-        telefone: barbearia.telefone,
-        endereco: barbearia.endereco,
-      });
-    }
-  }, [barbearia]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
