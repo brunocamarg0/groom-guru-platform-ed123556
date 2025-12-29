@@ -28,15 +28,19 @@ import {
   FileText,
   LogOut,
   Building2,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useDono } from "@/context/DonoContext";
+import { useTheme } from "@/context/ThemeContext";
 
 export default function DonoLayout() {
   const location = useLocation();
   const { notificacoes } = useDono();
+  const { theme, toggleTheme } = useTheme();
   const notificacoesNaoLidas = notificacoes?.filter((n) => !n.lida).length || 0;
 
   const menuItems = [
@@ -148,7 +152,24 @@ export default function DonoLayout() {
             </SidebarGroupContent>
           </SidebarGroup>
         </SidebarContent>
-        <div className="p-4 border-t border-sidebar-border">
+        <div className="p-4 border-t border-sidebar-border space-y-2">
+          <Button
+            variant="ghost"
+            className="w-full justify-start"
+            onClick={toggleTheme}
+          >
+            {theme === "light" ? (
+              <>
+                <Moon className="h-4 w-4 mr-2" />
+                Modo Escuro
+              </>
+            ) : (
+              <>
+                <Sun className="h-4 w-4 mr-2" />
+                Modo Claro
+              </>
+            )}
+          </Button>
           <Button
             variant="ghost"
             className="w-full justify-start"
