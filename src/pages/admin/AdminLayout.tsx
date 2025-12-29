@@ -13,7 +13,7 @@ import {
   SidebarInset,
 } from "@/components/ui/sidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Scissors, Building2, LogOut } from "lucide-react";
+import { Scissors, Building2, LogOut, CreditCard, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
@@ -25,6 +25,16 @@ export default function AdminLayout() {
       title: "Barbearias",
       url: "/admin",
       icon: Building2,
+    },
+    {
+      title: "Planos",
+      url: "/admin/planos",
+      icon: FileText,
+    },
+    {
+      title: "Assinaturas",
+      url: "/admin/assinaturas",
+      icon: CreditCard,
     },
   ];
 
@@ -55,7 +65,7 @@ export default function AdminLayout() {
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
                       asChild
-                      isActive={location.pathname === item.url}
+                      isActive={location.pathname === item.url || location.pathname.startsWith(item.url + "/")}
                     >
                       <Link to={item.url}>
                         <item.icon className="h-4 w-4" />
