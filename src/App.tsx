@@ -13,6 +13,7 @@ import { IntegracoesGlobaisProvider } from "@/context/IntegracoesGlobaisContext"
 import { SegurancaProvider } from "@/context/SegurancaContext";
 import { SuporteProvider } from "@/context/SuporteContext";
 import { ConfiguracaoProvider } from "@/context/ConfiguracaoContext";
+import { ClienteProvider } from "@/context/ClienteContext";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
@@ -32,6 +33,17 @@ import IntegracoesGlobais from "./pages/admin/IntegracoesGlobais";
 import Seguranca from "./pages/admin/Seguranca";
 import Suporte from "./pages/admin/Suporte";
 import Configuracoes from "./pages/admin/Configuracoes";
+import ClienteLayout from "./pages/cliente/ClienteLayout";
+import ClienteDashboard from "./pages/cliente/ClienteDashboard";
+import AgendamentoOnline from "./pages/cliente/AgendamentoOnline";
+import PagamentoIntegrado from "./pages/cliente/PagamentoIntegrado";
+import HistoricoAgendamentos from "./pages/cliente/HistoricoAgendamentos";
+import Avaliacoes from "./pages/cliente/Avaliacoes";
+import PerfilCliente from "./pages/cliente/PerfilCliente";
+import NotificacoesCliente from "./pages/cliente/NotificacoesCliente";
+import Fidelidade from "./pages/cliente/Fidelidade";
+import SuporteCliente from "./pages/cliente/SuporteCliente";
+import ConfiguracoesCliente from "./pages/cliente/ConfiguracoesCliente";
 
 const queryClient = new QueryClient();
 
@@ -48,9 +60,10 @@ const App = () => (
                     <SegurancaProvider>
                       <SuporteProvider>
                         <ConfiguracaoProvider>
-                          <Toaster />
-                          <Sonner />
-                          <BrowserRouter>
+                          <ClienteProvider>
+                            <Toaster />
+                            <Sonner />
+                            <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
@@ -71,10 +84,23 @@ const App = () => (
               <Route path="suporte" element={<Suporte />} />
               <Route path="configuracoes" element={<Configuracoes />} />
             </Route>
+            <Route path="/cliente" element={<ClienteLayout />}>
+              <Route index element={<ClienteDashboard />} />
+              <Route path="agendar" element={<AgendamentoOnline />} />
+              <Route path="pagamentos" element={<PagamentoIntegrado />} />
+              <Route path="historico" element={<HistoricoAgendamentos />} />
+              <Route path="avaliacoes" element={<Avaliacoes />} />
+              <Route path="perfil" element={<PerfilCliente />} />
+              <Route path="notificacoes" element={<NotificacoesCliente />} />
+              <Route path="fidelidade" element={<Fidelidade />} />
+              <Route path="suporte" element={<SuporteCliente />} />
+              <Route path="configuracoes" element={<ConfiguracoesCliente />} />
+            </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
+                          </ClienteProvider>
                         </ConfiguracaoProvider>
                       </SuporteProvider>
                     </SegurancaProvider>
