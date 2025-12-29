@@ -16,6 +16,13 @@ interface BarbeariasContextType {
 
 const BarbeariasContext = createContext<BarbeariasContextType | undefined>(undefined);
 
+// Serviços padrão que toda barbearia pode ter
+const servicosPadrao: ServicoBarbearia[] = [
+  { id: "s1", tipo: "corte", nome: "Corte Masculino", duracao: 30, valor: 25, ativo: true, ordem: 1 },
+  { id: "s2", tipo: "barba", nome: "Barba", duracao: 20, valor: 15, ativo: true, ordem: 2 },
+  { id: "s3", tipo: "combo", nome: "Corte + Barba", duracao: 60, valor: 45, ativo: true, ordem: 3 },
+];
+
 // Dados mockados iniciais
 const barbeariasIniciais: Barbearia[] = [
   {
@@ -32,6 +39,12 @@ const barbeariasIniciais: Barbearia[] = [
       conectado: true,
       dataConexao: "2024-01-15",
     },
+    servicos: [
+      ...servicosPadrao,
+      { id: "s4", tipo: "hidratacao", nome: "Hidratação Capilar", duracao: 45, valor: 35, ativo: true, ordem: 4 },
+      { id: "s5", tipo: "alisamento", nome: "Alisamento", duracao: 120, valor: 150, ativo: true, ordem: 5 },
+      { id: "s6", tipo: "progressiva", nome: "Progressiva", duracao: 180, valor: 200, ativo: false, ordem: 6 },
+    ],
     email: "joao@barbearia.com",
     telefone: "(11) 99999-9999",
   },
