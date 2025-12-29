@@ -35,9 +35,9 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useDono } from "@/context/DonoContext";
-import { useTheme } from "@/context/ThemeContext";
+import { ThemeProvider, useTheme } from "@/context/ThemeContext";
 
-export default function DonoLayout() {
+function DonoLayoutContent() {
   const location = useLocation();
   const { notificacoes } = useDono();
   const { theme, toggleTheme } = useTheme();
@@ -187,12 +187,36 @@ export default function DonoLayout() {
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           <h1 className="text-lg font-semibold">Área do Dono</h1>
+          <div className="ml-auto">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              title={theme === "light" ? "Ativar modo escuro" : "Ativar modo claro"}
+            >
+              {theme === "light" ? (
+                <Moon className="h-5 w-5" />
+              ) : (
+                <Sun className="h-5 w-5" />
+              )}
+            </Button>
+          </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">
           <Outlet />
         </div>
       </SidebarInset>
     </SidebarProvider>
+  );
+}
+
+export default function DonoLayout() {
+  return (
+    <ThemeProvider>
+      <div className="dono-panel-theme">
+        <DonoLayoutContent />
+      </div>
+    </ThemeProvider>
   );
 }
 

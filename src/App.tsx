@@ -15,7 +15,6 @@ import { SuporteProvider } from "@/context/SuporteContext";
 import { ConfiguracaoProvider } from "@/context/ConfiguracaoContext";
 import { ClienteProvider } from "@/context/ClienteContext";
 import { DonoProvider } from "@/context/DonoContext";
-import { ThemeProvider } from "@/context/ThemeContext";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
@@ -79,9 +78,8 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <TooltipProvider>
-          <BarbeariasProvider>
+      <TooltipProvider>
+        <BarbeariasProvider>
         <PlanosProvider>
           <FinanceiroProvider>
             <UsuariosProvider>
@@ -168,7 +166,6 @@ const App = () => (
         </PlanosProvider>
         </BarbeariasProvider>
       </TooltipProvider>
-      </ThemeProvider>
   </QueryClientProvider>
 );
 

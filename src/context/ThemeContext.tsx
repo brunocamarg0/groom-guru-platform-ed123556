@@ -12,23 +12,23 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
-    // Verificar se há tema salvo no localStorage
-    const savedTheme = localStorage.getItem("theme") as Theme;
+    // Verificar se há tema salvo no localStorage (específico para dono)
+    const savedTheme = localStorage.getItem("dono-theme") as Theme;
     if (savedTheme) {
       return savedTheme;
     }
-    // Verificar preferência do sistema
-    if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-      return "dark";
-    }
+    // Padrão: modo claro
     return "light";
   });
 
   useEffect(() => {
-    const root = window.document.documentElement;
-    root.classList.remove("light", "dark");
-    root.classList.add(theme);
-    localStorage.setItem("theme", theme);
+    // Aplicar tema apenas no elemento do painel do dono
+    const donoPanel = document.querySelector(".dono-panel-theme");
+    if (donoPanel) {
+      donoPanel.classList.remove("light", "dark");
+      donoPanel.classList.add(theme);
+    }
+    localStorage.setItem("dono-theme", theme);
   }, [theme]);
 
   const setTheme = (newTheme: Theme) => {
