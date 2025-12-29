@@ -1,12 +1,19 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
+import heroImage from "@/assets/hero-modern-barber.jpg";
 
 const Hero = () => {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
       <div 
-        className="absolute inset-0 z-0 bg-gradient-to-br from-primary/20 to-background"
+        className="absolute inset-0 z-0"
+        style={{
+          backgroundImage: `url(${heroImage})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          filter: 'brightness(0.3)',
+        }}
       />
       
       <div className="absolute inset-0 bg-gradient-dark opacity-80 z-10" />
