@@ -21,7 +21,26 @@ import {
 import { Link } from "react-router-dom";
 
 export default function ClienteDashboard() {
-  const { cliente, getProximoAgendamento, fidelidade } = useCliente();
+  let cliente, getProximoAgendamento, fidelidade;
+  
+  try {
+    const clienteContext = useCliente();
+    cliente = clienteContext.cliente;
+    getProximoAgendamento = clienteContext.getProximoAgendamento;
+    fidelidade = clienteContext.fidelidade;
+  } catch (error) {
+    console.error("Erro ao carregar dados do cliente:", error);
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <p className="text-muted-foreground">Erro ao carregar dados do cliente</p>
+          <p className="text-sm text-muted-foreground mt-2">
+            {error instanceof Error ? error.message : "Erro desconhecido"}
+          </p>
+        </div>
+      </div>
+    );
+  }
   const proximoAgendamento = getProximoAgendamento();
 
   const formatarMoeda = (valor: number) => {

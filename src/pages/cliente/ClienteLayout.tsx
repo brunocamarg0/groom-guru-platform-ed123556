@@ -33,7 +33,8 @@ import { Badge } from "@/components/ui/badge";
 
 export default function ClienteLayout() {
   const location = useLocation();
-  const { cliente, notificacoes } = useCliente();
+  const clienteContext = useCliente();
+  const { cliente, notificacoes } = clienteContext;
   const notificacoesNaoLidas = notificacoes.filter((n) => !n.lida).length;
 
   const menuItems = [

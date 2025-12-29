@@ -9,7 +9,7 @@ import { Link, useNavigate } from "react-router-dom";
 
 const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("owner");
+  const [activeTab, setActiveTab] = useState("client");
   const navigate = useNavigate();
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -18,9 +18,14 @@ const Login = () => {
     // Implementar autenticação
     setTimeout(() => {
       setIsLoading(false);
-      // Redirecionar para admin após login (mock)
+      // Redirecionar após login (mock)
       if (activeTab === 'admin') {
         navigate('/admin');
+      } else if (activeTab === 'client') {
+        console.log('Redirecionando para /cliente');
+        navigate('/cliente', { replace: true });
+      } else if (activeTab === 'owner') {
+        navigate('/admin'); // Por enquanto redireciona para admin
       }
     }, 1000);
   };
@@ -100,13 +105,19 @@ const Login = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                <div className="mb-4 p-3 bg-muted rounded-lg">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Credenciais de teste:</p>
+                  <p className="text-xs">Email: <span className="font-mono">joao@email.com</span></p>
+                  <p className="text-xs">Senha: <span className="font-mono">qualquer senha</span></p>
+                </div>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="client-email">Email</Label>
                     <Input
                       id="client-email"
                       type="email"
-                      placeholder="seu@email.com"
+                      placeholder="joao@email.com"
+                      defaultValue="joao@email.com"
                       required
                     />
                   </div>
@@ -133,6 +144,16 @@ const Login = () => {
                       Criar conta
                     </Link>
                   </p>
+                  <div className="pt-2 border-t">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => navigate('/cliente')}
+                    >
+                      Acessar Painel do Cliente (Teste Direto)
+                    </Button>
+                  </div>
                 </form>
               </CardContent>
             </Card>
