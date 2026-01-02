@@ -11,7 +11,17 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Edit, Building2, User, Calendar, CreditCard, Mail, Phone, MapPin, Scissors } from "lucide-react";
+import { ArrowLeft, Edit, Building2, User, Calendar, CreditCard, Mail, Phone, MapPin, Scissors, UserPlus, Copy, Check } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Barbearia } from "@/types/barbearia";
 import { useToast } from "@/hooks/use-toast";
 
@@ -28,12 +38,19 @@ const planoConfig: Record<string, string> = {
   enterprise: "Enterprise",
 };
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+
 export default function DetalhesBarbearia() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { getBarbearia } = useBarbearias();
   const toast = useToast();
   const [barbearia, setBarbearia] = useState<Barbearia | undefined>();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [emailConvite, setEmailConvite] = useState("");
+  const [gerandoConvite, setGerandoConvite] = useState(false);
+  const [linkConvite, setLinkConvite] = useState("");
+  const [copiado, setCopiado] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -50,6 +67,54 @@ export default function DetalhesBarbearia() {
       }
     }
   }, [id, getBarbearia, navigate, toast]);
+
+  const gerarConvite = async () => {
+    if (!id) return;
+
+    try {
+      setGerandoConvite(true);
+      const response = await fetch(`${API_URL}/api/admin/barbearias/${id}/convite`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: emailConvite || undefined,
+          diasValidade: 7,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Erro ao gerar convite");
+      }
+
+      setLinkConvite(data.convite.urlAtivacao);
+      toast({
+        title: "Convite gerado com sucesso!",
+        description: "O link de ativação foi gerado. Copie e envie para o dono da barbearia.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro ao gerar convite",
+        description: error.message || "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setGerandoConvite(false);
+    }
+  };
+
+  const copiarLink = () => {
+    navigator.clipboard.writeText(linkConvite);
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2000);
+    toast({
+      title: "Link copiado!",
+      description: "O link foi copiado para a área de transferência.",
+    });
+  };
 
   if (!barbearia) {
     return null;
@@ -231,6 +296,83 @@ export default function DetalhesBarbearia() {
             {!barbearia.email && !barbearia.telefone && !barbearia.endereco && (
               <p className="text-sm text-muted-foreground">Nenhum contato cadastrado</p>
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5" />
+              Convite para Dono
+            </CardTitle>
+            <CardDescription>
+              Gere um convite para o dono da barbearia criar sua conta
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="w-full">
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Gerar Convite
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Gerar Convite</DialogTitle>
+                  <DialogDescription>
+                    Gere um link único para o dono da barbearia criar sua conta. O link expira em 7 dias.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email (opcional)</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="dono@barbearia.com"
+                      value={emailConvite}
+                      onChange={(e) => setEmailConvite(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Se informado, o email será associado ao convite para referência
+                    </p>
+                  </div>
+
+                  {linkConvite && (
+                    <div className="space-y-2">
+                      <Label>Link de Ativação</Label>
+                      <div className="flex gap-2">
+                        <Input value={linkConvite} readOnly className="font-mono text-xs" />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={copiarLink}
+                        >
+                          {copiado ? (
+                            <Check className="h-4 w-4" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Copie este link e envie para o dono da barbearia
+                      </p>
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={gerarConvite}
+                    disabled={gerandoConvite}
+                    className="w-full"
+                  >
+                    {gerandoConvite ? "Gerando..." : linkConvite ? "Gerar Novo Convite" : "Gerar Convite"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </CardContent>
         </Card>
       </div>

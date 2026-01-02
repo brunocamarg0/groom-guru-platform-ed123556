@@ -60,19 +60,7 @@ import ProdutosEstoque from "./pages/dono/ProdutosEstoque";
 import ComunicacaoNotificacoes from "./pages/dono/ComunicacaoNotificacoes";
 import ConfiguracoesBarbearia from "./pages/dono/ConfiguracoesBarbearia";
 import RelatoriosAvancados from "./pages/dono/RelatoriosAvancados";
-import DonoLayout from "./pages/dono/DonoLayout";
-import DonoDashboard from "./pages/dono/DonoDashboard";
-import AgendaInteligente from "./pages/dono/AgendaInteligente";
-import GestaoServicos from "./pages/dono/GestaoServicos";
-import GestaoProfissionais from "./pages/dono/GestaoProfissionais";
-import GestaoClientes from "./pages/dono/GestaoClientes";
-import FinanceiroPagamentos from "./pages/dono/FinanceiroPagamentos";
-import FidelidadePromocoes from "./pages/dono/FidelidadePromocoes";
-import AvaliacoesReputacao from "./pages/dono/AvaliacoesReputacao";
-import ProdutosEstoque from "./pages/dono/ProdutosEstoque";
-import ComunicacaoNotificacoes from "./pages/dono/ComunicacaoNotificacoes";
-import ConfiguracoesBarbearia from "./pages/dono/ConfiguracoesBarbearia";
-import RelatoriosAvancados from "./pages/dono/RelatoriosAvancados";
+import AtivarConta from "./pages/AtivarConta";
 
 const queryClient = new QueryClient();
 
@@ -97,6 +85,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/ativar-conta" element={<AtivarConta />} />
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminDashboard />} />
               <Route path="barbearias/nova" element={<CadastrarBarbearia />} />

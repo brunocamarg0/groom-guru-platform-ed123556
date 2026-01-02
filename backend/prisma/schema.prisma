@@ -10,20 +10,74 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Usuário Admin do sistema
+model UsuarioAdmin {
+  id        String   @id @default(uuid())
+  nome      String
+  email     String   @unique
+  senha     String
+  role      String   @default("admin") // admin, super_admin
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Barbearia cadastrada no sistema
 model Barbearia {
-  id          String   @id @default(uuid())
+  id                String    @id @default(uuid())
+  nome              String
+  cnpjCpf           String
+  responsavel       String    // Nome do responsável legal
+  plano             String    // basico, premium, enterprise
+  status            String    @default("em_teste") // ativa, em_teste, bloqueada, cancelada
+  dataCriacao       DateTime  @default(now())
+  dataVencimento    DateTime
+  email             String?
+  telefone          String?
+  endereco          String?
+  
+  // Relacionamentos
+  dono              UsuarioDono?  @relation("BarbeariaDono")
+  convites          Convite[]
+  servicos          Servico[]
+  agendamentos      Agendamento[]
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+// Usuário Dono da barbearia (criado via convite)
+model UsuarioDono {
+  id          String     @id @default(uuid())
   nome        String
-  endereco    String
-  telefone    String
-  email       String   @unique
-  senha       String
-  fotoPerfil  String?
-  descricao   String?
-  horarios    String?
-  servicos    String?
-  avaliacao   Float    @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  email       String     @unique
+  senha       String     // Hash da senha
+  ativo       Boolean    @default(true)
+  emailVerificado Boolean @default(false)
+  
+  // Relacionamento com barbearia
+  barbeariaId String     @unique
+  barbearia   Barbearia  @relation("BarbeariaDono", fields: [barbeariaId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+// Convite para ativação de conta do dono
+model Convite {
+  id          String   @id @default(uuid())
+  token       String   @unique // Token único para o link de ativação
+  email       String?   // Email para onde foi enviado (opcional)
+  expiraEm    DateTime  // Data de expiração do convite
+  usado       Boolean   @default(false) // Se já foi usado
+  usadoEm     DateTime?
+  
+  // Relacionamento com barbearia
+  barbeariaId String
+  barbearia   Barbearia @relation(fields: [barbeariaId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 model Servico {
@@ -32,9 +86,13 @@ model Servico {
   descricao   String?
   preco       Float
   duracao     Int      // em minutos
-  barbearia   Barbearia @relation(fields: [barbeariaId], references: [id])
-  barbeariaId String
+  tipo        String?  // corte, barba, combo, etc
   ativo       Boolean  @default(true)
+  ordem       Int      @default(0)
+  
+  barbearia   Barbearia @relation(fields: [barbeariaId], references: [id], onDelete: Cascade)
+  barbeariaId String
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -44,12 +102,15 @@ model Agendamento {
   cliente     String
   telefone    String
   data        DateTime
-  servico     Servico  @relation(fields: [servicoId], references: [id])
-  servicoId   String
-  barbearia   Barbearia @relation(fields: [barbeariaId], references: [id])
-  barbeariaId String
   status      String   @default("pendente") // pendente, confirmado, cancelado, concluido
   observacao  String?
+  
+  servico     Servico  @relation(fields: [servicoId], references: [id], onDelete: Cascade)
+  servicoId   String
+  
+  barbearia   Barbearia @relation(fields: [barbeariaId], references: [id], onDelete: Cascade)
+  barbeariaId String
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
