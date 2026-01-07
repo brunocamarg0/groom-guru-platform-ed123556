@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function ConfiguracoesBarbearia() {
   const { configuracao, atualizarConfiguracao } = useDono();
-  const toast = useToast();
+  const { toast } = useToast();
   const [formData, setFormData] = useState(configuracao);
 
   const handleSubmit = () => {

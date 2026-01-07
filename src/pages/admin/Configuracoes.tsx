@@ -17,7 +17,7 @@ import { useState } from "react";
 
 export default function Configuracoes() {
   const { configuracao, atualizarConfiguracao, alternarModoManutencao } = useConfiguracao();
-  const toast = useToast();
+  const { toast } = useToast();
   const [formData, setFormData] = useState(configuracao);
 
   const handleSalvar = () => {

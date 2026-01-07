@@ -41,7 +41,7 @@ export default function AgendamentoOnline() {
   const { criarAgendamento } = useCliente();
   const { getBarbearia } = useBarbearias();
   const navigate = useNavigate();
-  const toast = useToast();
+  const { toast } = useToast();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<Partial<NovoAgendamento>>({
     barbeariaId: "1",
@@ -122,7 +122,7 @@ export default function AgendamentoOnline() {
             <CardDescription>Selecione o serviço desejado</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {servicos.map((servico) => (
+            {servicosDisponiveis.map((servico) => (
               <div
                 key={servico.id}
                 className={`p-4 border rounded-lg cursor-pointer transition-colors ${
@@ -130,7 +130,7 @@ export default function AgendamentoOnline() {
                     ? "border-primary bg-primary/5"
                     : "hover:bg-accent"
                 }`}
-                onClick={() => setFormData({ ...formData, servico: servico.tipo })}
+                onClick={() => setFormData({ ...formData, servico: servico.tipo as TipoServico })}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">

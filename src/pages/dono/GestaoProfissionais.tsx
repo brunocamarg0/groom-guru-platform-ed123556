@@ -33,7 +33,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function GestaoProfissionais() {
   const { profissionais, adicionarProfissional, atualizarProfissional, removerProfissional } = useDono();
-  const toast = useToast();
+  const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     nome: "",

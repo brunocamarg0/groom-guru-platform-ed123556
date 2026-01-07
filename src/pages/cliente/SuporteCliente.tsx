@@ -37,7 +37,7 @@ const faqs = [
 ];
 
 export default function SuporteCliente() {
-  const toast = useToast();
+  const { toast } = useToast();
   const [mensagem, setMensagem] = useState("");
 
   const handleEnviarMensagem = () => {

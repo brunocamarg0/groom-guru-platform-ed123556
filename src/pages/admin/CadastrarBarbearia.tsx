@@ -26,7 +26,7 @@ import { NovaBarbearia, PlanoContratado } from "@/types/barbearia";
 export default function CadastrarBarbearia() {
   const navigate = useNavigate();
   const { adicionarBarbearia } = useBarbearias();
-  const toast = useToast();
+  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
   const [formData, setFormData] = useState<NovaBarbearia>({

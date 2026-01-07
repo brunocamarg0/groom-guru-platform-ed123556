@@ -57,7 +57,7 @@ export default function DetalhesAssinatura() {
   const { getAssinatura, atualizarStatusAssinatura, trocarPlano, adicionarPagamento, planos } =
     usePlanos();
   const { getBarbearia } = useBarbearias();
-  const toast = useToast();
+  const { toast } = useToast();
   const [isDialogPagamentoOpen, setIsDialogPagamentoOpen] = useState(false);
   const [isDialogTrocaPlanoOpen, setIsDialogTrocaPlanoOpen] = useState(false);
   const [pagamentoData, setPagamentoData] = useState({

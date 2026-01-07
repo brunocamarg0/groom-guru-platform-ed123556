@@ -44,7 +44,7 @@ export default function DetalhesBarbearia() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { getBarbearia } = useBarbearias();
-  const toast = useToast();
+  const { toast } = useToast();
   const [barbearia, setBarbearia] = useState<Barbearia | undefined>();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [emailConvite, setEmailConvite] = useState("");

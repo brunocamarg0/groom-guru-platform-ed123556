@@ -211,8 +211,8 @@ export default function ClienteDashboard() {
 
       {/* Atalhos Rápidos */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="cursor-pointer hover:bg-accent transition-colors" asChild>
-          <Link to="/cliente/agendar">
+        <Link to="/cliente/agendar">
+          <Card className="cursor-pointer hover:bg-accent transition-colors">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Calendar className="h-5 w-5" />
@@ -224,11 +224,11 @@ export default function ClienteDashboard() {
                 Agende seu próximo corte de forma rápida e fácil
               </p>
             </CardContent>
-          </Link>
-        </Card>
+          </Card>
+        </Link>
 
-        <Card className="cursor-pointer hover:bg-accent transition-colors" asChild>
-          <Link to="/cliente/historico">
+        <Link to="/cliente/historico">
+          <Card className="cursor-pointer hover:bg-accent transition-colors">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <History className="h-5 w-5" />
@@ -240,11 +240,11 @@ export default function ClienteDashboard() {
                 Veja todos os seus agendamentos anteriores
               </p>
             </CardContent>
-          </Link>
-        </Card>
+          </Card>
+        </Link>
 
-        <Card className="cursor-pointer hover:bg-accent transition-colors" asChild>
-          <Link to="/cliente/perfil">
+        <Link to="/cliente/perfil">
+          <Card className="cursor-pointer hover:bg-accent transition-colors">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <UserCircle className="h-5 w-5" />
@@ -256,8 +256,8 @@ export default function ClienteDashboard() {
                 Gerencie suas informações pessoais
               </p>
             </CardContent>
-          </Link>
-        </Card>
+          </Card>
+        </Link>
       </div>
 
       {/* Fidelidade */}
