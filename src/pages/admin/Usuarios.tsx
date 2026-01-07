@@ -44,7 +44,7 @@ export default function Usuarios() {
   const { usuarios, adicionarUsuario, resetarSenha, bloquearUsuario, desbloquearUsuario } =
     useUsuarios();
   const { barbearias } = useBarbearias();
-  const toast = useToast();
+  const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState<Partial<NovoUsuario>>({
     barbeariaId: "",

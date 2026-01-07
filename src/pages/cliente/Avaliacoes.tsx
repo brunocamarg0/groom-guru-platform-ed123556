@@ -19,7 +19,7 @@ export default function Avaliacoes() {
   const { agendamentos, criarAvaliacao } = useCliente();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const toast = useToast();
+  const { toast } = useToast();
   const agendamentoId = searchParams.get("agendamento");
 
   const agendamento = agendamentoId

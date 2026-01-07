@@ -29,7 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function Notificacoes() {
   const { notificacoes, templates, criarNotificacao, criarTemplate } = useNotificacoes();
-  const toast = useToast();
+  const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     tipo: "automatica" as TipoNotificacao,

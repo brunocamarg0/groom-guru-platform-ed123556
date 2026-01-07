@@ -38,7 +38,7 @@ const planoConfig: Record<string, string> = {
 
 export default function AdminDashboard() {
   const { barbearias, alterarStatus, suspenderPorInadimplencia } = useBarbearias();
-  const toast = useToast();
+  const { toast } = useToast();
 
   const handleAlterarStatus = (id: string, status: StatusBarbearia) => {
     alterarStatus(id, status);

@@ -42,7 +42,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function Suporte() {
   const { tickets, criarTicket, atualizarTicket } = useSuporte();
-  const toast = useToast();
+  const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     barbeariaId: "",
@@ -67,6 +67,7 @@ export default function Suporte() {
       barbeariaNome: "Barbearia",
       ...formData,
       criadoPor: "Sistema",
+      status: "aberto",
     });
 
     toast({

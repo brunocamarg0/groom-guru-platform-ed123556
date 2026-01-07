@@ -23,7 +23,7 @@ import { Key, Bell, Mail, MessageSquare, Trash2, AlertTriangle } from "lucide-re
 import { useToast } from "@/hooks/use-toast";
 
 export default function ConfiguracoesCliente() {
-  const toast = useToast();
+  const { toast } = useToast();
   const [senhaAtual, setSenhaAtual] = useState("");
   const [novaSenha, setNovaSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
