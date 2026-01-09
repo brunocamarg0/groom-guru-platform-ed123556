@@ -23,7 +23,7 @@ import { TipoServico } from "@/types/cliente";
 
 export default function PerfilCliente() {
   const { cliente, atualizarPerfil } = useCliente();
-  const toast = useToast();
+  const { toast } = useToast();
   const [formData, setFormData] = useState({
     nome: cliente.nome,
     email: cliente.email,

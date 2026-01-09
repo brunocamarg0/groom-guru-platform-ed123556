@@ -23,7 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 export default function Seguranca() {
   const { logsAcesso, acoesCriticas, backups, exportacoesLGPD, criarBackup, solicitarExportacaoLGPD } =
     useSeguranca();
-  const toast = useToast();
+  const { toast } = useToast();
 
   const formatarData = (data: string) => {
     return new Date(data).toLocaleString("pt-BR");

@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Bell, MessageCircle, Mail, Smartphone } from "lucide-react";
 
 export default function ComunicacaoNotificacoes() {

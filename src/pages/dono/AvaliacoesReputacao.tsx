@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Star, MessageSquare } from "lucide-react";
 
 export default function AvaliacoesReputacao() {

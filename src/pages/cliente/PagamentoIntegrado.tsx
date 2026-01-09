@@ -18,7 +18,7 @@ import { MetodoPagamento } from "@/types/cliente";
 
 export default function PagamentoIntegrado() {
   const { agendamentos, realizarPagamento, cliente } = useCliente();
-  const toast = useToast();
+  const { toast } = useToast();
   const [metodoSelecionado, setMetodoSelecionado] = useState<MetodoPagamento>("pix");
   const [cupom, setCupom] = useState("");
 

@@ -63,7 +63,7 @@ export default function ServicosBarbearia() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { getBarbearia, adicionarServico, editarServico, removerServico, toggleServicoAtivo } = useBarbearias();
-  const toast = useToast();
+  const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [servicoEditando, setServicoEditando] = useState<ServicoBarbearia | null>(null);
 

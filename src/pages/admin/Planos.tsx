@@ -47,7 +47,7 @@ const recursosDisponiveis: RecursoPlano[] = [
 
 export default function Planos() {
   const { planos, adicionarPlano, editarPlano, excluirPlano } = usePlanos();
-  const toast = useToast();
+  const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [planoEditando, setPlanoEditando] = useState<Plano | null>(null);
   const [formData, setFormData] = useState<Partial<NovoPlano>>({

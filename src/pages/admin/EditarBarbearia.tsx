@@ -27,7 +27,7 @@ export default function EditarBarbearia() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { getBarbearia, editarBarbearia } = useBarbearias();
-  const toast = useToast();
+  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [barbearia, setBarbearia] = useState<Barbearia | undefined>();
   const [formData, setFormData] = useState<Partial<Barbearia>>({
