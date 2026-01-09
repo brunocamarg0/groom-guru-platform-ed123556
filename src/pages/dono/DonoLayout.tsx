@@ -106,27 +106,27 @@ function DonoLayoutContent() {
   ];
 
   return (
-    <div className={theme === "dark" ? "dark" : "light"}>
+    <div className="light bg-background min-h-screen">
       <SidebarProvider>
-        <Sidebar>
-        <SidebarHeader className="border-b border-sidebar-border">
+        <Sidebar className="bg-card border-r border-border">
+        <SidebarHeader className="border-b border-border bg-card">
           <div className="flex items-center gap-3 px-4 py-3">
             <div className="bg-primary p-2 rounded-full">
               <Building2 className="h-5 w-5 text-primary-foreground" />
             </div>
             <div className="flex flex-col">
-              <span className="font-semibold text-sm text-sidebar-foreground">
+              <span className="font-semibold text-sm text-foreground">
                 Painel do Dono
               </span>
-              <span className="text-xs text-sidebar-foreground/70">
+              <span className="text-xs text-muted-foreground">
                 Gestão Completa
               </span>
             </div>
           </div>
         </SidebarHeader>
-        <SidebarContent>
+        <SidebarContent className="bg-card">
           <SidebarGroup>
-            <SidebarGroupLabel>Menu</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-foreground font-semibold">Menu</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {menuItems.map((item) => (
@@ -134,6 +134,7 @@ function DonoLayoutContent() {
                     <SidebarMenuButton
                       asChild
                       isActive={location.pathname === item.url || location.pathname.startsWith(item.url + "/")}
+                      className="text-foreground hover:bg-muted data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
                     >
                       <Link to={item.url}>
                         <item.icon className="h-4 w-4" />
@@ -151,10 +152,10 @@ function DonoLayoutContent() {
             </SidebarGroupContent>
           </SidebarGroup>
         </SidebarContent>
-        <div className="p-4 border-t border-sidebar-border space-y-2">
+        <div className="p-4 border-t border-border space-y-2 bg-card">
           <Button
             variant="ghost"
-            className="w-full justify-start"
+            className="w-full justify-start text-foreground hover:bg-muted"
             asChild
           >
             <Link to="/login">
@@ -164,13 +165,13 @@ function DonoLayoutContent() {
           </Button>
         </div>
       </Sidebar>
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
+      <SidebarInset className="bg-background">
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border bg-card px-4">
+          <SidebarTrigger className="-ml-1 text-foreground" />
           <Separator orientation="vertical" className="mr-2 h-4" />
-          <h1 className="text-lg font-semibold">Área do Dono</h1>
+          <h1 className="text-lg font-semibold text-foreground">Área do Dono</h1>
         </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">
+        <div className="flex flex-1 flex-col gap-4 p-4 md:p-6 bg-background">
           <Outlet />
         </div>
       </SidebarInset>
