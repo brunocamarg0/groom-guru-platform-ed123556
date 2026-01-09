@@ -109,24 +109,24 @@ function DonoLayoutContent() {
     <div className="light bg-background min-h-screen">
       <SidebarProvider>
         <Sidebar className="bg-card border-r border-border">
-        <SidebarHeader className="border-b border-border bg-card">
+        <SidebarHeader className="border-b border-sidebar-border bg-sidebar">
           <div className="flex items-center gap-3 px-4 py-3">
             <div className="bg-primary p-2 rounded-full">
               <Building2 className="h-5 w-5 text-primary-foreground" />
             </div>
             <div className="flex flex-col">
-              <span className="font-semibold text-sm text-foreground">
+              <span className="font-semibold text-sm text-sidebar-foreground">
                 Painel do Dono
               </span>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-sidebar-foreground/70">
                 Gestão Completa
               </span>
             </div>
           </div>
         </SidebarHeader>
-        <SidebarContent className="bg-card">
+        <SidebarContent className="bg-sidebar">
           <SidebarGroup>
-            <SidebarGroupLabel className="text-foreground font-semibold">Menu</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-sidebar-foreground font-semibold">Menu</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {menuItems.map((item) => (
@@ -134,7 +134,6 @@ function DonoLayoutContent() {
                     <SidebarMenuButton
                       asChild
                       isActive={location.pathname === item.url || location.pathname.startsWith(item.url + "/")}
-                      className="text-foreground hover:bg-muted data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
                     >
                       <Link to={item.url}>
                         <item.icon className="h-4 w-4" />
@@ -152,10 +151,10 @@ function DonoLayoutContent() {
             </SidebarGroupContent>
           </SidebarGroup>
         </SidebarContent>
-        <div className="p-4 border-t border-border space-y-2 bg-card">
+        <div className="p-4 border-t border-sidebar-border space-y-2 bg-sidebar">
           <Button
             variant="ghost"
-            className="w-full justify-start text-foreground hover:bg-muted"
+            className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
             asChild
           >
             <Link to="/login">
