@@ -9,8 +9,6 @@ import { Separator } from "@/components/ui/separator";
 import { Link, useNavigate } from "react-router-dom";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
-
 const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("client");
@@ -78,35 +76,33 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      const endpoint = isRegisterMode ? "/auth/dono/registro" : "/auth/dono/login";
-      const body = isRegisterMode
-        ? { nome: ownerName, email: ownerEmail, senha: ownerPassword, barbeariaId: ownerBarbeariaId }
-        : { email: ownerEmail, senha: ownerPassword };
+      // Verificação local sem API
+      const emailCorreto = 'wesley.teste@hotmail.com';
+      const senhaCorreta = 'teste 123';
 
-      if (isRegisterMode && !ownerBarbeariaId) {
-        throw new Error("ID da barbearia é obrigatório para registro");
+      if (isRegisterMode) {
+        setError("Registro de dono requer criação de barbearia pelo admin primeiro");
+        setIsLoading(false);
+        return;
       }
 
-      const response = await fetch(`${API_URL}/api${endpoint}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Erro ao fazer login");
+      // Verificar credenciais localmente
+      if (ownerEmail !== emailCorreto || ownerPassword !== senhaCorreta) {
+        throw new Error("Email ou senha incorretos");
       }
 
-      // Salvar token
-      if (data.token) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("userType", "dono");
-        localStorage.setItem("userData", JSON.stringify(data.usuario));
-      }
+      // Simular delay de autenticação
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Salvar dados fictícios no localStorage
+      localStorage.setItem("token", "demo-token-dono-wesley");
+      localStorage.setItem("userType", "dono");
+      localStorage.setItem("userData", JSON.stringify({
+        id: "wesley-dono-id",
+        nome: "Wesley",
+        email: emailCorreto,
+        barbeariaId: "wesley-barbearia-id"
+      }));
 
       navigate("/dono", { replace: true });
     } catch (err: any) {
