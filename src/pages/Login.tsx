@@ -15,16 +15,17 @@ const Login = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Implementar autenticação
+    // Autenticação mockada (local) - qualquer email/senha funciona
     setTimeout(() => {
       setIsLoading(false);
       // Redirecionar conforme a aba selecionada (mock)
-      if (activeTab === 'admin') {
+      if (activeTab === 'owner') {
+        navigate('/dono');
+      } else if (activeTab === 'admin') {
         navigate('/admin');
       } else if (activeTab === 'client') {
         navigate('/client');
       }
-      // owner: implementar quando o painel do dono estiver pronto
     }, 1000);
   };
 

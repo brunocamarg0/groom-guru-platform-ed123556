@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { BarbeariasProvider } from "@/context/BarbeariasContext";
 import { ClienteProvider } from "@/context/ClienteContext";
+import { DonoProvider } from "@/context/DonoContext";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
@@ -23,6 +24,19 @@ import Pagamentos from "./pages/client/Pagamentos";
 import PagamentoSucesso from "./pages/client/PagamentoSucesso";
 import PagamentoFalha from "./pages/client/PagamentoFalha";
 import PagamentoPendente from "./pages/client/PagamentoPendente";
+import DonoLayout from "./pages/dono/DonoLayout";
+import DonoDashboard from "./pages/dono/DonoDashboard";
+import AgendaInteligente from "./pages/dono/AgendaInteligente";
+import GestaoServicos from "./pages/dono/GestaoServicos";
+import GestaoProfissionais from "./pages/dono/GestaoProfissionais";
+import GestaoClientes from "./pages/dono/GestaoClientes";
+import FinanceiroPagamentos from "./pages/dono/FinanceiroPagamentos";
+import FidelidadePromocoes from "./pages/dono/FidelidadePromocoes";
+import AvaliacoesReputacao from "./pages/dono/AvaliacoesReputacao";
+import ProdutosEstoque from "./pages/dono/ProdutosEstoque";
+import ComunicacaoNotificacoes from "./pages/dono/ComunicacaoNotificacoes";
+import ConfiguracoesBarbearia from "./pages/dono/ConfiguracoesBarbearia";
+import RelatoriosAvancados from "./pages/dono/RelatoriosAvancados";
 
 const queryClient = new QueryClient();
 
@@ -31,33 +45,52 @@ const App = () => (
     <TooltipProvider>
       <BarbeariasProvider>
         <ClienteProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/admin" element={<AdminLayout />}>
-                <Route index element={<AdminDashboard />} />
-                <Route path="barbearias/nova" element={<CadastrarBarbearia />} />
-                <Route path="barbearias/:id" element={<DetalhesBarbearia />} />
-                <Route path="barbearias/:id/editar" element={<EditarBarbearia />} />
-              </Route>
-              <Route path="/client" element={<ClientLayout />}>
-                <Route index element={<ClientDashboard />} />
-                <Route path="agendar" element={<AgendarServico />} />
-                <Route path="checkout/:id" element={<Checkout />} />
-                <Route path="agendamentos/:id" element={<DetalhesAgendamento />} />
-                <Route path="perfil" element={<Perfil />} />
-                <Route path="pagamentos" element={<Pagamentos />} />
-                <Route path="pagamento/sucesso" element={<PagamentoSucesso />} />
-                <Route path="pagamento/falha" element={<PagamentoFalha />} />
-                <Route path="pagamento/pendente" element={<PagamentoPendente />} />
-              </Route>
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
+          <DonoProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/login" element={<Login />} />
+                {/* Rotas do Admin */}
+                <Route path="/admin" element={<AdminLayout />}>
+                  <Route index element={<AdminDashboard />} />
+                  <Route path="barbearias/nova" element={<CadastrarBarbearia />} />
+                  <Route path="barbearias/:id" element={<DetalhesBarbearia />} />
+                  <Route path="barbearias/:id/editar" element={<EditarBarbearia />} />
+                </Route>
+                {/* Rotas do Cliente */}
+                <Route path="/client" element={<ClientLayout />}>
+                  <Route index element={<ClientDashboard />} />
+                  <Route path="agendar" element={<AgendarServico />} />
+                  <Route path="agendamentos/:id" element={<DetalhesAgendamento />} />
+                  <Route path="agendamentos/:id/checkout" element={<Checkout />} />
+                  <Route path="perfil" element={<Perfil />} />
+                  <Route path="pagamentos" element={<Pagamentos />} />
+                  <Route path="pagamento/sucesso" element={<PagamentoSucesso />} />
+                  <Route path="pagamento/falha" element={<PagamentoFalha />} />
+                  <Route path="pagamento/pendente" element={<PagamentoPendente />} />
+                </Route>
+                {/* Rotas do Dono */}
+                <Route path="/dono" element={<DonoLayout />}>
+                  <Route index element={<DonoDashboard />} />
+                  <Route path="agenda" element={<AgendaInteligente />} />
+                  <Route path="servicos" element={<GestaoServicos />} />
+                  <Route path="profissionais" element={<GestaoProfissionais />} />
+                  <Route path="clientes" element={<GestaoClientes />} />
+                  <Route path="financeiro" element={<FinanceiroPagamentos />} />
+                  <Route path="fidelidade" element={<FidelidadePromocoes />} />
+                  <Route path="avaliacoes" element={<AvaliacoesReputacao />} />
+                  <Route path="produtos" element={<ProdutosEstoque />} />
+                  <Route path="notificacoes" element={<ComunicacaoNotificacoes />} />
+                  <Route path="configuracoes" element={<ConfiguracoesBarbearia />} />
+                  <Route path="relatorios" element={<RelatoriosAvancados />} />
+                </Route>
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </DonoProvider>
         </ClienteProvider>
       </BarbeariasProvider>
     </TooltipProvider>
