@@ -78,12 +78,22 @@ class MercadoPagoService {
       console.log('📦 Itens:', items);
       console.log('👤 Cliente:', customerData.name);
 
+      // Validar valor mínimo do Mercado Pago (R$ 1,00 para alguns métodos)
+      // Para valores muito baixos (< R$ 1,00), ajustar para o mínimo
+      const total = items.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
+      const valorMinimo = 1.0; // R$ 1,00 mínimo do Mercado Pago
+      
+      if (total < valorMinimo) {
+        console.warn(`⚠️ Valor muito baixo (R$ ${total}). Mercado Pago pode exigir mínimo de R$ ${valorMinimo}.`);
+        // Ainda tenta com o valor original, mas avisa
+      }
+
       // Formatar itens para o Mercado Pago
       const mpItems = items.map(item => ({
         id: item.id,
         title: item.title,
         quantity: item.quantity,
-        unit_price: item.unit_price,
+        unit_price: Math.max(item.unit_price, 0.01), // Mínimo de 1 centavo
         currency_id: item.currency_id || 'BRL',
         description: item.description || ''
       }));

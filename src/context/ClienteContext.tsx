@@ -31,13 +31,14 @@ interface ClienteContextType {
 const ClienteContext = createContext<ClienteContextType | undefined>(undefined);
 
 // Mock data para serviços
+// Preços em R$ 0,01 para testes de pagamento
 const servicosMock: Servico[] = [
   {
     id: "1",
     nome: "Corte Masculino",
     descricao: "Corte moderno com acabamento profissional",
     duracao: 30,
-    preco: 35.0,
+    preco: 0.01, // R$ 0,01 para testes
     barbeariaId: "1",
     ativo: true,
   },
@@ -46,7 +47,7 @@ const servicosMock: Servico[] = [
     nome: "Barba Completa",
     descricao: "Aparar, desenhar e modelar barba",
     duracao: 25,
-    preco: 25.0,
+    preco: 0.01, // R$ 0,01 para testes
     barbeariaId: "1",
     ativo: true,
   },
@@ -55,7 +56,7 @@ const servicosMock: Servico[] = [
     nome: "Corte + Barba",
     descricao: "Pacote completo - Corte e barba",
     duracao: 45,
-    preco: 50.0,
+    preco: 0.01, // R$ 0,01 para testes
     barbeariaId: "1",
     ativo: true,
   },
@@ -64,7 +65,7 @@ const servicosMock: Servico[] = [
     nome: "Sobrancelha",
     descricao: "Design e modelagem de sobrancelhas",
     duracao: 15,
-    preco: 15.0,
+    preco: 0.01, // R$ 0,01 para testes
     barbeariaId: "1",
     ativo: true,
   },
@@ -73,7 +74,7 @@ const servicosMock: Servico[] = [
     nome: "Relaxamento Capilar",
     descricao: "Tratamento completo para cabelos",
     duracao: 60,
-    preco: 80.0,
+    preco: 0.01, // R$ 0,01 para testes
     barbeariaId: "1",
     ativo: true,
   },
@@ -124,7 +125,7 @@ const pagamentosMock: Pagamento[] = [
   {
     id: "1",
     agendamentoId: "2",
-    valor: 35.0,
+    valor: 0.01, // R$ 0,01 para testes
     metodo: "cartao_credito",
     status: "aprovado",
     createdAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),

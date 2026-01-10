@@ -22,8 +22,19 @@ export default async function handler(req, res) {
     console.log('💰 Valor:', amount);
     console.log('👤 Cliente:', customerData.name);
 
+    // Validar valor mínimo do Mercado Pago
+    // NOTA: Mercado Pago pode exigir valor mínimo de R$ 1,00 para alguns métodos
+    // Para valores de teste (< R$ 1,00), tentar mesmo assim
+    // Se falhar, ajuste para R$ 1,00 ou mais
+    const valorFinal = Math.max(amount, 0.01); // Mínimo de 1 centavo
+    
+    if (amount < 1.0) {
+      console.warn(`⚠️ Valor baixo detectado (R$ ${amount}). Mercado Pago pode exigir mínimo de R$ 1,00.`);
+      console.warn('💡 Se o pagamento falhar, ajuste os preços dos serviços para R$ 1,00 ou mais.');
+    }
+
     const paymentData = {
-      transaction_amount: amount,
+      transaction_amount: valorFinal,
       description: `Agendamento #${agendamentoId} - BarberPro`,
       payment_method_id: 'pix',
       payer: {
