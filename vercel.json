@@ -1,0 +1,14 @@
+{
+  "functions": {
+    "api/pagamentos/*.js": {
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/pagamentos/:path*",
+      "destination": "/api/pagamentos/:path*"
+    }
+  ]
+}
+

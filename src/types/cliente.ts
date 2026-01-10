@@ -50,10 +50,13 @@ export interface Pagamento {
   valor: number;
   metodo: MetodoPagamento;
   status: StatusPagamento;
-  stripePaymentIntentId?: string; // ID do Stripe
+  mercadoPagoPaymentId?: string; // ID do pagamento no Mercado Pago
+  mercadoPagoPreferenceId?: string; // ID da preferência de pagamento
   pixQrCode?: string; // Para pagamento PIX
+  pixQrCodeBase64?: string; // QR Code PIX em Base64
   pixExpiresAt?: string; // Data de expiração do PIX
   boletoUrl?: string; // URL do boleto
+  checkoutUrl?: string; // URL de checkout do Mercado Pago
   createdAt: string;
   updatedAt: string;
 }

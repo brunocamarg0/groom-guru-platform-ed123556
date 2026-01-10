@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
-import { getStripe, createPaymentIntent } from "@/lib/stripe";
+import { mercadopagoService, PaymentItem, CustomerData } from "@/services/mercadopagoService";
 import { useCliente } from "@/context/ClienteContext";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,185 +18,302 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, CreditCard, Loader2 } from "lucide-react";
+import { ArrowLeft, CreditCard, Loader2, QrCode, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { MetodoPagamento } from "@/types/cliente";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-// Componente do formulário de pagamento com Stripe
+// Componente do formulário de pagamento com Mercado Pago
 function CheckoutForm({ agendamentoId, valor }: { agendamentoId: string; valor: number }) {
-  const stripe = useStripe();
-  const elements = useElements();
   const navigate = useNavigate();
-  const { criarPagamento, atualizarStatusPagamento } = useCliente();
+  const { criarPagamento, atualizarStatusPagamento, getAgendamento, cliente } = useCliente();
   const { toast } = useToast();
 
   const [metodoPagamento, setMetodoPagamento] = useState<MetodoPagamento>("cartao_credito");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [pixQrCode, setPixQrCode] = useState<string | null>(null);
+  const [pixBase64, setPixBase64] = useState<string | null>(null);
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Carregar client secret quando o método for cartão
-    if (metodoPagamento === "cartao_credito" || metodoPagamento === "cartao_debito") {
-      createPaymentIntent(valor, agendamentoId).then((secret) => {
-        setClientSecret(secret);
-      });
-    }
-  }, [metodoPagamento, valor, agendamentoId]);
+  const agendamento = getAgendamento(agendamentoId);
+
+  // Verificar se Mercado Pago está configurado
+  const isConfigured = mercadopagoService.isConfigured();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsProcessing(true);
 
     try {
-      // Para métodos que não são cartão (PIX, Boleto), criar pagamento direto
-      if (metodoPagamento === "pix" || metodoPagamento === "boleto" || metodoPagamento === "dinheiro") {
-        const pagamento = criarPagamento(agendamentoId, valor, metodoPagamento);
-        
-        toast({
-          title: "Pagamento criado",
-          description: metodoPagamento === "pix" 
-            ? "QR Code PIX será gerado em breve" 
-            : metodoPagamento === "boleto"
-            ? "Boleto será gerado em breve"
-            : "Pagamento será processado no estabelecimento",
-        });
-
-        navigate(`/client/agendamentos/${agendamentoId}`);
-        return;
-      }
-
-      // Para pagamento com cartão via Stripe
-      if (!stripe || !elements) {
+      if (!agendamento || !cliente) {
         toast({
           title: "Erro",
-          description: "Stripe não está carregado. Aguarde um momento.",
+          description: "Dados do agendamento ou cliente não encontrados.",
           variant: "destructive",
         });
         setIsProcessing(false);
         return;
       }
 
-      const cardElement = elements.getElement(CardElement);
-      if (!cardElement) {
+      if (!isConfigured) {
         toast({
-          title: "Erro",
-          description: "Elemento de cartão não encontrado.",
+          title: "Mercado Pago não configurado",
+          description: "Configure VITE_MERCADOPAGO_ACCESS_TOKEN nas variáveis de ambiente.",
           variant: "destructive",
         });
         setIsProcessing(false);
         return;
       }
 
-      // Se não temos clientSecret, criar um mock para desenvolvimento
-      if (!clientSecret) {
-        // Em modo de desenvolvimento, simular sucesso
-        toast({
-          title: "Modo de Desenvolvimento",
-          description: "Backend não configurado. Simulando pagamento bem-sucedido.",
-        });
+      // Preparar dados do cliente
+      const customerData: CustomerData = {
+        name: cliente.nome,
+        email: cliente.email,
+        phone: cliente.telefone,
+        address: "", // Pode ser preenchido se disponível
+        city: "",
+        zipCode: "",
+      };
 
-        const pagamento = criarPagamento(agendamentoId, valor, metodoPagamento);
-        atualizarStatusPagamento(pagamento.id, "aprovado");
-
-        setTimeout(() => {
-          navigate(`/client/agendamentos/${agendamentoId}`);
-        }, 1500);
-        setIsProcessing(false);
-        return;
-      }
-
-      // Confirmar pagamento no Stripe
-      const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: {
-          card: cardElement,
-          billing_details: {
-            // Adicionar dados do cliente aqui se necessário
-          },
+      // Preparar itens para pagamento
+      const items: PaymentItem[] = [
+        {
+          id: agendamento.servicoId,
+          title: agendamento.servico.nome,
+          quantity: 1,
+          unit_price: valor,
+          currency_id: "BRL",
+          description: agendamento.servico.descricao,
         },
+      ];
+
+      // Se for PIX, gerar QR Code
+      if (metodoPagamento === "pix") {
+        toast({
+          title: "Gerando QR Code PIX...",
+          description: "Aguarde um momento.",
+        });
+
+        const pixResponse = await mercadopagoService.generatePixPayment(
+          valor,
+          customerData,
+          agendamentoId
+        );
+
+        if (!pixResponse.success || !pixResponse.qrCode) {
+          throw new Error(pixResponse.error || "Erro ao gerar QR Code PIX");
+        }
+
+        // Criar registro de pagamento local
+        const pagamento = criarPagamento(agendamentoId, valor, "pix");
+        pagamento.pixQrCode = pixResponse.qrCode;
+        pagamento.pixExpiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 minutos
+
+        setPixQrCode(pixResponse.qrCode);
+        setPixBase64(pixResponse.qrCodeBase64 || null);
+
+        toast({
+          title: "QR Code PIX gerado!",
+          description: "Escaneie o QR Code para pagar.",
+        });
+
+        setIsProcessing(false);
+        return;
+      }
+
+      // Se for dinheiro, criar registro local
+      if (metodoPagamento === "dinheiro") {
+        criarPagamento(agendamentoId, valor, "dinheiro");
+        toast({
+          title: "Agendamento confirmado",
+          description: "Você pagará em dinheiro no estabelecimento.",
+        });
+        navigate(`/client/agendamentos/${agendamentoId}`);
+        setIsProcessing(false);
+        return;
+      }
+
+      // Para cartão de crédito/débito ou boleto, criar preferência de pagamento
+      toast({
+        title: "Redirecionando para o Mercado Pago...",
+        description: "Você será redirecionado para finalizar o pagamento.",
       });
 
-      if (error) {
-        toast({
-          title: "Erro no pagamento",
-          description: error.message,
-          variant: "destructive",
-        });
-        setIsProcessing(false);
-        return;
+      const paymentResponse = await mercadopagoService.createPaymentPreference(
+        items,
+        customerData,
+        agendamentoId
+      );
+
+      if (!paymentResponse.success || !paymentResponse.initPoint) {
+        throw new Error(paymentResponse.error || "Erro ao criar pagamento");
       }
 
-      if (paymentIntent && paymentIntent.status === "succeeded") {
-        const pagamento = criarPagamento(agendamentoId, valor, metodoPagamento);
-        pagamento.stripePaymentIntentId = paymentIntent.id;
-        atualizarStatusPagamento(pagamento.id, "aprovado");
+      // Criar registro de pagamento local
+      const pagamento = criarPagamento(agendamentoId, valor, metodoPagamento);
+      
+      // Redirecionar para o checkout do Mercado Pago
+      setPaymentUrl(paymentResponse.initPoint);
+      
+      // Redirecionar após um breve delay
+      setTimeout(() => {
+        window.location.href = paymentResponse.initPoint!;
+      }, 1500);
 
-        toast({
-          title: "Pagamento aprovado!",
-          description: "Seu agendamento foi confirmado.",
-        });
-
-        navigate(`/client/agendamentos/${agendamentoId}`);
-      }
     } catch (error) {
+      console.error("Erro ao processar pagamento:", error);
       toast({
         title: "Erro ao processar pagamento",
         description: error instanceof Error ? error.message : "Ocorreu um erro inesperado.",
         variant: "destructive",
       });
-    } finally {
       setIsProcessing(false);
     }
   };
 
-  const cardElementOptions = {
-    style: {
-      base: {
-        fontSize: "16px",
-        color: "#424770",
-        "::placeholder": {
-          color: "#aab7c4",
-        },
-      },
-      invalid: {
-        color: "#9e2146",
-      },
-    },
-  };
+  // Se PIX foi gerado, mostrar QR Code
+  if (pixQrCode) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5" />
+              PIX - Pagamento Instantâneo
+            </CardTitle>
+            <CardDescription>
+              Escaneie o QR Code com o app do seu banco para pagar
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {pixBase64 ? (
+              <div className="flex justify-center">
+                <img
+                  src={`data:image/png;base64,${pixBase64}`}
+                  alt="QR Code PIX"
+                  className="border-2 border-border rounded-lg p-4 bg-white max-w-xs"
+                />
+              </div>
+            ) : (
+              <div className="p-8 border-2 border-dashed border-border rounded-lg text-center">
+                <p className="font-mono text-sm break-all bg-muted p-4 rounded">
+                  {pixQrCode}
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Copie o código acima e cole no app do seu banco
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label>Valor</Label>
+              <p className="text-2xl font-black text-primary">
+                R$ {valor.toFixed(2).replace(".", ",")}
+              </p>
+            </div>
+
+            <div className="flex gap-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setPixQrCode(null);
+                  setPixBase64(null);
+                }}
+                className="flex-1"
+              >
+                Voltar
+              </Button>
+              <Button
+                onClick={() => navigate(`/client/agendamentos/${agendamentoId}`)}
+                className="flex-1"
+              >
+                Ver Agendamento
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Se payment URL foi criada, mostrar mensagem de redirecionamento
+  if (paymentUrl) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+          <div>
+            <h3 className="text-lg font-semibold mb-2">Redirecionando para o Mercado Pago...</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Você será redirecionado em instantes para finalizar o pagamento.
+            </p>
+            <Button
+              onClick={() => (window.location.href = paymentUrl)}
+              className="gap-2"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Ir para o Mercado Pago agora
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {!isConfigured && (
+        <Card className="bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800">
+          <CardContent className="pt-6">
+            <p className="text-sm text-yellow-800 dark:text-yellow-200">
+              ⚠️ <strong>Mercado Pago não configurado:</strong> Configure a variável{" "}
+              <code className="bg-yellow-100 dark:bg-yellow-900 px-1 rounded">
+                VITE_MERCADOPAGO_ACCESS_TOKEN
+              </code>{" "}
+              para ativar pagamentos reais.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="space-y-2">
         <Label htmlFor="metodo">Método de Pagamento *</Label>
         <Select
           value={metodoPagamento}
           onValueChange={(value: MetodoPagamento) => setMetodoPagamento(value)}
-          disabled={isProcessing}
+          disabled={isProcessing || !isConfigured}
         >
           <SelectTrigger id="metodo">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
-            <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
-            <SelectItem value="pix">PIX</SelectItem>
-            <SelectItem value="boleto">Boleto</SelectItem>
+            <SelectItem value="cartao_credito">Cartão de Crédito (Mercado Pago)</SelectItem>
+            <SelectItem value="cartao_debito">Cartão de Débito (Mercado Pago)</SelectItem>
+            <SelectItem value="pix">PIX (Pagamento Instantâneo)</SelectItem>
+            <SelectItem value="boleto">Boleto Bancário (Mercado Pago)</SelectItem>
             <SelectItem value="dinheiro">Dinheiro (no local)</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       {(metodoPagamento === "cartao_credito" || metodoPagamento === "cartao_debito") && (
-        <div className="space-y-2">
-          <Label>Dados do Cartão *</Label>
-          <div className="p-4 border rounded-md bg-background">
-            <CardElement options={cardElementOptions} />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Use 4242 4242 4242 4242 para testes (qualquer data futura, qualquer CVC)
-          </p>
-        </div>
+        <Card className="bg-muted">
+          <CardHeader>
+            <CardTitle className="text-lg">Pagamento com Cartão</CardTitle>
+            <CardDescription>
+              Você será redirecionado para o checkout seguro do Mercado Pago
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li>✅ Pagamento 100% seguro</li>
+              <li>✅ Aceita cartões de crédito e débito</li>
+              <li>✅ Parcelamento em até 12x</li>
+              <li>✅ Confirmação imediata</li>
+            </ul>
+          </CardContent>
+        </Card>
       )}
 
       {metodoPagamento === "pix" && (
@@ -205,9 +321,17 @@ function CheckoutForm({ agendamentoId, valor }: { agendamentoId: string; valor: 
           <CardHeader>
             <CardTitle className="text-lg">Pagamento via PIX</CardTitle>
             <CardDescription>
-              O QR Code será gerado após confirmar o pagamento
+              Um QR Code será gerado para você pagar instantaneamente
             </CardDescription>
           </CardHeader>
+          <CardContent>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li>✅ Pagamento instantâneo</li>
+              <li>✅ Sem taxas para você</li>
+              <li>✅ Confirmação automática</li>
+              <li>✅ QR Code válido por 30 minutos</li>
+            </ul>
+          </CardContent>
         </Card>
       )}
 
@@ -216,9 +340,16 @@ function CheckoutForm({ agendamentoId, valor }: { agendamentoId: string; valor: 
           <CardHeader>
             <CardTitle className="text-lg">Pagamento via Boleto</CardTitle>
             <CardDescription>
-              O boleto será gerado após confirmar o pagamento
+              Um boleto será gerado para você pagar no banco ou app do banco
             </CardDescription>
           </CardHeader>
+          <CardContent>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li>✅ Vencimento em 3 dias úteis</li>
+              <li>✅ Pode ser pago em qualquer banco</li>
+              <li>✅ Confirmação após compensação</li>
+            </ul>
+          </CardContent>
         </Card>
       )}
 
@@ -246,13 +377,18 @@ function CheckoutForm({ agendamentoId, valor }: { agendamentoId: string; valor: 
         <Button
           type="submit"
           variant="hero"
-          disabled={isProcessing || (metodoPagamento.includes("cartao") && !clientSecret)}
+          disabled={isProcessing || !isConfigured}
           className="flex-1"
         >
           {isProcessing ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               Processando...
+            </>
+          ) : metodoPagamento === "pix" ? (
+            <>
+              <QrCode className="h-4 w-4 mr-2" />
+              Gerar QR Code PIX
             </>
           ) : (
             <>
@@ -312,7 +448,6 @@ export default function Checkout() {
   }
 
   const valor = agendamento.servico.preco;
-  const stripePromise = getStripe();
 
   return (
     <div className="space-y-6">
@@ -393,13 +528,10 @@ export default function Checkout() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Elements stripe={stripePromise}>
-              <CheckoutForm agendamentoId={agendamento.id} valor={valor} />
-            </Elements>
+            <CheckoutForm agendamentoId={agendamento.id} valor={valor} />
           </CardContent>
         </Card>
       </div>
     </div>
   );
 }
-

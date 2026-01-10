@@ -20,6 +20,9 @@ import Checkout from "./pages/client/Checkout";
 import DetalhesAgendamento from "./pages/client/DetalhesAgendamento";
 import Perfil from "./pages/client/Perfil";
 import Pagamentos from "./pages/client/Pagamentos";
+import PagamentoSucesso from "./pages/client/PagamentoSucesso";
+import PagamentoFalha from "./pages/client/PagamentoFalha";
+import PagamentoPendente from "./pages/client/PagamentoPendente";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +50,9 @@ const App = () => (
                 <Route path="agendamentos/:id" element={<DetalhesAgendamento />} />
                 <Route path="perfil" element={<Perfil />} />
                 <Route path="pagamentos" element={<Pagamentos />} />
+                <Route path="pagamento/sucesso" element={<PagamentoSucesso />} />
+                <Route path="pagamento/falha" element={<PagamentoFalha />} />
+                <Route path="pagamento/pendente" element={<PagamentoPendente />} />
               </Route>
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
