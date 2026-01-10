@@ -63,6 +63,7 @@ class MercadoPagoService {
   }
 
   // Criar preferência de pagamento (para checkout redirect)
+  // Usa endpoint serverless para evitar problemas de CORS e segurança
   async createPaymentPreference(
     items: PaymentItem[],
     customerData: CustomerData,
@@ -79,93 +80,59 @@ class MercadoPagoService {
       console.log('👤 Cliente:', customerData.name);
 
       // Validar valor mínimo do Mercado Pago (R$ 1,00 para alguns métodos)
-      // Para valores muito baixos (< R$ 1,00), ajustar para o mínimo
       const total = items.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
-      const valorMinimo = 1.0; // R$ 1,00 mínimo do Mercado Pago
+      const valorMinimo = 1.0;
       
       if (total < valorMinimo) {
         console.warn(`⚠️ Valor muito baixo (R$ ${total}). Mercado Pago pode exigir mínimo de R$ ${valorMinimo}.`);
-        // Ainda tenta com o valor original, mas avisa
       }
 
-      // Formatar itens para o Mercado Pago
-      const mpItems = items.map(item => ({
-        id: item.id,
-        title: item.title,
-        quantity: item.quantity,
-        unit_price: Math.max(item.unit_price, 0.01), // Mínimo de 1 centavo
-        currency_id: item.currency_id || 'BRL',
-        description: item.description || ''
-      }));
-
-      // URLs de retorno
-      const backUrls = {
-        success: `${baseUrl}/client/pagamento/sucesso?agendamento=${agendamentoId}`,
-        failure: `${baseUrl}/client/pagamento/falha?agendamento=${agendamentoId}`,
-        pending: `${baseUrl}/client/pagamento/pendente?agendamento=${agendamentoId}`
-      };
-
-      // Dados da preferência
-      const preferenceData = {
-        items: mpItems,
-        payer: {
-          name: customerData.name,
-          email: customerData.email,
-          ...(customerData.phone && {
-            phone: {
-              number: customerData.phone.replace(/\D/g, '')
-            }
-          }),
-          ...(customerData.address && {
-            address: {
-              street_name: customerData.address,
-              zip_code: customerData.zipCode?.replace(/\D/g, ''),
-              city: customerData.city
-            }
-          })
-        },
-        back_urls: backUrls,
-        auto_return: 'approved',
-        external_reference: agendamentoId,
-        notification_url: `${baseUrl}/api/pagamentos/webhook`,
-        statement_descriptor: 'BARBERPRO',
-        expires: true,
-        expiration_date_to: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 minutos
-        payment_methods: {
-          excluded_payment_types: [], // Permitir todos os métodos (cartão, PIX, boleto)
-          installments: 12 // Permitir até 12x
-        }
-      };
-
-      console.log('📋 Dados da preferência:', preferenceData);
-
-      // Fazer requisição para o Mercado Pago
-      const response = await fetch(`${this.BASE_URL}/checkout/preferences`, {
+      // Chamar endpoint serverless ao invés de fazer requisição direta do frontend
+      // Isso evita problemas de CORS e mantém o token seguro no backend
+      const apiUrl = import.meta.env.PROD 
+        ? '/api/pagamentos/preference'
+        : '/api/pagamentos/preference';
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.ACCESS_TOKEN}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(preferenceData)
+        body: JSON.stringify({
+          items,
+          customerData,
+          agendamentoId
+        })
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('❌ Erro do Mercado Pago:', errorData);
-        throw new Error(errorData.message || 'Erro ao criar preferência de pagamento');
+        console.error('❌ Erro ao criar preferência:', errorData);
+        
+        // Mensagem de erro mais clara
+        let errorMessage = 'Erro ao criar preferência de pagamento';
+        if (response.status === 401) {
+          errorMessage = 'Token do Mercado Pago inválido ou não autorizado. Verifique as credenciais configuradas no Vercel.';
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        } else if (errorData.details?.message) {
+          errorMessage = errorData.details.message;
+        }
+        
+        throw new Error(errorMessage);
       }
 
       const preference = await response.json();
       
       console.log('✅ Preferência criada com sucesso!');
-      console.log('🔗 Init Point:', preference.init_point);
-      console.log('🆔 Preference ID:', preference.id);
+      console.log('🔗 Init Point:', preference.initPoint);
+      console.log('🆔 Payment ID:', preference.paymentId);
 
       return {
         success: true,
-        paymentId: preference.id,
-        initPoint: preference.init_point,
-        sandboxInitPoint: preference.sandbox_init_point
+        paymentId: preference.paymentId,
+        initPoint: preference.initPoint,
+        sandboxInitPoint: preference.sandboxInitPoint
       };
 
     } catch (error) {
