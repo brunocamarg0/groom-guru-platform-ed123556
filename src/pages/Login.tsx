@@ -18,10 +18,13 @@ const Login = () => {
     // Implementar autenticação
     setTimeout(() => {
       setIsLoading(false);
-      // Redirecionar para admin após login (mock)
+      // Redirecionar conforme a aba selecionada (mock)
       if (activeTab === 'admin') {
         navigate('/admin');
+      } else if (activeTab === 'client') {
+        navigate('/client');
       }
+      // owner: implementar quando o painel do dono estiver pronto
     }, 1000);
   };
 
