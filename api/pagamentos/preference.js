@@ -146,7 +146,8 @@ export default async function handler(req, res) {
 
     const responseText = await response.text();
     console.log('📥 Status da resposta:', response.status);
-    console.log('📥 Resposta do Mercado Pago:', responseText.substring(0, 500));
+    console.log('📥 Resposta completa do Mercado Pago:', responseText);
+    console.log('🔑 Token usado (primeiros 20 chars):', ACCESS_TOKEN.substring(0, 20) + '...');
 
     if (!response.ok) {
       let errorData;
@@ -156,21 +157,49 @@ export default async function handler(req, res) {
         errorData = { message: responseText };
       }
       
-      console.error('❌ Erro do Mercado Pago:', errorData);
+      console.error('❌ Erro do Mercado Pago:', JSON.stringify(errorData, null, 2));
       
       // Tratar erros específicos
-      if (response.status === 401) {
+      if (response.status === 401 || response.status === 403) {
+        // Verificar se o token está presente mas inválido
+        const errorMessage = errorData.message || errorData.error || 'Unauthorized';
+        
         return res.status(401).json({ 
           success: false, 
           error: 'Token do Mercado Pago inválido ou não autorizado. Verifique as credenciais.',
-          details: errorData.message || 'Unauthorized'
+          details: {
+            status: response.status,
+            message: errorMessage,
+            full_error: errorData,
+            token_prefix: ACCESS_TOKEN.substring(0, 15) + '...',
+            token_length: ACCESS_TOKEN.length,
+            possible_causes: [
+              'Token incorreto ou copiado errado',
+              'Token expirado ou regenerado no Mercado Pago',
+              'Token não tem permissões para criar preferências de pagamento',
+              'Token de TESTE pode estar sendo usado incorretamente'
+            ],
+            instructions: [
+              '1. Acesse: https://www.mercadopago.com.br/developers/panel/credentials',
+              '2. Selecione a aplicação "Barber Payments"',
+              '3. Copie o Access Token novamente (pode ter sido regenerado)',
+              '4. Atualize no Vercel: Settings → Environment Variables',
+              '5. Faça um novo Redeploy',
+              '6. Verifique se o token é de TESTE: deve começar com "TEST-"'
+            ]
+          }
         });
       }
       
+      // Erro genérico
       return res.status(response.status).json({ 
         success: false, 
         error: errorData.message || errorData.error || 'Erro ao criar preferência de pagamento',
-        details: errorData
+        details: {
+          status: response.status,
+          full_error: errorData,
+          response_text: responseText.substring(0, 500)
+        }
       });
     }
 
