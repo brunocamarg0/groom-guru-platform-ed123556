@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import {
   KPI,
   AgendamentoDono,
@@ -12,6 +12,9 @@ import {
   ConfiguracaoBarbearia,
   RelatorioDono,
 } from "@/types/dono";
+import { apiGet, apiPost, apiPut, apiDelete } from "@/services/api";
+import { useBarbearias } from "@/context/BarbeariasContext";
+import { toast } from "sonner";
 
 interface DonoContextType {
   // Dados
@@ -27,18 +30,18 @@ interface DonoContextType {
   configuracao: ConfiguracaoBarbearia;
   
   // Funções
-  criarAgendamento: (agendamento: Omit<AgendamentoDono, "id" | "dataCriacao">) => void;
-  atualizarAgendamento: (id: string, dados: Partial<AgendamentoDono>) => void;
-  cancelarAgendamento: (id: string) => void;
+  criarAgendamento: (agendamento: Omit<AgendamentoDono, "id" | "dataCriacao">) => Promise<void>;
+  atualizarAgendamento: (id: string, dados: Partial<AgendamentoDono>) => Promise<void>;
+  cancelarAgendamento: (id: string) => Promise<void>;
   confirmarAgendamento: (id: string) => Promise<void>;
   recusarAgendamento: (id: string, motivo?: string) => Promise<void>;
   
-  adicionarProfissional: (profissional: Omit<ProfissionalDono, "id" | "dataAdmissao" | "avaliacaoMedia" | "totalAvaliacoes" | "faturamentoTotal" | "faltas">) => void;
-  atualizarProfissional: (id: string, dados: Partial<ProfissionalDono>) => void;
-  removerProfissional: (id: string) => void;
+  adicionarProfissional: (profissional: Omit<ProfissionalDono, "id" | "dataAdmissao" | "avaliacaoMedia" | "totalAvaliacoes" | "faturamentoTotal" | "faltas">) => Promise<void>;
+  atualizarProfissional: (id: string, dados: Partial<ProfissionalDono>) => Promise<void>;
+  removerProfissional: (id: string) => Promise<void>;
   
-  adicionarCliente: (cliente: Omit<ClienteDono, "id" | "dataCadastro" | "totalAgendamentos" | "ticketMedio" | "frequencia">) => void;
-  atualizarCliente: (id: string, dados: Partial<ClienteDono>) => void;
+  adicionarCliente: (cliente: Omit<ClienteDono, "id" | "dataCadastro" | "totalAgendamentos" | "ticketMedio" | "frequencia">) => Promise<void>;
+  atualizarCliente: (id: string, dados: Partial<ClienteDono>) => Promise<void>;
   marcarClienteVIP: (id: string, vip: boolean) => void;
   
   registrarPagamento: (pagamento: Omit<PagamentoDono, "id">) => void;
@@ -188,129 +191,297 @@ const configuracaoInicial: ConfiguracaoBarbearia = {
 };
 
 export function DonoProvider({ children }: { children: ReactNode }) {
+  const { barbearias } = useBarbearias();
+  const barbearia = barbearias[0]; // Assumindo que o dono tem acesso à primeira barbearia
+  const barbeariaId = barbearia?.id;
+
   const [kpi, setKpi] = useState<KPI>(kpiInicial);
-  const [agendamentos, setAgendamentos] = useState<AgendamentoDono[]>(agendamentosIniciais);
-  const [profissionais, setProfissionais] = useState<ProfissionalDono[]>(profissionaisIniciais);
-  const [clientes, setClientes] = useState<ClienteDono[]>(clientesIniciais);
+  const [agendamentos, setAgendamentos] = useState<AgendamentoDono[]>([]);
+  const [profissionais, setProfissionais] = useState<ProfissionalDono[]>([]);
+  const [clientes, setClientes] = useState<ClienteDono[]>([]);
   const [pagamentos, setPagamentos] = useState<PagamentoDono[]>([]);
   const [promocoes, setPromocoes] = useState<PromocaoDono[]>([]);
   const [avaliacoes, setAvaliacoes] = useState<AvaliacaoDono[]>([]);
-  const [produtos, setProdutos] = useState<ProdutoDono[]>(produtosIniciais);
+  const [produtos, setProdutos] = useState<ProdutoDono[]>([]);
   const [notificacoes, setNotificacoes] = useState<NotificacaoDono[]>([]);
   const [configuracao, setConfiguracao] = useState<ConfiguracaoBarbearia>(configuracaoInicial);
+  const [loading, setLoading] = useState(true);
+
+  // Carregar dados da API quando o componente montar ou barbeariaId mudar
+  useEffect(() => {
+    if (barbeariaId) {
+      carregarDados();
+    }
+  }, [barbeariaId]);
+
+  const carregarDados = async () => {
+    if (!barbeariaId) return;
+
+    setLoading(true);
+    try {
+      // Carregar dados em paralelo
+      const [kpisData, agendamentosData, profissionaisData, clientesData] = await Promise.all([
+        apiGet<KPI>('/dono/dashboard/kpis').catch(() => kpiInicial),
+        apiGet<any[]>(`/agendamentos/barbearia/${barbeariaId}`).catch(() => []),
+        apiGet<any[]>('/dono/profissionais').catch(() => []),
+        apiGet<any[]>('/dono/clientes').catch(() => []),
+      ]);
+
+      // Atualizar KPIs
+      if (kpisData) {
+        setKpi({
+          faturamentoHoje: kpisData.faturamentoMes || 0, // Ajustar conforme necessário
+          faturamentoSemana: kpisData.faturamentoMes || 0,
+          faturamentoMes: kpisData.faturamentoMes || 0,
+          agendamentosHoje: kpisData.agendamentosHoje || 0,
+          cancelamentos: 0, // Calcular se necessário
+          clientesRecorrentes: kpisData.totalClientes || 0,
+          notaMedia: 0, // Calcular se necessário
+        });
+      }
+
+      // Transformar agendamentos da API para o formato do frontend
+      const agendamentosTransformados: AgendamentoDono[] = agendamentosData.map((ag: any) => ({
+        id: ag.id,
+        clienteId: ag.clienteId || '',
+        clienteNome: ag.clienteRel?.nome || ag.cliente || 'Cliente não cadastrado',
+        clienteTelefone: ag.clienteRel?.telefone || ag.telefone,
+        profissionalId: ag.profissionais?.[0]?.profissionalId || '',
+        profissionalNome: ag.profissionais?.[0]?.profissional?.nome || 'Não atribuído',
+        servicoId: ag.servicoId,
+        servicoNome: ag.servico?.nome || '',
+        data: ag.data.split('T')[0],
+        horario: ag.horario || new Date(ag.data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        duracao: ag.servico?.duracao || 40,
+        valor: ag.servico?.preco || 0,
+        status: ag.status,
+        observacoes: ag.observacao,
+        dataCriacao: ag.createdAt,
+      }));
+
+      setAgendamentos(agendamentosTransformados);
+
+      // Transformar profissionais da API
+      const profissionaisTransformados: ProfissionalDono[] = profissionaisData.map((prof: any) => ({
+        id: prof.id,
+        nome: prof.nome,
+        email: prof.email,
+        telefone: prof.telefone,
+        foto: prof.foto,
+        especialidades: prof.especialidades || [],
+        comissao: {
+          tipo: prof.comissaoTipo || 'percentual',
+          valor: prof.comissaoValor || 0,
+        },
+        ativo: prof.ativo,
+        dataAdmissao: prof.dataAdmissao.split('T')[0],
+        avaliacaoMedia: 0, // Calcular se necessário
+        totalAvaliacoes: 0,
+        faturamentoTotal: 0,
+        faltas: 0,
+      }));
+
+      setProfissionais(profissionaisTransformados);
+
+      // Transformar clientes da API
+      const clientesTransformados: ClienteDono[] = clientesData.map((cli: any) => ({
+        id: cli.id,
+        nome: cli.nome,
+        email: cli.email,
+        telefone: cli.telefone || '',
+        foto: cli.foto,
+        dataNascimento: cli.dataNascimento?.split('T')[0],
+        vip: false, // Adicionar campo no backend se necessário
+        totalAgendamentos: cli._count?.agendamentos || 0,
+        ultimoAgendamento: undefined, // Calcular se necessário
+        ticketMedio: 0, // Calcular se necessário
+        frequencia: 0, // Calcular se necessário
+        dataCadastro: cli.createdAt.split('T')[0],
+      }));
+
+      setClientes(clientesTransformados);
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
+      toast.error('Erro ao carregar dados do painel');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Funções de agendamento
-  const criarAgendamento = (agendamento: Omit<AgendamentoDono, "id" | "dataCriacao">) => {
-    const novo: AgendamentoDono = {
-      id: Date.now().toString(),
-      ...agendamento,
-      dataCriacao: new Date().toISOString(),
-    };
-    setAgendamentos([...agendamentos, novo]);
+  const criarAgendamento = async (agendamento: Omit<AgendamentoDono, "id" | "dataCriacao">) => {
+    if (!barbeariaId) {
+      toast.error('Barbearia não identificada');
+      return;
+    }
+
+    try {
+      // Combinar data e horário
+      const dataHora = new Date(`${agendamento.data}T${agendamento.horario}`);
+      
+      const novoAgendamento = await apiPost<any>('/agendamentos', {
+        barbeariaId,
+        clienteId: agendamento.clienteId || null,
+        servicoId: agendamento.servicoId,
+        profissionalId: agendamento.profissionalId || null,
+        cliente: agendamento.clienteNome,
+        telefone: agendamento.clienteTelefone || '',
+        data: dataHora.toISOString(),
+        horario: agendamento.horario,
+        observacao: agendamento.observacoes || null,
+      });
+
+      // Recarregar agendamentos
+      await carregarDados();
+      toast.success('Agendamento criado com sucesso!');
+    } catch (error: any) {
+      console.error('Erro ao criar agendamento:', error);
+      toast.error(error.message || 'Erro ao criar agendamento');
+      throw error;
+    }
   };
 
-  const atualizarAgendamento = (id: string, dados: Partial<AgendamentoDono>) => {
-    setAgendamentos(agendamentos.map((a) => (a.id === id ? { ...a, ...dados } : a)));
+  const atualizarAgendamento = async (id: string, dados: Partial<AgendamentoDono>) => {
+    try {
+      // Se precisar atualizar via API, adicionar endpoint
+      setAgendamentos(agendamentos.map((a) => (a.id === id ? { ...a, ...dados } : a)));
+    } catch (error) {
+      console.error('Erro ao atualizar agendamento:', error);
+      toast.error('Erro ao atualizar agendamento');
+    }
   };
 
-  const cancelarAgendamento = (id: string) => {
-    atualizarAgendamento(id, { status: "cancelado" });
+  const cancelarAgendamento = async (id: string) => {
+    try {
+      await apiPut(`/agendamentos/${id}/cancelar`, {});
+      await carregarDados();
+      toast.success('Agendamento cancelado');
+    } catch (error: any) {
+      console.error('Erro ao cancelar agendamento:', error);
+      toast.error(error.message || 'Erro ao cancelar agendamento');
+    }
   };
 
   const confirmarAgendamento = async (id: string) => {
     try {
-      const token = localStorage.getItem('token');
-      const apiUrl = import.meta.env.VITE_API_URL || '/api';
-      
-      const response = await fetch(`${apiUrl}/agendamentos/${id}/confirmar`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Erro ao confirmar agendamento');
-      }
-
-      const data = await response.json();
-      atualizarAgendamento(id, { status: "confirmado" });
-    } catch (error) {
+      await apiPut(`/agendamentos/${id}/confirmar`, {});
+      await carregarDados();
+      toast.success('Agendamento confirmado!');
+    } catch (error: any) {
       console.error('Erro ao confirmar agendamento:', error);
+      toast.error(error.message || 'Erro ao confirmar agendamento');
       throw error;
     }
   };
 
   const recusarAgendamento = async (id: string, motivo?: string) => {
     try {
-      const token = localStorage.getItem('token');
-      const apiUrl = import.meta.env.VITE_API_URL || '/api';
-      
-      const response = await fetch(`${apiUrl}/agendamentos/${id}/recusar`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ motivo }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Erro ao recusar agendamento');
-      }
-
-      const data = await response.json();
-      atualizarAgendamento(id, { status: "recusado" });
-    } catch (error) {
+      await apiPut(`/agendamentos/${id}/recusar`, { motivo });
+      await carregarDados();
+      toast.success('Agendamento recusado');
+    } catch (error: any) {
       console.error('Erro ao recusar agendamento:', error);
+      toast.error(error.message || 'Erro ao recusar agendamento');
       throw error;
     }
   };
 
   // Funções de profissional
-  const adicionarProfissional = (profissional: Omit<ProfissionalDono, "id" | "dataAdmissao" | "avaliacaoMedia" | "totalAvaliacoes" | "faturamentoTotal" | "faltas">) => {
-    const novo: ProfissionalDono = {
-      id: Date.now().toString(),
-      ...profissional,
-      dataAdmissao: new Date().toISOString().split("T")[0],
-      avaliacaoMedia: 0,
-      totalAvaliacoes: 0,
-      faturamentoTotal: 0,
-      faltas: 0,
-    };
-    setProfissionais([...profissionais, novo]);
+  const adicionarProfissional = async (profissional: Omit<ProfissionalDono, "id" | "dataAdmissao" | "avaliacaoMedia" | "totalAvaliacoes" | "faturamentoTotal" | "faltas">) => {
+    try {
+      await apiPost('/dono/profissionais', {
+        nome: profissional.nome,
+        email: profissional.email,
+        telefone: profissional.telefone,
+        foto: profissional.foto,
+        especialidades: profissional.especialidades,
+        comissaoTipo: profissional.comissao.tipo,
+        comissaoValor: profissional.comissao.valor,
+      });
+      await carregarDados();
+      toast.success('Profissional adicionado com sucesso!');
+    } catch (error: any) {
+      console.error('Erro ao adicionar profissional:', error);
+      toast.error(error.message || 'Erro ao adicionar profissional');
+      throw error;
+    }
   };
 
-  const atualizarProfissional = (id: string, dados: Partial<ProfissionalDono>) => {
-    setProfissionais(profissionais.map((p) => (p.id === id ? { ...p, ...dados } : p)));
+  const atualizarProfissional = async (id: string, dados: Partial<ProfissionalDono>) => {
+    try {
+      const updateData: any = {};
+      if (dados.nome) updateData.nome = dados.nome;
+      if (dados.email !== undefined) updateData.email = dados.email;
+      if (dados.telefone) updateData.telefone = dados.telefone;
+      if (dados.foto !== undefined) updateData.foto = dados.foto;
+      if (dados.especialidades) updateData.especialidades = dados.especialidades;
+      if (dados.comissao) {
+        updateData.comissaoTipo = dados.comissao.tipo;
+        updateData.comissaoValor = dados.comissao.valor;
+      }
+      if (dados.ativo !== undefined) updateData.ativo = dados.ativo;
+
+      await apiPut(`/dono/profissionais/${id}`, updateData);
+      await carregarDados();
+      toast.success('Profissional atualizado!');
+    } catch (error: any) {
+      console.error('Erro ao atualizar profissional:', error);
+      toast.error(error.message || 'Erro ao atualizar profissional');
+    }
   };
 
-  const removerProfissional = (id: string) => {
-    setProfissionais(profissionais.filter((p) => p.id !== id));
+  const removerProfissional = async (id: string) => {
+    try {
+      await apiDelete(`/dono/profissionais/${id}`);
+      await carregarDados();
+      toast.success('Profissional removido');
+    } catch (error: any) {
+      console.error('Erro ao remover profissional:', error);
+      toast.error(error.message || 'Erro ao remover profissional');
+    }
   };
 
   // Funções de cliente
-  const adicionarCliente = (cliente: Omit<ClienteDono, "id" | "dataCadastro" | "totalAgendamentos" | "ticketMedio" | "frequencia">) => {
-    const novo: ClienteDono = {
-      id: Date.now().toString(),
-      ...cliente,
-      dataCadastro: new Date().toISOString().split("T")[0],
-      totalAgendamentos: 0,
-      ticketMedio: 0,
-      frequencia: 0,
-    };
-    setClientes([...clientes, novo]);
+  const adicionarCliente = async (cliente: Omit<ClienteDono, "id" | "dataCadastro" | "totalAgendamentos" | "ticketMedio" | "frequencia">) => {
+    try {
+      await apiPost('/dono/clientes', {
+        nome: cliente.nome,
+        email: cliente.email,
+        telefone: cliente.telefone,
+        foto: cliente.foto,
+        dataNascimento: cliente.dataNascimento,
+      });
+      await carregarDados();
+      toast.success('Cliente adicionado com sucesso!');
+    } catch (error: any) {
+      console.error('Erro ao adicionar cliente:', error);
+      toast.error(error.message || 'Erro ao adicionar cliente');
+      throw error;
+    }
   };
 
-  const atualizarCliente = (id: string, dados: Partial<ClienteDono>) => {
-    setClientes(clientes.map((c) => (c.id === id ? { ...c, ...dados } : c)));
+  const atualizarCliente = async (id: string, dados: Partial<ClienteDono>) => {
+    try {
+      const updateData: any = {};
+      if (dados.nome) updateData.nome = dados.nome;
+      if (dados.email) updateData.email = dados.email;
+      if (dados.telefone) updateData.telefone = dados.telefone;
+      if (dados.foto !== undefined) updateData.foto = dados.foto;
+      if (dados.dataNascimento) updateData.dataNascimento = dados.dataNascimento;
+      if (dados.ativo !== undefined) updateData.ativo = dados.ativo;
+
+      await apiPut(`/dono/clientes/${id}`, updateData);
+      await carregarDados();
+      toast.success('Cliente atualizado!');
+    } catch (error: any) {
+      console.error('Erro ao atualizar cliente:', error);
+      toast.error(error.message || 'Erro ao atualizar cliente');
+    }
   };
 
-  const marcarClienteVIP = (id: string, vip: boolean) => {
-    atualizarCliente(id, { vip });
+  const marcarClienteVIP = async (id: string, vip: boolean) => {
+    // Implementar quando o backend tiver suporte a VIP
+    toast.info('Funcionalidade VIP em desenvolvimento');
   };
 
   // Funções de pagamento

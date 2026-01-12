@@ -240,7 +240,7 @@ export default function AgendaInteligente() {
     }
   };
 
-  const handleCriarAgendamento = () => {
+  const handleCriarAgendamento = async () => {
     // Validação
     if (!formNovoAgendamento.clienteId) {
       toast({
@@ -304,41 +304,46 @@ export default function AgendaInteligente() {
       return;
     }
 
-    // Criar agendamento
-    criarAgendamento({
-      clienteId: cliente.id,
-      clienteNome: cliente.nome,
-      clienteTelefone: cliente.telefone,
-      profissionalId: profissional.id,
-      profissionalNome: profissional.nome,
-      servicoId: servico.id,
-      servicoNome: servico.nome,
-      data: formNovoAgendamento.data,
-      horario: formNovoAgendamento.horario,
-      duracao: servico.duracao,
-      valor: servico.valor,
-      status: "confirmado", // Novo agendamento criado pelo dono é confirmado automaticamente
-      observacoes: formNovoAgendamento.observacoes || undefined,
-    });
+    try {
+      // Criar agendamento
+      await criarAgendamento({
+        clienteId: cliente.id,
+        clienteNome: cliente.nome,
+        clienteTelefone: cliente.telefone,
+        profissionalId: profissional.id,
+        profissionalNome: profissional.nome,
+        servicoId: servico.id,
+        servicoNome: servico.nome,
+        data: formNovoAgendamento.data,
+        horario: formNovoAgendamento.horario,
+        duracao: servico.duracao,
+        valor: servico.valor,
+        status: "confirmado", // Novo agendamento criado pelo dono é confirmado automaticamente
+        observacoes: formNovoAgendamento.observacoes || undefined,
+      });
 
-    toast({
-      title: "Agendamento criado!",
-      description: `Agendamento para ${cliente.nome} foi criado com sucesso.`,
-    });
+      toast({
+        title: "Agendamento criado!",
+        description: `Agendamento para ${cliente.nome} foi criado com sucesso.`,
+      });
 
-    // Limpar formulário e fechar modal
-    setFormNovoAgendamento({
-      clienteId: "",
-      profissionalId: "",
-      servicoId: "",
-      data: format(new Date(), "yyyy-MM-dd"),
-      horario: "",
-      observacoes: "",
-    });
-    setModalNovoAgendamento(false);
-    
-    // Atualizar data selecionada para a data do novo agendamento
-    setDataSelecionada(new Date(formNovoAgendamento.data));
+      // Limpar formulário e fechar modal
+      setFormNovoAgendamento({
+        clienteId: "",
+        profissionalId: "",
+        servicoId: "",
+        data: format(new Date(), "yyyy-MM-dd"),
+        horario: "",
+        observacoes: "",
+      });
+      setModalNovoAgendamento(false);
+      
+      // Atualizar data selecionada para a data do novo agendamento
+      setDataSelecionada(new Date(formNovoAgendamento.data));
+    } catch (error) {
+      // Erro já foi tratado no DonoContext com toast
+      console.error('Erro ao criar agendamento:', error);
+    }
   };
 
   // Agendamentos do dia selecionado
