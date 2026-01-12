@@ -49,7 +49,7 @@ import ConfiguracoesCliente from "./pages/cliente/ConfiguracoesCliente";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import DonoLayout from "./pages/dono/DonoLayout";
 import DonoDashboard from "./pages/dono/DonoDashboard";
-import AgendaInteligente from "./pages/dono/AgendaInteligente";
+import Agenda from "./pages/dono/Agenda";
 import GestaoServicos from "./pages/dono/GestaoServicos";
 import GestaoProfissionais from "./pages/dono/GestaoProfissionais";
 import GestaoClientes from "./pages/dono/GestaoClientes";
@@ -132,7 +132,7 @@ const App = () => (
               </ErrorBoundary>
             }>
               <Route index element={<ErrorBoundary><DonoDashboard /></ErrorBoundary>} />
-              <Route path="agenda" element={<ErrorBoundary><AgendaInteligente /></ErrorBoundary>} />
+              <Route path="agenda" element={<ErrorBoundary><Agenda /></ErrorBoundary>} />
               <Route path="servicos" element={<ErrorBoundary><GestaoServicos /></ErrorBoundary>} />
               <Route path="profissionais" element={<ErrorBoundary><GestaoProfissionais /></ErrorBoundary>} />
               <Route path="clientes" element={<ErrorBoundary><GestaoClientes /></ErrorBoundary>} />

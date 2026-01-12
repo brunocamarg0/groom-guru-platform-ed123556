@@ -9,14 +9,31 @@ npm install
 ```
 
 ### 2️⃣ Configurar Banco de Dados
+
+**Opção A: Banco Local (SQLite)** - Para desenvolvimento rápido
 ```bash
-# Opção A: Script automático (recomendado)
+# Script automático (recomendado)
 node scripts/setup-db.js
 
-# Opção B: Manual
+# Ou manual
 npm run prisma:migrate
 npm run prisma:generate
 ```
+
+**Opção B: Banco na Nuvem (PostgreSQL/MySQL)** - Para produção
+```bash
+# Use um banco gratuito na nuvem (Supabase, Neon, PlanetScale)
+# Veja o guia completo: GUIA_BANCO_NUVEM.md
+
+# Script interativo para configurar
+node scripts/setup-cloud-db.js
+
+# Depois execute as migrações
+npm run prisma:migrate
+npm run prisma:generate
+```
+
+📖 **Guia completo de bancos na nuvem:** Veja `GUIA_BANCO_NUVEM.md`
 
 ### 3️⃣ Iniciar Servidor
 ```bash
