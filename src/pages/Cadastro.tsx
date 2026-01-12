@@ -73,11 +73,17 @@ const Cadastro = () => {
       }
 
       let data;
-      try {
-        data = await response.json();
-      } catch (jsonError) {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        try {
+          data = await response.json();
+        } catch (jsonError) {
+          console.error('Erro ao parsear JSON:', jsonError);
+          throw new Error('Resposta inválida do servidor. Verifique se o backend está rodando corretamente.');
+        }
+      } else {
         const text = await response.text();
-        console.error('Resposta do servidor:', text);
+        console.error('Resposta do servidor (não JSON):', text);
         throw new Error('Resposta inválida do servidor. Verifique se o backend está rodando corretamente.');
       }
 
@@ -119,12 +125,11 @@ const Cadastro = () => {
       <div className="flex-1 flex items-center justify-center p-4 py-16">
         <div className="w-full max-w-2xl mx-auto">
           <div className="text-center mb-8">
-            <Link to="/" className="inline-flex items-center gap-3 mb-4">
+            <div className="flex justify-center mb-4">
               <div className="bg-primary p-3">
                 <Scissors className="h-8 w-8 text-primary-foreground" />
               </div>
-              <span className="text-3xl font-black text-foreground uppercase tracking-tight">Groom Guru</span>
-            </Link>
+            </div>
             <p className="text-muted-foreground">
               Cadastre sua barbearia e comece a usar agora
             </p>
@@ -177,8 +182,8 @@ const Cadastro = () => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">E-mail Para Acesso *</Label>
+                  <div className="flex flex-col space-y-2">
+                    <Label htmlFor="email" className="min-h-[2.5rem] flex items-start pt-1">E-mail Para Acesso *</Label>
                     <Input
                       id="email"
                       type="email"
@@ -188,8 +193,8 @@ const Cadastro = () => {
                       required
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="senha">Senha (Mínimo de 6 e máximo de 15 caracteres) *</Label>
+                  <div className="flex flex-col space-y-2">
+                    <Label htmlFor="senha" className="min-h-[2.5rem] flex items-start pt-1">Senha (Mínimo de 6 e máximo de 15 caracteres) *</Label>
                     <Input
                       id="senha"
                       type="password"
