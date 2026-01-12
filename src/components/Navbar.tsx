@@ -31,7 +31,7 @@ const Navbar = () => {
               <Link to="/login">Entrar</Link>
             </Button>
             <Button variant="hero" asChild>
-              <Link to="/login">Começar Agora</Link>
+              <Link to="/cadastro">Começar Agora</Link>
             </Button>
           </div>
         </div>

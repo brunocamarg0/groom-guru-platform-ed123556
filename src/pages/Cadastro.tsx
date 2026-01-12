@@ -5,6 +5,7 @@ import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Scissors, ArrowLeft, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -14,22 +15,41 @@ const Cadastro = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [aceiteTermos, setAceiteTermos] = useState(false);
   const [formData, setFormData] = useState({
-    nome: "",
-    cnpjCpf: "",
-    responsavel: "",
-    email: "",
+    nomeBarbearia: "",
+    nomeContato: "",
     telefone: "",
-    endereco: "",
-    plano: "basico",
+    email: "",
+    senha: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validações
+    if (!aceiteTermos) {
+      toast({
+        title: "Termos não aceitos",
+        description: "Você precisa aceitar os termos de condição de uso para continuar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (formData.senha.length < 6 || formData.senha.length > 15) {
+      toast({
+        title: "Senha inválida",
+        description: "A senha deve ter entre 6 e 15 caracteres.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/solicitacoes`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/auth/dono/cadastro-direto`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -40,21 +60,28 @@ const Cadastro = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Erro ao enviar solicitação');
+        throw new Error(data.error || 'Erro ao realizar cadastro');
+      }
+
+      // Salvar token no localStorage
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.usuario));
+        localStorage.setItem('userType', 'dono');
       }
 
       toast({
-        title: "Solicitação enviada!",
-        description: "Aguarde a aprovação do administrador. Você receberá um email com sua senha de acesso.",
+        title: "Cadastro realizado!",
+        description: "Bem-vindo ao Groom Guru! Redirecionando para seu painel...",
       });
 
-      // Redirecionar para login após 2 segundos
+      // Redirecionar para o painel do dono
       setTimeout(() => {
-        navigate('/login');
-      }, 2000);
+        navigate('/dono');
+      }, 1000);
     } catch (error: any) {
       toast({
-        title: "Erro ao enviar solicitação",
+        title: "Erro ao realizar cadastro",
         description: error.message || "Ocorreu um erro. Tente novamente.",
         variant: "destructive",
       });
@@ -77,137 +104,124 @@ const Cadastro = () => {
               <span className="text-3xl font-black text-foreground uppercase tracking-tight">Groom Guru</span>
             </Link>
             <p className="text-muted-foreground">
-              Solicite seu cadastro como dono de barbearia
+              Cadastre sua barbearia e comece a usar agora
             </p>
           </div>
 
           <Card className="bg-card border-2 border-border">
             <CardHeader>
               <CardTitle className="text-foreground font-black uppercase text-xl">
-                Solicitar Cadastro
+                Cadastro
               </CardTitle>
               <CardDescription className="text-muted-foreground font-medium">
-                Preencha os dados abaixo. Após a aprovação, você receberá um email com sua senha de acesso.
+                Preencha os dados abaixo para criar sua conta
               </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="nomeBarbearia">Nome da Barbearia *</Label>
+                  <Input
+                    id="nomeBarbearia"
+                    value={formData.nomeBarbearia}
+                    onChange={(e) => setFormData({ ...formData, nomeBarbearia: e.target.value })}
+                    placeholder="Nome Da Barbearia*"
+                    required
+                  />
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="nome">Nome da Barbearia *</Label>
+                    <Label htmlFor="nomeContato">Nome do contato *</Label>
                     <Input
-                      id="nome"
-                      value={formData.nome}
-                      onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                      placeholder="Ex: Barbearia do João"
+                      id="nomeContato"
+                      value={formData.nomeContato}
+                      onChange={(e) => setFormData({ ...formData, nomeContato: e.target.value })}
+                      placeholder="Nome Do Contato (Ex: João da Silva)"
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="cnpjCpf">CNPJ/CPF *</Label>
-                    <Input
-                      id="cnpjCpf"
-                      value={formData.cnpjCpf}
-                      onChange={(e) => setFormData({ ...formData, cnpjCpf: e.target.value })}
-                      placeholder="00.000.000/0000-00"
-                      required
-                    />
+                    <Label htmlFor="telefone">Telefone do Contato *</Label>
+                    <div className="flex gap-2">
+                      <div className="flex items-center gap-1 px-3 border border-input bg-background rounded-md">
+                        <span className="text-xl">🇧🇷</span>
+                        <span className="text-sm">+55</span>
+                      </div>
+                      <Input
+                        id="telefone"
+                        value={formData.telefone}
+                        onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
+                        placeholder="(11) 96123-4567"
+                        required
+                        className="flex-1"
+                      />
+                    </div>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="responsavel">Nome do Responsável *</Label>
-                    <Input
-                      id="responsavel"
-                      value={formData.responsavel}
-                      onChange={(e) => setFormData({ ...formData, responsavel: e.target.value })}
-                      placeholder="Seu nome completo"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email *</Label>
+                    <Label htmlFor="email">E-mail Para Acesso *</Label>
                     <Input
                       id="email"
                       type="email"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      placeholder="seu@email.com"
+                      placeholder="E-mail Para Acesso"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="senha">Senha (Mínimo de 6 e máximo de 15 caracteres) *</Label>
+                    <Input
+                      id="senha"
+                      type="password"
+                      value={formData.senha}
+                      onChange={(e) => setFormData({ ...formData, senha: e.target.value })}
+                      placeholder="Senha*"
+                      minLength={6}
+                      maxLength={15}
                       required
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="telefone">Telefone</Label>
-                    <Input
-                      id="telefone"
-                      value={formData.telefone}
-                      onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
-                      placeholder="(00) 00000-0000"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="plano">Plano</Label>
-                    <select
-                      id="plano"
-                      value={formData.plano}
-                      onChange={(e) => setFormData({ ...formData, plano: e.target.value })}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <option value="basico">Básico</option>
-                      <option value="premium">Premium</option>
-                      <option value="enterprise">Enterprise</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="endereco">Endereço</Label>
-                  <Input
-                    id="endereco"
-                    value={formData.endereco}
-                    onChange={(e) => setFormData({ ...formData, endereco: e.target.value })}
-                    placeholder="Rua, número, bairro, cidade"
+                <div className="flex items-start space-x-2">
+                  <Checkbox
+                    id="termos"
+                    checked={aceiteTermos}
+                    onCheckedChange={(checked) => setAceiteTermos(checked === true)}
                   />
+                  <div className="grid gap-1.5 leading-none">
+                    <label
+                      htmlFor="termos"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                      Li e aceito o{" "}
+                      <Link to="/termos" className="text-primary hover:underline">
+                        Termo de Condição de Uso
+                      </Link>
+                      .
+                    </label>
+                  </div>
                 </div>
 
-                <div className="bg-muted/50 p-4 rounded-md">
-                  <p className="text-sm text-muted-foreground">
-                    <strong>Importante:</strong> Após o envio desta solicitação, um administrador analisará seus dados. 
-                    Uma vez aprovado, você receberá um email com sua senha de acesso temporária. 
-                    Recomendamos alterar a senha no primeiro acesso nas configurações da sua conta.
-                  </p>
-                </div>
-
-                <div className="flex gap-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => navigate('/')}
-                  >
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Voltar
-                  </Button>
-                  <Button
-                    type="submit"
-                    variant="hero"
-                    className="flex-1"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Enviando...
-                      </>
-                    ) : (
-                      "Enviar Solicitação"
-                    )}
-                  </Button>
-                </div>
+                <Button
+                  type="submit"
+                  variant="hero"
+                  className="w-full"
+                  disabled={isLoading || !aceiteTermos}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Cadastrando...
+                    </>
+                  ) : (
+                    "CADASTRAR"
+                  )}
+                </Button>
 
                 <p className="text-center text-sm text-muted-foreground">
                   Já tem uma conta?{" "}

@@ -127,6 +127,101 @@ export async function loginCliente(req: Request, res: Response) {
 }
 
 /**
+ * Cadastro direto de dono com barbearia (criação imediata)
+ * Cria barbearia e dono em uma única transação
+ */
+export async function cadastroDiretoDono(req: Request, res: Response) {
+  try {
+    const { nomeBarbearia, nomeContato, telefone, email, senha } = req.body;
+
+    if (!nomeBarbearia || !nomeContato || !telefone || !email || !senha) {
+      return res.status(400).json({ error: 'Campos obrigatórios: nomeBarbearia, nomeContato, telefone, email, senha' });
+    }
+
+    // Validação de senha (6-15 caracteres)
+    if (senha.length < 6 || senha.length > 15) {
+      return res.status(400).json({ error: 'A senha deve ter entre 6 e 15 caracteres' });
+    }
+
+    // Verificar se email já está em uso
+    const emailExistente = await prisma.usuarioDono.findUnique({
+      where: { email },
+    });
+
+    if (emailExistente) {
+      return res.status(400).json({ error: 'Este email já está em uso' });
+    }
+
+    // Hash da senha
+    const senhaHash = await hashSenha(senha);
+
+    // Calcular data de vencimento (30 dias para plano básico)
+    const dataVencimento = new Date();
+    dataVencimento.setDate(dataVencimento.getDate() + 30);
+
+    // Criar barbearia e dono em uma transação
+    const resultado = await prisma.$transaction(async (tx) => {
+      // Criar barbearia
+      const barbearia = await tx.barbearia.create({
+        data: {
+          nome: nomeBarbearia,
+          cnpjCpf: `TEMP-${Date.now()}`, // CNPJ temporário, pode ser atualizado depois
+          responsavel: nomeContato,
+          plano: 'basico', // Plano padrão
+          email: email,
+          telefone: telefone,
+          dataVencimento,
+          status: 'em_teste',
+        },
+      });
+
+      // Criar dono
+      const dono = await tx.usuarioDono.create({
+        data: {
+          nome: nomeContato,
+          email,
+          senha: senhaHash,
+          barbeariaId: barbearia.id,
+          ativo: true,
+          emailVerificado: false,
+        },
+        select: {
+          id: true,
+          nome: true,
+          email: true,
+          barbeariaId: true,
+          createdAt: true,
+        },
+      });
+
+      return { barbearia, dono };
+    });
+
+    // Gerar token JWT
+    const token = gerarTokenJWT({
+      id: resultado.dono.id,
+      email: resultado.dono.email,
+      tipo: 'dono',
+    });
+
+    res.status(201).json({
+      sucesso: true,
+      mensagem: 'Cadastro realizado com sucesso!',
+      token,
+      usuario: resultado.dono,
+      barbearia: {
+        id: resultado.barbearia.id,
+        nome: resultado.barbearia.nome,
+        status: resultado.barbearia.status,
+      },
+    });
+  } catch (error) {
+    console.error('Erro ao realizar cadastro direto:', error);
+    res.status(500).json({ error: 'Erro ao realizar cadastro' });
+  }
+}
+
+/**
  * Registro de dono (requer barbearia criada pelo admin)
  * Nota: Para criar conta de dono, o admin precisa criar a barbearia primeiro
  * e então o dono pode se registrar vinculando-se à barbearia
