@@ -11,6 +11,132 @@ import {
 type ModoConfirmacao = 'automatico' | 'manual' | 'hibrido';
 
 /**
+ * Verificar disponibilidade de um profissional em um horário específico
+ */
+async function verificarDisponibilidadeProfissional(
+  profissionalId: string,
+  data: string | Date,
+  horario: string,
+  duracaoServico: number,
+  barbeariaId: string
+): Promise<boolean> {
+  try {
+    const dataAgendamento = new Date(data);
+    const [hora, minuto] = horario.split(':').map(Number);
+    dataAgendamento.setHours(hora, minuto, 0, 0);
+
+    const inicioAgendamento = dataAgendamento.getTime();
+    const fimAgendamento = inicioAgendamento + duracaoServico * 60 * 1000;
+
+    // Buscar agendamentos do profissional na mesma data
+    const inicioDia = new Date(dataAgendamento);
+    inicioDia.setHours(0, 0, 0, 0);
+    const fimDia = new Date(dataAgendamento);
+    fimDia.setHours(23, 59, 59, 999);
+
+    const agendamentos = await prisma.agendamento.findMany({
+      where: {
+        barbeariaId,
+        data: {
+          gte: inicioDia,
+          lte: fimDia,
+        },
+        status: {
+          in: ['pendente', 'confirmado'],
+        },
+        profissionais: {
+          some: {
+            profissionalId,
+          },
+        },
+      },
+      include: {
+        servico: true,
+      },
+    });
+
+    // Verificar conflitos
+    for (const agendamento of agendamentos) {
+      const dataAgend = new Date(agendamento.data);
+      const [horaAgend, minutoAgend] = agendamento.horario.split(':').map(Number);
+      dataAgend.setHours(horaAgend, minutoAgend, 0, 0);
+
+      const inicioExistente = dataAgend.getTime();
+      const fimExistente = inicioExistente + agendamento.servico.duracao * 60 * 1000;
+
+      // Verificar sobreposição
+      if (
+        (inicioAgendamento >= inicioExistente && inicioAgendamento < fimExistente) ||
+        (fimAgendamento > inicioExistente && fimAgendamento <= fimExistente) ||
+        (inicioAgendamento <= inicioExistente && fimAgendamento >= fimExistente)
+      ) {
+        return false;
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Erro ao verificar disponibilidade:', error);
+    return false;
+  }
+}
+
+/**
+ * Verificar horários disponíveis para um profissional em uma data
+ */
+export async function verificarDisponibilidade(req: Request, res: Response) {
+  try {
+    const { profissionalId, data, servicoId, barbeariaId } = req.query;
+
+    if (!profissionalId || !data || !servicoId || !barbeariaId) {
+      return res.status(400).json({
+        error: 'Parâmetros obrigatórios: profissionalId, data, servicoId, barbeariaId',
+      });
+    }
+
+    // Buscar serviço para obter duração
+    const servico = await prisma.servico.findUnique({
+      where: { id: servicoId as string },
+      select: { duracao: true },
+    });
+
+    if (!servico) {
+      return res.status(404).json({ error: 'Serviço não encontrado' });
+    }
+
+    // Gerar horários disponíveis (08:00 às 19:00, intervalos de 40 minutos)
+    const horariosDisponiveis: string[] = [];
+    const inicio = 8 * 60; // 08:00 em minutos
+    const fim = 19 * 60; // 19:00 em minutos
+    const intervalo = 40; // minutos
+
+    for (let i = inicio; i <= fim; i += intervalo) {
+      const hora = Math.floor(i / 60);
+      const minuto = i % 60;
+      const horario = `${String(hora).padStart(2, '0')}:${String(minuto).padStart(2, '0')}`;
+
+      // Verificar se está disponível
+      const disponivel = await verificarDisponibilidadeProfissional(
+        profissionalId as string,
+        data as string,
+        horario,
+        servico.duracao,
+        barbeariaId as string
+      );
+
+      if (disponivel) {
+        horariosDisponiveis.push(horario);
+      }
+    }
+
+    res.json({ horariosDisponiveis });
+  } catch (error) {
+    console.error('Erro ao verificar disponibilidade:', error);
+    res.status(500).json({ error: 'Erro ao verificar disponibilidade' });
+  }
+}
+
+/**
  * Listar agendamentos de uma barbearia
  */
 export async function listarAgendamentos(req: Request, res: Response) {
@@ -378,26 +504,53 @@ export async function concluirAgendamento(req: Request, res: Response) {
  */
 export async function criarAgendamento(req: Request, res: Response) {
   try {
-    const { barbeariaId, clienteId, servicoId, cliente, telefone, data, observacao } = req.body;
+    const { barbeariaId, clienteId, servicoId, profissionalId, cliente, telefone, data, horario, observacao } = req.body;
 
-    if (!barbeariaId || !servicoId || !data) {
-      return res.status(400).json({ error: 'Campos obrigatórios: barbeariaId, servicoId, data' });
+    if (!barbeariaId || !servicoId || !data || !horario) {
+      return res.status(400).json({ error: 'Campos obrigatórios: barbeariaId, servicoId, data, horario' });
     }
 
-    // Buscar configuração da barbearia
-    const barbearia = await prisma.barbearia.findUnique({
-      where: { id: barbeariaId },
-      select: {
-        modoConfirmacao: true,
-      },
-    });
+    // Buscar configuração da barbearia e serviço
+    const [barbearia, servico] = await Promise.all([
+      prisma.barbearia.findUnique({
+        where: { id: barbeariaId },
+        select: { modoConfirmacao: true },
+      }),
+      prisma.servico.findUnique({
+        where: { id: servicoId },
+        select: { duracao: true },
+      }),
+    ]);
 
     if (!barbearia) {
       return res.status(404).json({ error: 'Barbearia não encontrada' });
     }
 
+    if (!servico) {
+      return res.status(404).json({ error: 'Serviço não encontrado' });
+    }
+
+    // Verificar disponibilidade se profissional foi informado
+    if (profissionalId) {
+      const disponivel = await verificarDisponibilidadeProfissional(
+        profissionalId,
+        data,
+        horario,
+        servico.duracao,
+        barbeariaId
+      );
+
+      if (!disponivel) {
+        return res.status(400).json({ error: 'Horário não disponível para este profissional' });
+      }
+    }
+
     const modoConfirmacao = (barbearia.modoConfirmacao || 'hibrido') as ModoConfirmacao;
+    
+    // Combinar data e horário
     const dataAgendamento = new Date(data);
+    const [hora, minuto] = horario.split(':').map(Number);
+    dataAgendamento.setHours(hora, minuto, 0, 0);
 
     // Determinar status inicial baseado no modo
     let statusInicial = 'pendente';
@@ -419,6 +572,7 @@ export async function criarAgendamento(req: Request, res: Response) {
         cliente: cliente || 'Cliente não cadastrado',
         telefone: telefone || '',
         data: dataAgendamento,
+        horario,
         status: statusInicial,
         observacao: observacao || null,
         confirmadoAutomaticamente,
@@ -430,6 +584,16 @@ export async function criarAgendamento(req: Request, res: Response) {
         barbearia: true,
       },
     });
+
+    // Associar profissional se informado
+    if (profissionalId) {
+      await prisma.agendamentoProfissional.create({
+        data: {
+          agendamentoId: agendamento.id,
+          profissionalId,
+        },
+      });
+    }
 
     // Enviar notificação se foi confirmado automaticamente
     if (statusInicial === 'confirmado') {

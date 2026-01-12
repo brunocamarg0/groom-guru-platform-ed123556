@@ -12,6 +12,10 @@ import authRoutes from './routes/auth';
 import googleAuthRoutes from './routes/googleAuth';
 import solicitacoesRoutes from './routes/solicitacoes';
 import agendamentosRoutes from './routes/agendamentos';
+import donoProfissionaisRoutes from './routes/dono/profissionais';
+import donoClientesRoutes from './routes/dono/clientes';
+import donoServicosRoutes from './routes/dono/servicos';
+import donoDashboardRoutes from './routes/dono/dashboard';
 import './config/passport';
 import * as cron from 'node-cron';
 import { enviarLembretesAgendamento } from './jobs/lembretesAgendamento';
@@ -70,6 +74,12 @@ app.use('/api/auth/google', googleAuthRoutes);
 app.use('/api', ativacaoRoutes);
 app.use('/api/solicitacoes', solicitacoesRoutes);
 app.use('/api/agendamentos', agendamentosRoutes);
+
+// Rotas do dono (requerem autenticação)
+app.use('/api/dono/profissionais', donoProfissionaisRoutes);
+app.use('/api/dono/clientes', donoClientesRoutes);
+app.use('/api/dono/servicos', donoServicosRoutes);
+app.use('/api/dono/dashboard', donoDashboardRoutes);
 
 // Rotas admin - ordem importa! Rotas mais específicas primeiro
 app.use('/api/admin', criarExemploRoutes); // /api/admin/criar-exemplo

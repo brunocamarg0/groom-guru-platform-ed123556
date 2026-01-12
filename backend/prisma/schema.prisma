@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -43,6 +43,10 @@ model Barbearia {
   servicos          Servico[]
   agendamentos      Agendamento[]
   solicitacao       SolicitacaoCadastro? @relation("SolicitacaoBarbearia")
+  profissionais    Profissional[]
+  produtos          Produto[]
+  promocoes         Promocao[]
+  notificacoes      Notificacao[]
   
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
@@ -140,6 +144,7 @@ model Cliente {
   
   // Relacionamentos
   agendamentos Agendamento[]
+  avaliacoes   Avaliacao[]
   
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
@@ -150,6 +155,7 @@ model Agendamento {
   cliente     String   // Nome do cliente (mantido para compatibilidade)
   telefone    String
   data        DateTime
+  horario     String   // Horário no formato HH:mm (ex: "14:00")
   status      String   @default("pendente") // pendente, confirmado, cancelado, recusado, concluido
   observacao  String?
   confirmadoAutomaticamente Boolean @default(false) // Se foi confirmado automaticamente (modo híbrido)
@@ -165,6 +171,139 @@ model Agendamento {
   barbearia   Barbearia @relation(fields: [barbeariaId], references: [id], onDelete: Cascade)
   barbeariaId String
   
+  // Relacionamentos com profissionais e outros
+  profissionais AgendamentoProfissional[]
+  avaliacao     Avaliacao?
+  pagamento     Pagamento?
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// Profissional da barbearia
+model Profissional {
+  id            String        @id @default(uuid())
+  nome          String
+  email         String?
+  telefone      String
+  foto          String?
+  especialidades String[]     @default([]) // Array de strings
+  comissaoTipo  String        @default("percentual") // percentual, fixo
+  comissaoValor Float         @default(0)
+  ativo         Boolean       @default(true)
+  dataAdmissao  DateTime      @default(now())
+  
+  // Relacionamentos
+  barbearia     Barbearia     @relation(fields: [barbeariaId], references: [id], onDelete: Cascade)
+  barbeariaId   String
+  agendamentos  AgendamentoProfissional[]
+  
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+// Relacionamento entre Agendamento e Profissional
+model AgendamentoProfissional {
+  id            String      @id @default(uuid())
+  agendamento   Agendamento @relation(fields: [agendamentoId], references: [id], onDelete: Cascade)
+  agendamentoId String
+  profissional  Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+  profissionalId String
+  
+  createdAt     DateTime    @default(now())
+  
+  @@unique([agendamentoId, profissionalId])
+}
+
+// Produto da barbearia
+model Produto {
+  id            String      @id @default(uuid())
+  nome          String
+  descricao     String?
+  categoria     String      // pomada, oleo, kit, outro
+  preco         Float
+  estoque       Int         @default(0)
+  estoqueMinimo Int         @default(0)
+  ativo         Boolean     @default(true)
+  foto          String?
+  
+  barbearia     Barbearia  @relation(fields: [barbeariaId], references: [id], onDelete: Cascade)
+  barbeariaId   String
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+// Promoção da barbearia
+model Promocao {
+  id            String      @id @default(uuid())
+  nome          String
+  tipo          String      // desconto_percentual, desconto_fixo, cashback, pontos
+  valor         Float
+  validoDe      DateTime
+  validoAte     DateTime
+  ativo         Boolean     @default(true)
+  aplicavelA   String      @default("todos") // todos, servico, horario, cliente_vip
+  servicoId    String?
+  horarioInicio String?
+  horarioFim   String?
+  
+  barbearia     Barbearia  @relation(fields: [barbeariaId], references: [id], onDelete: Cascade)
+  barbeariaId   String
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+// Avaliação de agendamento
+model Avaliacao {
+  id                String      @id @default(uuid())
+  agendamento       Agendamento @relation(fields: [agendamentoId], references: [id], onDelete: Cascade)
+  agendamentoId     String      @unique
+  cliente           Cliente     @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  clienteId         String
+  notaProfissional  Int         // 1-5
+  notaAtendimento   Int         // 1-5
+  notaAmbiente      Int         // 1-5
+  comentario        String?
+  resposta          String?     // Resposta do dono
+  respondidoEm      DateTime?
+  
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
+// Notificação do sistema
+model Notificacao {
+  id          String      @id @default(uuid())
+  tipo        String      // agendamento, pagamento, avaliacao, estoque, sistema
+  titulo      String
+  mensagem    String
+  lida        Boolean     @default(false)
+  data        DateTime    @default(now())
+  urlAcao     String?
+  labelAcao   String?
+  
+  // Relacionamento com barbearia (notificações do dono)
+  barbearia   Barbearia?  @relation(fields: [barbeariaId], references: [id], onDelete: Cascade)
+  barbeariaId String?
+  
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+// Pagamento de agendamento
+model Pagamento {
+  id            String      @id @default(uuid())
+  agendamento   Agendamento @relation(fields: [agendamentoId], references: [id], onDelete: Cascade)
+  agendamentoId String      @unique
+  valor         Float
+  metodo        String      // pix, cartao_credito, cartao_debito, dinheiro
+  status        String      @default("pendente") // pago, pendente, reembolsado
+  taxaGateway   Float?      @default(0)
+  dataPagamento DateTime?
+  dataVencimento DateTime?
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 }

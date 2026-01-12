@@ -30,4 +30,7 @@ router.put('/:id/concluir', agendamentosController.concluirAgendamento);
 // Atualizar configuração de confirmação da barbearia
 router.put('/barbearia/:barbeariaId/configuracao', agendamentosController.atualizarConfiguracaoConfirmacao);
 
+// Verificar disponibilidade de horários
+router.get('/disponibilidade', agendamentosController.verificarDisponibilidade);
+
 export default router;
