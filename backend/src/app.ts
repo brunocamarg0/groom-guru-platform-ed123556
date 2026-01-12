@@ -11,7 +11,10 @@ import ativacaoRoutes from './routes/ativacao';
 import authRoutes from './routes/auth';
 import googleAuthRoutes from './routes/googleAuth';
 import solicitacoesRoutes from './routes/solicitacoes';
+import agendamentosRoutes from './routes/agendamentos';
 import './config/passport';
+import * as cron from 'node-cron';
+import { enviarLembretesAgendamento } from './jobs/lembretesAgendamento';
 
 // Carregar variáveis de ambiente
 dotenv.config();
@@ -66,6 +69,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/auth/google', googleAuthRoutes);
 app.use('/api', ativacaoRoutes);
 app.use('/api/solicitacoes', solicitacoesRoutes);
+app.use('/api/agendamentos', agendamentosRoutes);
 
 // Rotas admin - ordem importa! Rotas mais específicas primeiro
 app.use('/api/admin', criarExemploRoutes); // /api/admin/criar-exemplo
@@ -78,4 +82,23 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`);
   console.log(`📚 API Health: http://localhost:${PORT}/api/health`);
+  
+  // Configurar jobs agendados
+  configurarJobs();
 });
+
+/**
+ * Configura jobs agendados (cron jobs)
+ */
+function configurarJobs() {
+  // Job para enviar lembretes de agendamento
+  // Executa a cada hora (no minuto 0 de cada hora)
+  // Exemplo: 00:00, 01:00, 02:00, etc.
+  cron.schedule('0 * * * *', async () => {
+    console.log('⏰ Executando job de lembretes de agendamento...');
+    await enviarLembretesAgendamento();
+  });
+
+  console.log('✅ Jobs agendados configurados:');
+  console.log('   - Lembretes de agendamento: A cada hora (minuto 0)');
+}

@@ -36,6 +36,7 @@
     "@types/passport": "^1.0.16",
     "@types/passport-google-oauth20": "^2.0.14",
     "@types/express-session": "^1.17.10",
+    "@types/node-cron": "^3.0.11",
     "prisma": "^5.20.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"

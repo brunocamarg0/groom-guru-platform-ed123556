@@ -149,7 +149,7 @@ model Agendamento {
   cliente     String   // Nome do cliente (mantido para compatibilidade)
   telefone    String
   data        DateTime
-  status      String   @default("pendente") // pendente, confirmado, cancelado, concluido
+  status      String   @default("pendente") // pendente, confirmado, cancelado, recusado, concluido
   observacao  String?
   
   // Relacionamento com cliente (opcional - pode ser agendamento sem cadastro)
