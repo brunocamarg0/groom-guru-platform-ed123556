@@ -40,7 +40,8 @@ import {
   Plus,
   CheckCircle,
   XCircle,
-  Filter
+  Filter,
+  AlertCircle
 } from "lucide-react";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, isSameMonth, addDays, subDays, startOfMonth, endOfMonth, eachWeekOfInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -80,6 +81,89 @@ export default function AgendaInteligente() {
     }).format(valor);
   };
 
+  // Gerar horários de 40 em 40 minutos (08:00 às 19:00)
+  const gerarHorariosDisponiveis = (): string[] => {
+    const horarios: string[] = [];
+    let hora = 8; // 08:00
+    let minuto = 0;
+
+    while (hora < 19 || (hora === 19 && minuto === 0)) {
+      const horarioFormatado = `${hora.toString().padStart(2, "0")}:${minuto.toString().padStart(2, "0")}`;
+      horarios.push(horarioFormatado);
+
+      minuto += 40;
+      if (minuto >= 60) {
+        hora += 1;
+        minuto = minuto % 60;
+      }
+    }
+
+    return horarios;
+  };
+
+  // Verificar se um horário está disponível para o profissional na data selecionada
+  const verificarDisponibilidade = (horario: string, profissionalId: string, data: string, servicoId?: string): boolean => {
+    if (!profissionalId || !data) return true;
+
+    // Buscar agendamentos confirmados do profissional naquela data
+    const agendamentosDoProfissional = agendamentos.filter(
+      (a) =>
+        a.profissionalId === profissionalId &&
+        a.data === data &&
+        (a.status === "confirmado" || a.status === "pendente")
+    );
+
+    if (agendamentosDoProfissional.length === 0) return true;
+
+    // Converter horário para minutos para facilitar comparação
+    const [horaStr, minutoStr] = horario.split(":");
+    const horarioMinutos = parseInt(horaStr) * 60 + parseInt(minutoStr);
+
+    // Duração do serviço selecionado (ou 40 minutos padrão)
+    const duracaoServico = servicoId
+      ? servicos.find((s) => s.id === servicoId)?.duracao || 40
+      : 40;
+
+    // Verificar conflitos com agendamentos existentes
+    for (const agendamento of agendamentosDoProfissional) {
+      const [agHoraStr, agMinutoStr] = agendamento.horario.split(":");
+      const agHorarioMinutos = parseInt(agHoraStr) * 60 + parseInt(agMinutoStr);
+      const agFimMinutos = agHorarioMinutos + agendamento.duracao;
+
+      const novoFimMinutos = horarioMinutos + duracaoServico;
+
+      // Verificar se há sobreposição
+      if (
+        (horarioMinutos >= agHorarioMinutos && horarioMinutos < agFimMinutos) ||
+        (novoFimMinutos > agHorarioMinutos && novoFimMinutos <= agFimMinutos) ||
+        (horarioMinutos <= agHorarioMinutos && novoFimMinutos >= agFimMinutos)
+      ) {
+        return false; // Conflito encontrado
+      }
+    }
+
+    return true; // Horário disponível
+  };
+
+  // Obter horários disponíveis baseado na seleção atual
+  const horariosDisponiveis = useMemo(() => {
+    const todosHorarios = gerarHorariosDisponiveis();
+    
+    if (!formNovoAgendamento.profissionalId || !formNovoAgendamento.data) {
+      return todosHorarios;
+    }
+
+    // Filtrar apenas horários disponíveis
+    return todosHorarios.filter((horario) =>
+      verificarDisponibilidade(
+        horario,
+        formNovoAgendamento.profissionalId,
+        formNovoAgendamento.data,
+        formNovoAgendamento.servicoId
+      )
+    );
+  }, [formNovoAgendamento.profissionalId, formNovoAgendamento.data, formNovoAgendamento.servicoId, agendamentos, servicos]);
+
   // Filtrar agendamentos por profissional e status
   const agendamentosFiltrados = useMemo(() => {
     let filtrados = agendamentos;
@@ -98,6 +182,19 @@ export default function AgendaInteligente() {
   // Contador de agendamentos pendentes
   const agendamentosPendentes = useMemo(() => {
     return agendamentos.filter((a) => a.status === "pendente").length;
+  }, [agendamentos]);
+
+  // Lista de agendamentos pendentes (ordenados por data e horário)
+  const listaAgendamentosPendentes = useMemo(() => {
+    return agendamentos
+      .filter((a) => a.status === "pendente")
+      .sort((a, b) => {
+        // Ordenar por data primeiro, depois por horário
+        if (a.data !== b.data) {
+          return a.data.localeCompare(b.data);
+        }
+        return a.horario.localeCompare(b.horario);
+      });
   }, [agendamentos]);
 
   // Funções de ação
@@ -187,6 +284,21 @@ export default function AgendaInteligente() {
       toast({
         title: "Erro",
         description: "Dados inválidos. Verifique as seleções.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Verificar disponibilidade do horário antes de criar
+    if (!verificarDisponibilidade(
+      formNovoAgendamento.horario,
+      formNovoAgendamento.profissionalId,
+      formNovoAgendamento.data,
+      formNovoAgendamento.servicoId
+    )) {
+      toast({
+        title: "Horário indisponível",
+        description: "Este horário já está ocupado para o profissional selecionado. Escolha outro horário.",
         variant: "destructive",
       });
       return;
@@ -362,6 +474,96 @@ export default function AgendaInteligente() {
           </Button>
         </div>
       </div>
+
+      {/* Seção de Agendamentos Pendentes */}
+      {listaAgendamentosPendentes.length > 0 && (
+        <Card className="border-yellow-500 bg-yellow-50/50">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5 text-yellow-600" />
+                  Agendamentos Pendentes de Confirmação
+                </CardTitle>
+                <CardDescription>
+                  {listaAgendamentosPendentes.length} agendamento(s) aguardando sua confirmação
+                </CardDescription>
+              </div>
+              <Badge variant="destructive" className="text-lg px-3 py-1">
+                {listaAgendamentosPendentes.length}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {listaAgendamentosPendentes.slice(0, 5).map((agendamento) => (
+                <div
+                  key={agendamento.id}
+                  className="p-4 border border-yellow-300 rounded-lg bg-white hover:bg-yellow-50 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="flex flex-col">
+                        <span className="text-xs text-muted-foreground">Data</span>
+                        <span className="font-semibold">
+                          {format(new Date(agendamento.data), "dd/MM/yyyy", { locale: ptBR })}
+                        </span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs text-muted-foreground">Horário</span>
+                        <span className="font-semibold">{agendamento.horario}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs text-muted-foreground">Cliente</span>
+                        <span className="font-semibold">{agendamento.clienteNome}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs text-muted-foreground">Profissional</span>
+                        <span className="font-medium">{agendamento.profissionalNome}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs text-muted-foreground">Serviço</span>
+                        <span className="font-medium">{agendamento.servicoNome}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs text-muted-foreground">Valor</span>
+                        <span className="font-bold text-green-600">{formatarMoeda(agendamento.valor)}</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleConfirmar(agendamento.id)}
+                        disabled={isLoading}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Confirmar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => setAgendamentoParaRecusar({ id: agendamento.id, clienteNome: agendamento.clienteNome })}
+                        disabled={isLoading}
+                      >
+                        <XCircle className="h-4 w-4 mr-2" />
+                        Recusar
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {listaAgendamentosPendentes.length > 5 && (
+                <p className="text-sm text-center text-muted-foreground pt-2">
+                  E mais {listaAgendamentosPendentes.length - 5} agendamento(s) pendente(s). 
+                  Use os filtros para visualizar todos.
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Painel de Data e Hora */}
       <Card>
@@ -710,9 +912,13 @@ export default function AgendaInteligente() {
                 <Label htmlFor="profissional">Profissional *</Label>
                 <Select
                   value={formNovoAgendamento.profissionalId}
-                  onValueChange={(value) =>
-                    setFormNovoAgendamento({ ...formNovoAgendamento, profissionalId: value })
-                  }
+                  onValueChange={(value) => {
+                    setFormNovoAgendamento({ 
+                      ...formNovoAgendamento, 
+                      profissionalId: value,
+                      horario: "" // Limpar horário ao mudar profissional
+                    });
+                  }}
                 >
                   <SelectTrigger id="profissional">
                     <SelectValue placeholder="Selecione um profissional" />
@@ -734,9 +940,13 @@ export default function AgendaInteligente() {
               <Label htmlFor="servico">Serviço *</Label>
               <Select
                 value={formNovoAgendamento.servicoId}
-                onValueChange={(value) =>
-                  setFormNovoAgendamento({ ...formNovoAgendamento, servicoId: value })
-                }
+                onValueChange={(value) => {
+                  setFormNovoAgendamento({ 
+                    ...formNovoAgendamento, 
+                    servicoId: value,
+                    horario: "" // Limpar horário ao mudar serviço (pode mudar duração)
+                  });
+                }}
               >
                 <SelectTrigger id="servico">
                   <SelectValue placeholder="Selecione um serviço" />
@@ -758,23 +968,54 @@ export default function AgendaInteligente() {
                   id="data"
                   type="date"
                   value={formNovoAgendamento.data}
-                  onChange={(e) =>
-                    setFormNovoAgendamento({ ...formNovoAgendamento, data: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setFormNovoAgendamento({ 
+                      ...formNovoAgendamento, 
+                      data: e.target.value,
+                      horario: "" // Limpar horário ao mudar data
+                    });
+                  }}
                   min={format(new Date(), "yyyy-MM-dd")}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="horario">Horário *</Label>
-                <Input
-                  id="horario"
-                  type="time"
+                <Select
                   value={formNovoAgendamento.horario}
-                  onChange={(e) =>
-                    setFormNovoAgendamento({ ...formNovoAgendamento, horario: e.target.value })
+                  onValueChange={(value) =>
+                    setFormNovoAgendamento({ ...formNovoAgendamento, horario: value })
                   }
-                />
+                  disabled={!formNovoAgendamento.profissionalId || !formNovoAgendamento.data}
+                >
+                  <SelectTrigger id="horario">
+                    <SelectValue placeholder={
+                      !formNovoAgendamento.profissionalId || !formNovoAgendamento.data
+                        ? "Selecione profissional e data primeiro"
+                        : horariosDisponiveis.length === 0
+                        ? "Nenhum horário disponível"
+                        : "Selecione um horário"
+                    } />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {horariosDisponiveis.length === 0 ? (
+                      <SelectItem value="" disabled>
+                        Nenhum horário disponível para este profissional nesta data
+                      </SelectItem>
+                    ) : (
+                      horariosDisponiveis.map((horario) => (
+                        <SelectItem key={horario} value={horario}>
+                          {horario}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                {formNovoAgendamento.profissionalId && formNovoAgendamento.data && (
+                  <p className="text-xs text-muted-foreground">
+                    {horariosDisponiveis.length} horário(s) disponível(is) de 40 em 40 minutos
+                  </p>
+                )}
               </div>
             </div>
 
