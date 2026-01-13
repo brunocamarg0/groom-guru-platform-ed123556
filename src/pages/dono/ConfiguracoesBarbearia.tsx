@@ -117,46 +117,69 @@ export default function ConfiguracoesBarbearia() {
       console.log('🔐 URL completa:', urlCompleta);
       console.log('🔐 Token presente:', !!token);
       
-      const response = await fetch(
-        urlCompleta,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            senhaAtual: senhaForm.senhaAtual,
-            novaSenha: senhaForm.novaSenha,
-          }),
-        }
-      );
+      let response: Response;
+      try {
+        response = await fetch(
+          urlCompleta,
+          {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              senhaAtual: senhaForm.senhaAtual,
+              novaSenha: senhaForm.novaSenha,
+            }),
+          }
+        );
+      } catch (fetchError: any) {
+        console.error('❌ Erro de rede ao fazer requisição:', fetchError);
+        throw new Error(`Erro de conexão: ${fetchError.message || 'Não foi possível conectar ao servidor'}`);
+      }
 
       console.log('🔐 Status da resposta:', response.status);
+      console.log('🔐 Status Text:', response.statusText);
       console.log('🔐 Content-Type:', response.headers.get('content-type'));
+      console.log('🔐 Response OK:', response.ok);
 
-      // Verificar se a resposta é JSON antes de fazer parse
+      // Tentar ler a resposta como texto primeiro para debug
+      const responseText = await response.text();
+      console.log('🔐 Resposta bruta (primeiros 500 chars):', responseText.substring(0, 500));
+
+      // Verificar se a resposta é JSON
       const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        console.error('❌ Resposta não é JSON:', text.substring(0, 200));
+      let data: any;
+      
+      if (contentType && contentType.includes('application/json')) {
+        try {
+          data = JSON.parse(responseText);
+          console.log('🔐 Resposta parseada (JSON):', data);
+        } catch (parseError) {
+          console.error('❌ Erro ao fazer parse do JSON:', parseError);
+          throw new Error(`Resposta inválida do servidor: ${responseText.substring(0, 200)}`);
+        }
+      } else {
+        console.error('❌ Resposta não é JSON. Content-Type:', contentType);
+        console.error('❌ Resposta completa:', responseText);
         
         // Se for 404, a rota não existe
         if (response.status === 404) {
           throw new Error('Rota não encontrada. Verifique se o backend está configurado corretamente.');
         }
         
-        throw new Error(`Resposta inválida do servidor (${response.status}). Verifique se a rota está correta.`);
+        throw new Error(`Resposta inválida do servidor (${response.status}): ${responseText.substring(0, 200)}`);
       }
 
-      const data = await response.json();
-
-      console.log('🔐 Resposta do servidor:', data);
-      console.log('🔐 Status:', response.status);
-
       if (!response.ok) {
-        const errorMessage = data.error || data.detalhes || 'Erro ao alterar senha';
-        console.error('❌ Erro na resposta:', errorMessage);
+        // Extrair mensagem de erro de várias formas possíveis
+        const errorMessage = data?.error || data?.message || data?.detalhes || data?.mensagem || `Erro do servidor (${response.status})`;
+        console.error('❌ Erro na resposta:', {
+          status: response.status,
+          statusText: response.statusText,
+          data: data,
+          errorMessage: errorMessage
+        });
         throw new Error(errorMessage);
       }
 
@@ -172,9 +195,27 @@ export default function ConfiguracoesBarbearia() {
         confirmarSenha: "",
       });
     } catch (error: any) {
+      console.error('❌ Erro completo ao alterar senha:', error);
+      console.error('❌ Tipo do erro:', typeof error);
+      console.error('❌ Erro.message:', error.message);
+      console.error('❌ Erro.stack:', error.stack);
+      
+      // Extrair mensagem de erro de várias formas
+      let errorMessage = 'Ocorreu um erro ao alterar a senha.';
+      
+      if (error?.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error?.error) {
+        errorMessage = error.error;
+      }
+      
+      console.error('❌ Mensagem de erro final:', errorMessage);
+      
       toast({
         title: "Erro ao alterar senha",
-        description: error.message || "Ocorreu um erro ao alterar a senha.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
