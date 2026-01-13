@@ -16,7 +16,14 @@ import donoProfissionaisRoutes from './routes/dono/profissionais';
 import donoClientesRoutes from './routes/dono/clientes';
 import donoServicosRoutes from './routes/dono/servicos';
 import donoDashboardRoutes from './routes/dono/dashboard';
-import './config/passport';
+// Carregar configuração do Passport (pode falhar se OAuth não estiver configurado)
+try {
+  require('./config/passport');
+  console.log('✅ Passport configurado');
+} catch (error) {
+  console.error('⚠️  Erro ao carregar Passport (OAuth pode não estar configurado):', error);
+  // Continuar mesmo se Passport falhar
+}
 import * as cron from 'node-cron';
 import { enviarLembretesAgendamento } from './jobs/lembretesAgendamento';
 
@@ -88,9 +95,14 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Rota de teste
+// Rota de teste - DEVE SER A PRIMEIRA ROTA
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'API is running', timestamp: new Date().toISOString() });
+  console.log('✅ Health check chamado');
+  res.status(200).json({ 
+    status: 'API is running', 
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
 });
 
 // Rotas públicas (autenticação e ativação de conta)
@@ -133,6 +145,7 @@ if (process.env.VERCEL !== '1' && !process.env.VERCEL_ENV) {
       console.log(`🚀 Server is running on http://0.0.0.0:${PORT}`);
       console.log(`📚 API Health: http://localhost:${PORT}/api/health`);
       console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`✅ Health check endpoint ready at /api/health`);
       
       // Configurar jobs agendados (apenas em ambiente local)
       try {
@@ -146,6 +159,11 @@ if (process.env.VERCEL !== '1' && !process.env.VERCEL_ENV) {
     // Tratamento de erro no servidor
     server.on('error', (error: any) => {
       console.error('❌ Server error:', error);
+    });
+    
+    // Garantir que o servidor está escutando
+    server.on('listening', () => {
+      console.log(`✅ Server listening on port ${PORT}`);
     });
     
   } catch (error) {
