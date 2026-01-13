@@ -11,7 +11,7 @@ import { Scissors, ArrowLeft, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://groom-guru-platform-production.up.railway.app/api';
 
 const Cadastro = () => {
   const navigate = useNavigate();
