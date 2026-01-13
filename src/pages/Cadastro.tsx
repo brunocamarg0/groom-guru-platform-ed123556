@@ -100,6 +100,8 @@ const Cadastro = () => {
         redirectPath = '/client';
       }
 
+      console.log('🔍 Tentando conectar em:', url);
+      
       let response;
       try {
         response = await fetch(url, {
@@ -107,6 +109,8 @@ const Cadastro = () => {
           headers: {
             'Content-Type': 'application/json',
           },
+          mode: 'cors',
+          credentials: 'include',
           body: JSON.stringify(body),
         });
       } catch (fetchError: any) {

@@ -44,13 +44,23 @@ const allowedOrigins = process.env.FRONTEND_URL
   ? [process.env.FRONTEND_URL, 'https://groom-guru-platform.vercel.app']
   : ['http://localhost:5173', 'http://localhost:8080', 'https://groom-guru-platform.vercel.app'];
 
+console.log('🔧 CORS - allowedOrigins:', allowedOrigins);
+console.log('🔧 CORS - FRONTEND_URL:', process.env.FRONTEND_URL);
+console.log('🔧 CORS - NODE_ENV:', process.env.NODE_ENV);
+
 app.use(cors({
   origin: (origin, callback) => {
     // Permitir requisições sem origin (mobile apps, Postman, etc)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log('🔧 CORS - Requisição sem origin, permitindo');
+      return callback(null, true);
+    }
+    
+    console.log('🔧 CORS - Origin recebida:', origin);
     
     // Permitir origens específicas ou todas em desenvolvimento
     if (allowedOrigins.indexOf(origin) !== -1) {
+      console.log('🔧 CORS - Origin permitida (na lista)');
       callback(null, true);
     } else {
       // Em produção, permitir apenas origens conhecidas
@@ -58,11 +68,14 @@ app.use(cors({
       if (process.env.NODE_ENV === 'production') {
         // Permitir Vercel mesmo se não estiver na lista
         if (origin.includes('vercel.app') || origin.includes('groom-guru-platform')) {
+          console.log('🔧 CORS - Origin permitida (Vercel/groom-guru-platform)');
           callback(null, true);
         } else {
+          console.log('🔧 CORS - Origin permitida (debug mode)');
           callback(null, true); // Por enquanto permitir todas para debug
         }
       } else {
+        console.log('🔧 CORS - Origin permitida (desenvolvimento)');
         callback(null, true);
       }
     }
