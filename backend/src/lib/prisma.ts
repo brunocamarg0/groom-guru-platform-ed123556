@@ -5,6 +5,11 @@ console.log('🔧 Inicializando Prisma Client...');
 const prisma = new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
   errorFormat: 'pretty',
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL,
+    },
+  },
 });
 
 // Conectar ao banco de dados de forma assíncrona (não bloquear)
