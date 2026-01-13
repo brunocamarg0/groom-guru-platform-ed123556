@@ -229,6 +229,7 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   const [notificacoes, setNotificacoes] = useState<NotificacaoDono[]>([]);
   const [configuracao, setConfiguracao] = useState<ConfiguracaoBarbearia>(configuracaoInicial);
   const [loading, setLoading] = useState(true);
+  const [ultimoCarregamento, setUltimoCarregamento] = useState<number>(0);
 
   // Atualizar barbeariaId quando localStorage mudar
   useEffect(() => {
@@ -284,7 +285,17 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Evitar múltiplas chamadas simultâneas (debounce de 1 segundo)
+    const agora = Date.now();
+    if (agora - ultimoCarregamento < 1000) {
+      console.log('⏸️ Carregamento já em andamento, aguardando...');
+      return;
+    }
+    setUltimoCarregamento(agora);
+
     console.log('📥 Iniciando carregamento de dados do banco de dados...');
+    console.log('📥 barbeariaId:', barbeariaId);
+    console.log('📥 Token:', localStorage.getItem('token') ? 'Presente' : 'Ausente');
     setLoading(true);
     try {
       // Carregar dados em paralelo do BANCO DE DADOS
