@@ -191,8 +191,6 @@ const configuracaoInicial: ConfiguracaoBarbearia = {
 };
 
 export function DonoProvider({ children }: { children: ReactNode }) {
-  const location = useLocation();
-  
   // Obter barbeariaId do localStorage (salvo após login)
   const getBarbeariaIdFromStorage = (): string | null => {
     try {
@@ -259,10 +257,10 @@ export function DonoProvider({ children }: { children: ReactNode }) {
     };
   }, [barbeariaId]);
 
-  // Carregar dados da API quando o componente montar, barbeariaId mudar ou rota mudar
+  // Carregar dados da API quando o componente montar ou barbeariaId mudar
   // Mas só se estiver em uma rota do dono (não na página inicial)
   useEffect(() => {
-    const currentPath = location.pathname;
+    const currentPath = window.location.pathname;
     const isDonoRoute = currentPath.startsWith('/dono');
     
     if (barbeariaId && isDonoRoute) {
@@ -276,7 +274,40 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       console.warn('⚠️ localStorage.barbearia:', localStorage.getItem('barbearia'));
       setLoading(false);
     }
-  }, [barbeariaId, location.pathname]);
+  }, [barbeariaId]);
+
+  // Listener para recarregar quando navegar para /dono
+  useEffect(() => {
+    if (!barbeariaId) return;
+
+    const checkRoute = () => {
+      const currentPath = window.location.pathname;
+      const isDonoRoute = currentPath.startsWith('/dono');
+      
+      if (isDonoRoute) {
+        console.log('🔄 Detectada navegação para /dono, recarregando dados...');
+        carregarDados();
+      }
+    };
+
+    // Verificar imediatamente
+    checkRoute();
+
+    // Escutar mudanças de rota
+    const handlePopState = () => {
+      setTimeout(checkRoute, 100);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    
+    // Verificar periodicamente (fallback para React Router)
+    const interval = setInterval(checkRoute, 2000);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      clearInterval(interval);
+    };
+  }, [barbeariaId]);
 
   const carregarDados = async () => {
     if (!barbeariaId) {
