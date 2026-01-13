@@ -655,7 +655,8 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       if (dados.telefone) updateData.telefone = dados.telefone;
       if (dados.foto !== undefined) updateData.foto = dados.foto;
       if (dados.dataNascimento) updateData.dataNascimento = dados.dataNascimento;
-      if (dados.ativo !== undefined) updateData.ativo = dados.ativo;
+      // ativo não está no tipo ClienteDono, mas pode ser usado no backend
+      if ((dados as any).ativo !== undefined) updateData.ativo = (dados as any).ativo;
 
       await apiPut(`/dono/clientes/${id}`, updateData);
       await carregarDados(true);
@@ -669,6 +670,60 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   const marcarClienteVIP = async (id: string, vip: boolean) => {
     // Implementar quando o backend tiver suporte a VIP
     toast.info('Funcionalidade VIP em desenvolvimento');
+  };
+
+  // Funções de serviços
+  const adicionarServico = async (servico: { nome: string; descricao?: string; preco: number; duracao: number; tipo?: string; ordem?: number; ativo?: boolean }) => {
+    try {
+      console.log('➕ Adicionando serviço ao banco de dados:', servico.nome);
+      await apiPost('/dono/servicos', servico);
+      console.log('✅ Serviço adicionado ao banco, recarregando dados...');
+      await carregarDados(true);
+      toast.success('Serviço adicionado com sucesso!');
+    } catch (error: any) {
+      console.error('❌ Erro ao adicionar serviço:', error);
+      toast.error(error.message || 'Erro ao adicionar serviço');
+      throw error;
+    }
+  };
+
+  const atualizarServico = async (id: string, dados: Partial<{ nome: string; descricao?: string; preco: number; duracao: number; tipo?: string; ordem?: number; ativo?: boolean }>) => {
+    try {
+      console.log('✏️ Atualizando serviço no banco:', id);
+      await apiPut(`/dono/servicos/${id}`, dados);
+      console.log('✅ Serviço atualizado no banco, recarregando dados...');
+      await carregarDados(true);
+      toast.success('Serviço atualizado!');
+    } catch (error: any) {
+      console.error('❌ Erro ao atualizar serviço:', error);
+      toast.error(error.message || 'Erro ao atualizar serviço');
+    }
+  };
+
+  const removerServico = async (id: string) => {
+    try {
+      console.log('🗑️ Removendo serviço do banco:', id);
+      await apiDelete(`/dono/servicos/${id}`);
+      console.log('✅ Serviço removido do banco, recarregando dados...');
+      await carregarDados(true);
+      toast.success('Serviço removido');
+    } catch (error: any) {
+      console.error('❌ Erro ao remover serviço:', error);
+      toast.error(error.message || 'Erro ao remover serviço');
+    }
+  };
+
+  const toggleServicoAtivo = async (id: string) => {
+    try {
+      console.log('🔄 Alternando status do serviço:', id);
+      await apiPut(`/dono/servicos/${id}/toggle`, {});
+      console.log('✅ Status do serviço alterado, recarregando dados...');
+      await carregarDados(true);
+      toast.success('Status do serviço alterado');
+    } catch (error: any) {
+      console.error('❌ Erro ao alterar status do serviço:', error);
+      toast.error(error.message || 'Erro ao alterar status do serviço');
+    }
   };
 
   // Funções de pagamento
@@ -754,6 +809,7 @@ export function DonoProvider({ children }: { children: ReactNode }) {
         agendamentos,
         profissionais,
         clientes,
+        servicos,
         pagamentos,
         promocoes,
         avaliacoes,
@@ -771,6 +827,10 @@ export function DonoProvider({ children }: { children: ReactNode }) {
         adicionarCliente,
         atualizarCliente,
         marcarClienteVIP,
+        adicionarServico,
+        atualizarServico,
+        removerServico,
+        toggleServicoAtivo,
         registrarPagamento,
         criarPromocao,
         atualizarPromocao,

@@ -211,7 +211,7 @@ export default function GestaoServicos() {
                     <Badge variant="outline">{servico.tipo}</Badge>
                   </TableCell>
                   <TableCell>{servico.duracao} min</TableCell>
-                  <TableCell>{formatarMoeda(servico.valor)}</TableCell>
+                  <TableCell>{formatarMoeda(servico.preco || servico.valor || 0)}</TableCell>
                   <TableCell>
                     <Badge variant={servico.ativo ? "default" : "secondary"}>
                       {servico.ativo ? "Ativo" : "Inativo"}
