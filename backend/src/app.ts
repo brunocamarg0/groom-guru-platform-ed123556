@@ -16,6 +16,12 @@ import donoProfissionaisRoutes from './routes/dono/profissionais';
 import donoClientesRoutes from './routes/dono/clientes';
 import donoServicosRoutes from './routes/dono/servicos';
 import donoDashboardRoutes from './routes/dono/dashboard';
+import donoFinanceiroRoutes from './routes/dono/financeiro';
+import donoPromocoesRoutes from './routes/dono/promocoes';
+import donoAvaliacoesRoutes from './routes/dono/avaliacoes';
+import donoProdutosRoutes from './routes/dono/produtos';
+import donoNotificacoesRoutes from './routes/dono/notificacoes';
+import donoRelatoriosRoutes from './routes/dono/relatorios';
 // Carregar configuração do Passport (pode falhar se OAuth não estiver configurado)
 try {
   require('./config/passport');
@@ -144,6 +150,12 @@ app.use('/api/dono/profissionais', donoProfissionaisRoutes);
 app.use('/api/dono/clientes', donoClientesRoutes);
 app.use('/api/dono/servicos', donoServicosRoutes);
 app.use('/api/dono/dashboard', donoDashboardRoutes);
+app.use('/api/dono/financeiro', donoFinanceiroRoutes);
+app.use('/api/dono/promocoes', donoPromocoesRoutes);
+app.use('/api/dono/avaliacoes', donoAvaliacoesRoutes);
+app.use('/api/dono/produtos', donoProdutosRoutes);
+app.use('/api/dono/notificacoes', donoNotificacoesRoutes);
+app.use('/api/dono/relatorios', donoRelatoriosRoutes);
 
 // Rotas admin - ordem importa! Rotas mais específicas primeiro
 app.use('/api/admin', criarExemploRoutes); // /api/admin/criar-exemplo
