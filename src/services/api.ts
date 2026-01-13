@@ -29,14 +29,18 @@ export async function apiRequest<T>(
     }));
     
     // Se erro de autenticação, limpar token e redirecionar para login
+    // Mas só redirecionar se estiver em uma rota protegida (não na página inicial)
     if (response.status === 401) {
+      const currentPath = window.location.pathname;
+      const isPublicRoute = currentPath === '/' || currentPath === '/login' || currentPath === '/cadastro' || currentPath.startsWith('/funcionalidades');
+      
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       localStorage.removeItem('userType');
       localStorage.removeItem('barbearia');
       
-      // Só redirecionar se não estiver já na página de login
-      if (!window.location.pathname.includes('/login')) {
+      // Só redirecionar se não estiver em rota pública e não estiver já na página de login
+      if (!isPublicRoute && !currentPath.includes('/login')) {
         window.location.href = '/login';
       }
     }

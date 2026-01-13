@@ -30,11 +30,14 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Edit, Trash2, Star, TrendingUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ProfissionalDono } from "@/types/dono";
 
 export default function GestaoProfissionais() {
   const { profissionais, adicionarProfissional, atualizarProfissional, removerProfissional } = useDono();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [profissionalEditando, setProfissionalEditando] = useState<ProfissionalDono | null>(null);
   const [formData, setFormData] = useState({
     nome: "",
     telefone: "",
@@ -51,7 +54,7 @@ export default function GestaoProfissionais() {
     }).format(valor);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.nome || !formData.telefone) {
       toast({
         title: "Erro",
@@ -61,32 +64,93 @@ export default function GestaoProfissionais() {
       return;
     }
 
-    adicionarProfissional({
-      nome: formData.nome,
-      telefone: formData.telefone,
-      email: formData.email || undefined,
-      especialidades: formData.especialidades,
-      comissao: {
-        tipo: formData.comissaoTipo,
-        valor: formData.comissaoValor,
-      },
-      ativo: true,
-    });
+    try {
+      await adicionarProfissional({
+        nome: formData.nome,
+        telefone: formData.telefone,
+        email: formData.email || undefined,
+        especialidades: formData.especialidades,
+        comissao: {
+          tipo: formData.comissaoTipo,
+          valor: formData.comissaoValor,
+        },
+        ativo: true,
+      });
 
-    toast({
-      title: "Profissional adicionado",
-      description: "O profissional foi cadastrado com sucesso.",
-    });
+      setIsDialogOpen(false);
+      setFormData({
+        nome: "",
+        telefone: "",
+        email: "",
+        especialidades: [],
+        comissaoTipo: "percentual",
+        comissaoValor: 40,
+      });
+    } catch (error) {
+      // Erro já é tratado no contexto
+    }
+  };
 
-    setIsDialogOpen(false);
+  const handleEdit = (profissional: ProfissionalDono) => {
+    setProfissionalEditando(profissional);
     setFormData({
-      nome: "",
-      telefone: "",
-      email: "",
-      especialidades: [],
-      comissaoTipo: "percentual",
-      comissaoValor: 40,
+      nome: profissional.nome,
+      telefone: profissional.telefone,
+      email: profissional.email || "",
+      especialidades: profissional.especialidades || [],
+      comissaoTipo: profissional.comissao.tipo,
+      comissaoValor: profissional.comissao.valor,
     });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdate = async () => {
+    if (!profissionalEditando || !formData.nome || !formData.telefone) {
+      toast({
+        title: "Erro",
+        description: "Preencha os campos obrigatórios.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await atualizarProfissional(profissionalEditando.id, {
+        nome: formData.nome,
+        telefone: formData.telefone,
+        email: formData.email || undefined,
+        especialidades: formData.especialidades,
+        comissao: {
+          tipo: formData.comissaoTipo,
+          valor: formData.comissaoValor,
+        },
+      });
+
+      setIsEditDialogOpen(false);
+      setProfissionalEditando(null);
+      setFormData({
+        nome: "",
+        telefone: "",
+        email: "",
+        especialidades: [],
+        comissaoTipo: "percentual",
+        comissaoValor: 40,
+      });
+    } catch (error) {
+      // Erro já é tratado no contexto
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Tem certeza que deseja remover este profissional?")) {
+      return;
+    }
+
+    try {
+      await removerProfissional(id);
+    } catch (error) {
+      // Erro já é tratado no contexto
+    }
   };
 
   return (
@@ -171,6 +235,78 @@ export default function GestaoProfissionais() {
                 Cancelar
               </Button>
               <Button onClick={handleSubmit}>Adicionar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog de Edição */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Editar Profissional</DialogTitle>
+              <DialogDescription>
+                Atualize as informações do profissional
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-nome">Nome *</Label>
+                <Input
+                  id="edit-nome"
+                  value={formData.nome}
+                  onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-telefone">Telefone *</Label>
+                <Input
+                  id="edit-telefone"
+                  value={formData.telefone}
+                  onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-email">Email</Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-comissaoTipo">Tipo de Comissão</Label>
+                  <select
+                    id="edit-comissaoTipo"
+                    value={formData.comissaoTipo}
+                    onChange={(e) => setFormData({ ...formData, comissaoTipo: e.target.value as "percentual" | "fixo" })}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="percentual">Percentual</option>
+                    <option value="fixo">Valor Fixo</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-comissaoValor">
+                    {formData.comissaoTipo === "percentual" ? "Percentual (%)" : "Valor (R$)"}
+                  </Label>
+                  <Input
+                    id="edit-comissaoValor"
+                    type="number"
+                    value={formData.comissaoValor}
+                    onChange={(e) => setFormData({ ...formData, comissaoValor: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleUpdate}>Salvar Alterações</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -259,10 +395,20 @@ export default function GestaoProfissionais() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
-                        <Button variant="ghost" size="icon">
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => handleEdit(profissional)}
+                          title="Editar profissional"
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon">
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => handleDelete(profissional.id)}
+                          title="Remover profissional"
+                        >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>

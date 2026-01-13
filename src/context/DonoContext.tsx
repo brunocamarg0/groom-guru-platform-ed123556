@@ -208,8 +208,12 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   // Carregar dados da API quando o componente montar ou barbeariaId mudar
+  // Mas só se estiver em uma rota do dono (não na página inicial)
   useEffect(() => {
-    if (barbeariaId) {
+    const currentPath = window.location.pathname;
+    const isDonoRoute = currentPath.startsWith('/dono');
+    
+    if (barbeariaId && isDonoRoute) {
       carregarDados();
     }
   }, [barbeariaId]);
