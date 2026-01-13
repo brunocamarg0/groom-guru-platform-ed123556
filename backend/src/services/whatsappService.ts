@@ -78,7 +78,7 @@ async function enviarViaEvolutionAPI(
       };
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
     return {
       sucesso: true,
       messageId: data.key?.id || data.messageId,
@@ -128,7 +128,7 @@ async function enviarViaTwilio(
     );
 
     if (!response.ok) {
-      const error = await response.json();
+      const error: any = await response.json();
       console.error('Erro Twilio:', error);
       return {
         sucesso: false,
@@ -136,7 +136,7 @@ async function enviarViaTwilio(
       };
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
     return {
       sucesso: true,
       messageId: data.sid,
@@ -191,7 +191,7 @@ async function enviarViaZAPI(
       };
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
     return {
       sucesso: true,
       messageId: data.id || data.messageId,

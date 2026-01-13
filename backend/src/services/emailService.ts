@@ -29,7 +29,7 @@ const createTransporter = async (): Promise<nodemailer.Transporter> => {
   // Gera credenciais automaticamente
   try {
     const testAccount = await nodemailer.createTestAccount();
-    transporterCache = nodemailer.createTransporter({
+    transporterCache = nodemailer.createTransport({
       host: 'smtp.ethereal.email',
       port: 587,
       secure: false,
