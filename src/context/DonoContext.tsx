@@ -191,10 +191,30 @@ const configuracaoInicial: ConfiguracaoBarbearia = {
 };
 
 export function DonoProvider({ children }: { children: ReactNode }) {
-  const { barbearias } = useBarbearias();
-  const barbearia = barbearias[0]; // Assumindo que o dono tem acesso à primeira barbearia
-  const barbeariaId = barbearia?.id;
+  // Obter barbeariaId do localStorage (salvo após login)
+  const getBarbeariaIdFromStorage = (): string | null => {
+    try {
+      const userStr = localStorage.getItem('user');
+      const barbeariaStr = localStorage.getItem('barbearia');
+      
+      if (barbeariaStr) {
+        const barbearia = JSON.parse(barbeariaStr);
+        return barbearia.id || null;
+      }
+      
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        return user.barbeariaId || null;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Erro ao obter barbeariaId do localStorage:', error);
+      return null;
+    }
+  };
 
+  const [barbeariaId, setBarbeariaId] = useState<string | null>(getBarbeariaIdFromStorage());
   const [kpi, setKpi] = useState<KPI>(kpiInicial);
   const [agendamentos, setAgendamentos] = useState<AgendamentoDono[]>([]);
   const [profissionais, setProfissionais] = useState<ProfissionalDono[]>([]);
@@ -207,6 +227,34 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   const [configuracao, setConfiguracao] = useState<ConfiguracaoBarbearia>(configuracaoInicial);
   const [loading, setLoading] = useState(true);
 
+  // Atualizar barbeariaId quando localStorage mudar
+  useEffect(() => {
+    const checkBarbeariaId = () => {
+      const newBarbeariaId = getBarbeariaIdFromStorage();
+      if (newBarbeariaId !== barbeariaId) {
+        setBarbeariaId(newBarbeariaId);
+      }
+    };
+
+    // Verificar imediatamente
+    checkBarbeariaId();
+
+    // Verificar quando localStorage mudar (evento customizado)
+    const handleStorageChange = () => {
+      checkBarbeariaId();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Verificar periodicamente (fallback)
+    const interval = setInterval(checkBarbeariaId, 1000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, [barbeariaId]);
+
   // Carregar dados da API quando o componente montar ou barbeariaId mudar
   // Mas só se estiver em uma rota do dono (não na página inicial)
   useEffect(() => {
@@ -214,50 +262,67 @@ export function DonoProvider({ children }: { children: ReactNode }) {
     const isDonoRoute = currentPath.startsWith('/dono');
     
     if (barbeariaId && isDonoRoute) {
+      console.log('🔄 Carregando dados do banco para barbeariaId:', barbeariaId);
       carregarDados();
+    } else if (isDonoRoute && !barbeariaId) {
+      console.warn('⚠️ BarbeariaId não encontrado. Verifique se está logado como dono.');
+      setLoading(false);
     }
   }, [barbeariaId]);
 
   const carregarDados = async () => {
-    if (!barbeariaId) return;
+    if (!barbeariaId) {
+      console.warn('⚠️ Não é possível carregar dados: barbeariaId não definido');
+      setLoading(false);
+      return;
+    }
 
+    console.log('📥 Iniciando carregamento de dados do banco de dados...');
     setLoading(true);
     try {
-      // Carregar dados em paralelo
-      // Tratamento silencioso de erros para não mostrar "Token inválido" se o profissional foi criado
+      // Carregar dados em paralelo do BANCO DE DADOS
+      // IMPORTANTE: Sempre carrega do banco, nunca usa dados mockados
       const [kpisData, agendamentosData, profissionaisData, clientesData] = await Promise.all([
         apiGet<KPI>('/dono/dashboard/kpis').catch((err) => {
-          console.warn('Erro ao carregar KPIs:', err);
-          return kpiInicial;
+          console.warn('⚠️ Erro ao carregar KPIs do banco:', err);
+          // Retorna valores padrão se houver erro, mas não dados mockados
+          return null;
         }),
         apiGet<any[]>(`/agendamentos/barbearia/${barbeariaId}`).catch((err) => {
-          console.warn('Erro ao carregar agendamentos:', err);
+          console.warn('⚠️ Erro ao carregar agendamentos do banco:', err);
           return [];
         }),
         apiGet<any[]>('/dono/profissionais').catch((err) => {
-          console.warn('Erro ao carregar profissionais:', err);
-          // Se erro de autenticação, não mostrar toast (já foi criado com sucesso)
+          console.error('❌ Erro ao carregar profissionais do banco:', err);
+          // Se erro de autenticação, retorna array vazio (não dados mockados)
           if (err.message?.includes('Token inválido') || err.message?.includes('Token não fornecido')) {
+            console.error('❌ Token inválido ou não fornecido. Faça login novamente.');
             return [];
           }
-          throw err;
+          // Em caso de erro, retorna array vazio (não dados mockados)
+          return [];
         }),
         apiGet<any[]>('/dono/clientes').catch((err) => {
-          console.warn('Erro ao carregar clientes:', err);
+          console.warn('⚠️ Erro ao carregar clientes do banco:', err);
           return [];
         }),
       ]);
 
-      // Atualizar KPIs
+      console.log('✅ Dados carregados do banco:');
+      console.log('  - Profissionais:', profissionaisData?.length || 0);
+      console.log('  - Clientes:', clientesData?.length || 0);
+      console.log('  - Agendamentos:', agendamentosData?.length || 0);
+
+      // Atualizar KPIs (só se dados vieram do banco)
       if (kpisData) {
         setKpi({
-          faturamentoHoje: kpisData.faturamentoMes || 0, // Ajustar conforme necessário
-          faturamentoSemana: kpisData.faturamentoMes || 0,
+          faturamentoHoje: kpisData.faturamentoHoje || 0,
+          faturamentoSemana: kpisData.faturamentoSemana || 0,
           faturamentoMes: kpisData.faturamentoMes || 0,
           agendamentosHoje: kpisData.agendamentosHoje || 0,
-          cancelamentos: 0, // Calcular se necessário
+          cancelamentos: kpisData.cancelamentos || 0,
           clientesRecorrentes: kpisData.totalClientes || 0,
-          notaMedia: 0, // Calcular se necessário
+          notaMedia: kpisData.notaMedia || 0,
         });
       }
 
@@ -282,11 +347,12 @@ export function DonoProvider({ children }: { children: ReactNode }) {
 
       setAgendamentos(agendamentosTransformados);
 
-      // Transformar profissionais da API
-      const profissionaisTransformados: ProfissionalDono[] = profissionaisData.map((prof: any) => ({
+      // Transformar profissionais da API (SEMPRE do banco de dados)
+      // Se profissionaisData for null/undefined ou array vazio, define array vazio (não dados mockados)
+      const profissionaisTransformados: ProfissionalDono[] = (profissionaisData || []).map((prof: any) => ({
         id: prof.id,
         nome: prof.nome,
-        email: prof.email,
+        email: prof.email || '',
         telefone: prof.telefone,
         foto: prof.foto,
         especialidades: prof.especialidades || [],
@@ -294,36 +360,45 @@ export function DonoProvider({ children }: { children: ReactNode }) {
           tipo: prof.comissaoTipo || 'percentual',
           valor: prof.comissaoValor || 0,
         },
-        ativo: prof.ativo,
-        dataAdmissao: prof.dataAdmissao.split('T')[0],
+        ativo: prof.ativo !== undefined ? prof.ativo : true,
+        dataAdmissao: prof.dataAdmissao ? (prof.dataAdmissao.split('T')[0] || prof.dataAdmissao) : new Date().toISOString().split('T')[0],
         avaliacaoMedia: 0, // Calcular se necessário
         totalAvaliacoes: 0,
         faturamentoTotal: 0,
         faltas: 0,
       }));
 
+      console.log('✅ Profissionais carregados do banco:', profissionaisTransformados.length);
       setProfissionais(profissionaisTransformados);
 
-      // Transformar clientes da API
-      const clientesTransformados: ClienteDono[] = clientesData.map((cli: any) => ({
+      // Transformar clientes da API (SEMPRE do banco de dados)
+      // Se clientesData for null/undefined ou array vazio, define array vazio (não dados mockados)
+      const clientesTransformados: ClienteDono[] = (clientesData || []).map((cli: any) => ({
         id: cli.id,
         nome: cli.nome,
-        email: cli.email,
+        email: cli.email || '',
         telefone: cli.telefone || '',
         foto: cli.foto,
-        dataNascimento: cli.dataNascimento?.split('T')[0],
+        dataNascimento: cli.dataNascimento ? (cli.dataNascimento.split('T')[0] || cli.dataNascimento) : undefined,
         vip: false, // Adicionar campo no backend se necessário
         totalAgendamentos: cli._count?.agendamentos || 0,
         ultimoAgendamento: undefined, // Calcular se necessário
         ticketMedio: 0, // Calcular se necessário
         frequencia: 0, // Calcular se necessário
-        dataCadastro: cli.createdAt.split('T')[0],
+        dataCadastro: cli.createdAt ? (cli.createdAt.split('T')[0] || cli.createdAt) : new Date().toISOString().split('T')[0],
       }));
 
+      console.log('✅ Clientes carregados do banco:', clientesTransformados.length);
       setClientes(clientesTransformados);
+      
+      console.log('✅ Todos os dados foram carregados do banco de dados com sucesso!');
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
-      toast.error('Erro ao carregar dados do painel');
+      console.error('❌ Erro ao carregar dados do banco:', error);
+      toast.error('Erro ao carregar dados do painel. Verifique sua conexão.');
+      // Em caso de erro, define arrays vazios (não dados mockados)
+      setProfissionais([]);
+      setClientes([]);
+      setAgendamentos([]);
     } finally {
       setLoading(false);
     }
