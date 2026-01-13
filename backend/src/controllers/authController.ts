@@ -495,54 +495,86 @@ export async function loginAdmin(req: Request, res: Response) {
  */
 export async function alterarSenhaDono(req: Request, res: Response) {
   try {
+    console.log('🔐 alterarSenhaDono: Iniciando processo...');
+    
     const { senhaAtual, novaSenha } = req.body;
     // O middleware autenticarDono já adiciona userId ao req
     const donoId = (req as any).userId;
 
+    console.log('🔐 alterarSenhaDono: donoId:', donoId);
+    console.log('🔐 alterarSenhaDono: senhaAtual presente:', !!senhaAtual);
+    console.log('🔐 alterarSenhaDono: novaSenha presente:', !!novaSenha);
+
+    if (!donoId) {
+      console.error('❌ alterarSenhaDono: donoId não encontrado no request');
+      return res.status(401).json({ error: 'Usuário não autenticado' });
+    }
+
     if (!senhaAtual || !novaSenha) {
+      console.error('❌ alterarSenhaDono: Campos obrigatórios faltando');
       return res.status(400).json({ error: 'Senha atual e nova senha são obrigatórias' });
     }
 
     if (novaSenha.length < 6) {
+      console.error('❌ alterarSenhaDono: Nova senha muito curta');
       return res.status(400).json({ error: 'A nova senha deve ter pelo menos 6 caracteres' });
     }
 
+    console.log('🔐 alterarSenhaDono: Buscando dono no banco...');
     // Buscar dono
     const dono = await prisma.usuarioDono.findUnique({
       where: { id: donoId },
     });
 
     if (!dono) {
+      console.error('❌ alterarSenhaDono: Dono não encontrado no banco');
       return res.status(404).json({ error: 'Usuário não encontrado' });
     }
 
+    console.log('🔐 alterarSenhaDono: Dono encontrado:', dono.email);
+
     if (!dono.senha) {
+      console.error('❌ alterarSenhaDono: Conta não possui senha cadastrada');
       return res.status(400).json({ error: 'Esta conta não possui senha cadastrada. Use o login com Google.' });
     }
 
+    console.log('🔐 alterarSenhaDono: Verificando senha atual...');
     // Verificar senha atual
     const senhaValida = await compararSenha(senhaAtual, dono.senha);
 
     if (!senhaValida) {
+      console.error('❌ alterarSenhaDono: Senha atual incorreta');
       return res.status(401).json({ error: 'Senha atual incorreta' });
     }
 
+    console.log('🔐 alterarSenhaDono: Senha atual válida, gerando hash da nova senha...');
     // Hash da nova senha
     const novaSenhaHash = await hashSenha(novaSenha);
 
+    console.log('🔐 alterarSenhaDono: Atualizando senha no banco...');
     // Atualizar senha
     await prisma.usuarioDono.update({
       where: { id: donoId },
       data: { senha: novaSenhaHash },
     });
 
+    console.log('✅ alterarSenhaDono: Senha alterada com sucesso!');
     res.json({
       sucesso: true,
       mensagem: 'Senha alterada com sucesso!',
     });
-  } catch (error) {
-    console.error('Erro ao alterar senha:', error);
-    res.status(500).json({ error: 'Erro ao alterar senha' });
+  } catch (error: any) {
+    console.error('❌ Erro ao alterar senha:', error);
+    console.error('❌ Stack:', error.stack);
+    console.error('❌ Código:', error.code);
+    console.error('❌ Mensagem:', error.message);
+    
+    // Retornar mensagem de erro mais específica
+    const errorMessage = error.message || 'Erro ao alterar senha';
+    res.status(500).json({ 
+      error: 'Erro ao alterar senha',
+      detalhes: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+    });
   }
 }
 

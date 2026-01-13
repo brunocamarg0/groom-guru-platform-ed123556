@@ -151,8 +151,13 @@ export default function ConfiguracoesBarbearia() {
 
       const data = await response.json();
 
+      console.log('🔐 Resposta do servidor:', data);
+      console.log('🔐 Status:', response.status);
+
       if (!response.ok) {
-        throw new Error(data.error || 'Erro ao alterar senha');
+        const errorMessage = data.error || data.detalhes || 'Erro ao alterar senha';
+        console.error('❌ Erro na resposta:', errorMessage);
+        throw new Error(errorMessage);
       }
 
       toast({
