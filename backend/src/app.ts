@@ -148,13 +148,22 @@ app.use('/api/admin/barbearias', adminBarbeariasRoutes); // /api/admin/barbearia
 
 // Handler para rotas não encontradas (404) - DEVE SER O ÚLTIMO
 // Retorna JSON em vez de HTML para APIs
-app.use('/api/*', (req, res) => {
-  console.log('❌ Rota não encontrada:', req.method, req.originalUrl);
-  res.status(404).json({ 
-    error: 'Rota não encontrada',
-    path: req.originalUrl,
-    method: req.method
-  });
+// IMPORTANTE: Usar app.use sem path específico para capturar todas as rotas não encontradas
+app.use((req, res, next) => {
+  // Só retornar 404 se for uma rota da API
+  if (req.path.startsWith('/api')) {
+    console.log('❌ Rota não encontrada:', req.method, req.originalUrl);
+    console.log('❌ Path:', req.path);
+    console.log('❌ Rotas registradas: /api/auth, /api/dono, /api/admin');
+    return res.status(404).json({ 
+      error: 'Rota não encontrada',
+      path: req.originalUrl,
+      method: req.method,
+      message: 'Verifique se a rota está correta e se o método HTTP está correto (GET, POST, PUT, DELETE)'
+    });
+  }
+  // Para rotas não-API, passar para o próximo handler (se houver)
+  next();
 });
 
 // Iniciar servidor apenas se não estiver rodando como serverless function (Vercel)
