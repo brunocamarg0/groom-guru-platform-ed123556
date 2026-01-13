@@ -30,6 +30,13 @@ import { enviarLembretesAgendamento } from './jobs/lembretesAgendamento';
 // Carregar variáveis de ambiente
 dotenv.config();
 
+// Log de inicialização
+console.log('🔧 Inicializando aplicação...');
+console.log('🔧 NODE_ENV:', process.env.NODE_ENV);
+console.log('🔧 PORT:', process.env.PORT);
+console.log('🔧 VERCEL:', process.env.VERCEL);
+console.log('🔧 VERCEL_ENV:', process.env.VERCEL_ENV);
+
 export const app = express();
 
 // Middleware CORS
