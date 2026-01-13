@@ -59,10 +59,8 @@ const tiposServico: { value: TipoServico; label: string }[] = [
 ];
 
 export default function GestaoServicos() {
-  const { barbearias, adicionarServico, editarServico, removerServico, toggleServicoAtivo } = useBarbearias();
+  const { servicos, adicionarServico, atualizarServico, removerServico, toggleServicoAtivo } = useDono();
   const { toast } = useToast();
-  const barbearia = barbearias[0]; // Mock: primeira barbearia
-  const servicos = barbearia?.servicos || [];
   const [modalAberto, setModalAberto] = useState(false);
   const [servicoEditando, setServicoEditando] = useState<ServicoBarbearia | null>(null);
   const [formData, setFormData] = useState<NovoServicoBarbearia>({
@@ -110,7 +108,7 @@ export default function GestaoServicos() {
     setModalAberto(true);
   };
 
-  const handleSalvar = () => {
+  const handleSalvar = async () => {
     if (!formData.nome || formData.valor <= 0 || formData.duracao <= 0) {
       toast({
         title: "Erro",
@@ -120,52 +118,55 @@ export default function GestaoServicos() {
       return;
     }
 
-    if (!barbearia) {
-      toast({
-        title: "Erro",
-        description: "Barbearia não encontrada.",
-        variant: "destructive",
-      });
-      return;
-    }
+    try {
+      if (servicoEditando) {
+        await atualizarServico(servicoEditando.id, {
+          nome: formData.nome,
+          descricao: formData.descricao,
+          preco: formData.valor,
+          duracao: formData.duracao,
+          tipo: formData.tipo,
+          ordem: formData.ordem,
+          ativo: formData.ativo,
+        });
+      } else {
+        await adicionarServico({
+          nome: formData.nome,
+          descricao: formData.descricao,
+          preco: formData.valor,
+          duracao: formData.duracao,
+          tipo: formData.tipo,
+          ordem: formData.ordem,
+          ativo: formData.ativo,
+        });
+      }
 
-    if (servicoEditando) {
-      editarServico(barbearia.id, servicoEditando.id, formData);
-      toast({
-        title: "Serviço atualizado",
-        description: "O serviço foi atualizado com sucesso.",
-      });
-    } else {
-      adicionarServico(barbearia.id, formData);
-      toast({
-        title: "Serviço adicionado",
-        description: "O serviço foi adicionado com sucesso.",
-      });
+      setModalAberto(false);
+      setServicoEditando(null);
+    } catch (error: any) {
+      // Erro já é tratado no contexto
+      console.error('Erro ao salvar serviço:', error);
     }
-
-    setModalAberto(false);
-    setServicoEditando(null);
   };
 
-  const handleRemover = (servicoId: string) => {
-    if (!barbearia) return;
-    
+  const handleRemover = async (servicoId: string) => {
     if (confirm("Tem certeza que deseja remover este serviço?")) {
-      removerServico(barbearia.id, servicoId);
-      toast({
-        title: "Serviço removido",
-        description: "O serviço foi removido com sucesso.",
-      });
+      try {
+        await removerServico(servicoId);
+      } catch (error: any) {
+        // Erro já é tratado no contexto
+        console.error('Erro ao remover serviço:', error);
+      }
     }
   };
 
-  const handleToggleAtivo = (servicoId: string) => {
-    if (!barbearia) return;
-    toggleServicoAtivo(barbearia.id, servicoId);
-    toast({
-      title: "Status alterado",
-      description: "O status do serviço foi alterado.",
-    });
+  const handleToggleAtivo = async (servicoId: string) => {
+    try {
+      await toggleServicoAtivo(servicoId);
+    } catch (error: any) {
+      // Erro já é tratado no contexto
+      console.error('Erro ao alterar status do serviço:', error);
+    }
   };
 
   return (

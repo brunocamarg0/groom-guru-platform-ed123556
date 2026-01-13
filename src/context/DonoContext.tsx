@@ -44,6 +44,13 @@ interface DonoContextType {
   atualizarCliente: (id: string, dados: Partial<ClienteDono>) => Promise<void>;
   marcarClienteVIP: (id: string, vip: boolean) => void;
   
+  // Funções de serviços
+  servicos: any[];
+  adicionarServico: (servico: { nome: string; descricao?: string; preco: number; duracao: number; tipo?: string; ordem?: number; ativo?: boolean }) => Promise<void>;
+  atualizarServico: (id: string, dados: Partial<{ nome: string; descricao?: string; preco: number; duracao: number; tipo?: string; ordem?: number; ativo?: boolean }>) => Promise<void>;
+  removerServico: (id: string) => Promise<void>;
+  toggleServicoAtivo: (id: string) => Promise<void>;
+  
   registrarPagamento: (pagamento: Omit<PagamentoDono, "id">) => void;
   
   criarPromocao: (promocao: Omit<PromocaoDono, "id">) => void;
@@ -220,6 +227,7 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   // IMPORTANTE: Sempre inicia vazio - dados vêm APENAS do banco de dados
   const [profissionais, setProfissionais] = useState<ProfissionalDono[]>([]);
   const [clientes, setClientes] = useState<ClienteDono[]>([]);
+  const [servicos, setServicos] = useState<any[]>([]);
   const [pagamentos, setPagamentos] = useState<PagamentoDono[]>([]);
   const [promocoes, setPromocoes] = useState<PromocaoDono[]>([]);
   const [avaliacoes, setAvaliacoes] = useState<AvaliacaoDono[]>([]);
@@ -332,7 +340,7 @@ export function DonoProvider({ children }: { children: ReactNode }) {
     try {
       // Carregar dados em paralelo do BANCO DE DADOS
       // IMPORTANTE: Sempre carrega do banco, nunca usa dados mockados
-      const [kpisData, agendamentosData, profissionaisData, clientesData] = await Promise.all([
+      const [kpisData, agendamentosData, profissionaisData, clientesData, servicosData] = await Promise.all([
         apiGet<KPI>('/dono/dashboard/kpis').catch((err) => {
           console.warn('⚠️ Erro ao carregar KPIs do banco:', err);
           // Retorna valores padrão se houver erro, mas não dados mockados
@@ -354,6 +362,10 @@ export function DonoProvider({ children }: { children: ReactNode }) {
         }),
         apiGet<any[]>('/dono/clientes').catch((err) => {
           console.warn('⚠️ Erro ao carregar clientes do banco:', err);
+          return [];
+        }),
+        apiGet<any[]>('/dono/servicos').catch((err) => {
+          console.warn('⚠️ Erro ao carregar serviços do banco:', err);
           return [];
         }),
       ]);
@@ -449,6 +461,10 @@ export function DonoProvider({ children }: { children: ReactNode }) {
 
       console.log('✅ Clientes carregados do banco:', clientesTransformados.length);
       setClientes(clientesTransformados);
+
+      // Carregar serviços do banco
+      console.log('✅ Serviços carregados do banco:', servicosData?.length || 0);
+      setServicos(servicosData || []);
       
       console.log('✅ Todos os dados foram carregados do banco de dados com sucesso!');
     } catch (error) {
