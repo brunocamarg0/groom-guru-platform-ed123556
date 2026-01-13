@@ -12,9 +12,16 @@ router.post('/cliente/login', authController.loginCliente);
 router.post('/dono/cadastro-direto', authController.cadastroDiretoDono);
 router.post('/dono/registro', authController.registrarDono);
 router.post('/dono/login', authController.loginDono);
+
 // Rota protegida - requer autenticação
 // IMPORTANTE: A ordem importa! Rotas mais específicas primeiro
-router.put('/dono/alterar-senha', autenticarDono, authController.alterarSenhaDono);
+// Log para debug
+router.put('/dono/alterar-senha', (req, res, next) => {
+  console.log('🔐 Rota /dono/alterar-senha chamada');
+  console.log('🔐 Method:', req.method);
+  console.log('🔐 Headers:', JSON.stringify(req.headers, null, 2));
+  next();
+}, autenticarDono, authController.alterarSenhaDono);
 
 // Rotas de admin
 router.post('/admin/login', authController.loginAdmin);
