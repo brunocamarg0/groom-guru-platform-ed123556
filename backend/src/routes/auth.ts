@@ -13,6 +13,7 @@ router.post('/dono/cadastro-direto', authController.cadastroDiretoDono);
 router.post('/dono/registro', authController.registrarDono);
 router.post('/dono/login', authController.loginDono);
 // Rota protegida - requer autenticação
+// IMPORTANTE: A ordem importa! Rotas mais específicas primeiro
 router.put('/dono/alterar-senha', autenticarDono, authController.alterarSenhaDono);
 
 // Rotas de admin

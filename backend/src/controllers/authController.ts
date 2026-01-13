@@ -495,9 +495,16 @@ export async function loginAdmin(req: Request, res: Response) {
  */
 export async function alterarSenhaDono(req: Request, res: Response) {
   try {
+    console.log('🔐 Rota alterar-senha chamada');
+    console.log('🔐 Method:', req.method);
+    console.log('🔐 Path:', req.path);
+    console.log('🔐 Original URL:', req.originalUrl);
+    
     const { senhaAtual, novaSenha } = req.body;
     // O middleware autenticarDono já adiciona userId ao req
     const donoId = (req as any).userId;
+    
+    console.log('🔐 Dono ID:', donoId);
 
     if (!senhaAtual || !novaSenha) {
       return res.status(400).json({ error: 'Senha atual e nova senha são obrigatórias' });

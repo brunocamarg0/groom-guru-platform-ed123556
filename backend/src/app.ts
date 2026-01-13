@@ -146,6 +146,17 @@ app.use('/api/admin', adminUsuariosRoutes); // /api/admin/barbearias/:id/dono
 app.use('/api/admin', adminConvitesRoutes); // /api/admin/barbearias/:id/convite
 app.use('/api/admin/barbearias', adminBarbeariasRoutes); // /api/admin/barbearias
 
+// Handler para rotas não encontradas (404) - DEVE SER O ÚLTIMO
+// Retorna JSON em vez de HTML para APIs
+app.use('/api/*', (req, res) => {
+  console.log('❌ Rota não encontrada:', req.method, req.originalUrl);
+  res.status(404).json({ 
+    error: 'Rota não encontrada',
+    path: req.originalUrl,
+    method: req.method
+  });
+});
+
 // Iniciar servidor apenas se não estiver rodando como serverless function (Vercel)
 // Na Vercel, o app é exportado e não precisa de app.listen()
 // Railway sempre define PORT, então sempre iniciar o servidor se não for Vercel
