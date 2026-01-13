@@ -1,23 +1,20 @@
 {
-  "buildCommand": "cd backend && npm run build",
+  "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": {
-    "api/**/*.js": {
-      "maxDuration": 30
-    },
-    "backend/dist/**/*.js": {
+    "api/pagamentos/**/*.js": {
       "maxDuration": 30
     }
   },
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "/api/:path*"
+      "source": "/api/pagamentos/:path*",
+      "destination": "/api/pagamentos/:path*"
     }
   ],
   "headers": [
     {
-      "source": "/api/(.*)",
+      "source": "/api/pagamentos/(.*)",
       "headers": [
         {
           "key": "Access-Control-Allow-Origin",
