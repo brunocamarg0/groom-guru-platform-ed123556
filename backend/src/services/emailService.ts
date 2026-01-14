@@ -27,17 +27,31 @@ const createTransporter = async (): Promise<nodemailer.Transporter> => {
         pass: process.env.SMTP_PASS,
       },
       // Configurações adicionais para evitar timeout
-      connectionTimeout: 60000, // 60 segundos
-      greetingTimeout: 30000, // 30 segundos
-      socketTimeout: 60000, // 60 segundos
-      // Para Outlook/Hotmail, pode precisar de TLS
-      requireTLS: process.env.SMTP_HOST.includes('outlook') || process.env.SMTP_HOST.includes('hotmail'),
+      connectionTimeout: 10000, // 10 segundos (reduzido para falhar mais rápido)
+      greetingTimeout: 5000, // 5 segundos
+      socketTimeout: 10000, // 10 segundos
+      // Para Outlook/Hotmail, configurações específicas
+      requireTLS: false, // Não forçar TLS inicialmente
       tls: {
-        // Não rejeitar certificados não autorizados (pode ser necessário para alguns servidores)
+        // Não rejeitar certificados não autorizados
         rejectUnauthorized: false,
+        // Ciphers mais compatíveis
         ciphers: 'SSLv3'
-      }
+      },
+      // Pool de conexões
+      pool: true,
+      maxConnections: 1,
+      maxMessages: 3
     };
+    
+    // Configurações específicas para Outlook
+    if (process.env.SMTP_HOST.includes('outlook') || process.env.SMTP_HOST.includes('hotmail')) {
+      smtpConfig.requireTLS = true;
+      smtpConfig.tls = {
+        rejectUnauthorized: false,
+        minVersion: 'TLSv1.2'
+      };
+    }
     
     transporterCache = nodemailer.createTransport(smtpConfig);
     
