@@ -319,7 +319,7 @@ export function DonoProvider({ children }: { children: ReactNode }) {
 
   const carregarDados = async (forcar: boolean = false) => {
     if (!barbeariaId) {
-      console.warn('⚠️ Não é possível carregar dados: barbeariaId não definido');
+      console.warn('⚠️ [CARREGAR DADOS] Não é possível carregar dados: barbeariaId não definido');
       setLoading(false);
       return;
     }
@@ -328,14 +328,21 @@ export function DonoProvider({ children }: { children: ReactNode }) {
     // Mas permitir forçar o carregamento (útil após criar/atualizar/deletar)
     const agora = Date.now();
     if (!forcar && agora - ultimoCarregamento < 1000) {
-      console.log('⏸️ Carregamento já em andamento, aguardando...');
+      console.log('⏸️ [CARREGAR DADOS] Carregamento já em andamento, aguardando...');
+      // Aguardar um pouco e tentar novamente se estiver forçando
+      if (forcar) {
+        await new Promise(resolve => setTimeout(resolve, 1100));
+        return carregarDados(true);
+      }
       return;
     }
     setUltimoCarregamento(agora);
 
-    console.log('📥 Iniciando carregamento de dados do banco de dados...');
-    console.log('📥 barbeariaId:', barbeariaId);
-    console.log('📥 Token:', localStorage.getItem('token') ? 'Presente' : 'Ausente');
+    console.log('📥 [CARREGAR DADOS] ==========================================');
+    console.log('📥 [CARREGAR DADOS] Iniciando carregamento de dados do banco de dados...');
+    console.log('📥 [CARREGAR DADOS] barbeariaId:', barbeariaId);
+    console.log('📥 [CARREGAR DADOS] Token:', localStorage.getItem('token') ? 'Presente' : 'Ausente');
+    console.log('📥 [CARREGAR DADOS] Forçar:', forcar);
     setLoading(true);
     try {
       // Carregar dados em paralelo do BANCO DE DADOS
@@ -490,7 +497,8 @@ export function DonoProvider({ children }: { children: ReactNode }) {
         dataCadastro: cli.createdAt ? (typeof cli.createdAt === 'string' ? cli.createdAt.split('T')[0] : new Date(cli.createdAt).toISOString().split('T')[0]) : new Date().toISOString().split('T')[0],
       }));
 
-      console.log('✅ Clientes carregados do banco:', clientesTransformados.length);
+      console.log('✅ [CARREGAR DADOS] Clientes carregados do banco:', clientesTransformados.length);
+      console.log('✅ [CARREGAR DADOS] IDs dos clientes:', clientesTransformados.map(c => c.id));
       setClientes(clientesTransformados);
 
       // Carregar serviços do banco
@@ -577,16 +585,37 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       console.log('✅ Notificações carregadas do banco:', notificacoesTransformadas.length);
       setNotificacoes(notificacoesTransformadas);
       
-      console.log('✅ Todos os dados foram carregados do banco de dados com sucesso!');
-    } catch (error) {
-      console.error('❌ Erro ao carregar dados do banco:', error);
-      toast.error('Erro ao carregar dados do painel. Verifique sua conexão.');
+      // Atualizar estado com os dados carregados
+      const totalClientes = clientesTransformados.length;
+      const totalProfissionais = profissionaisTransformados.length;
+      const totalServicos = servicosData?.length || 0;
+      const totalAgendamentos = agendamentosTransformados.length;
+      
+      console.log('✅ [CARREGAR DADOS] ==========================================');
+      console.log('✅ [CARREGAR DADOS] Todos os dados foram carregados do banco de dados com sucesso!');
+      console.log('✅ [CARREGAR DADOS] Resumo final:');
+      console.log(`   - Profissionais: ${totalProfissionais}`);
+      console.log(`   - Clientes: ${totalClientes}`);
+      console.log(`   - Serviços: ${totalServicos}`);
+      console.log(`   - Agendamentos: ${totalAgendamentos}`);
+      console.log('✅ [CARREGAR DADOS] ==========================================');
+    } catch (error: any) {
+      console.error('❌ [CARREGAR DADOS] ==========================================');
+      console.error('❌ [CARREGAR DADOS] Erro ao carregar dados do banco:', error);
+      console.error('❌ [CARREGAR DADOS] Mensagem:', error?.message);
+      console.error('❌ [CARREGAR DADOS] Stack:', error?.stack);
+      console.error('❌ [CARREGAR DADOS] ==========================================');
+      
+      // Não mostrar toast de erro para não incomodar o usuário em caso de erro temporário
+      // toast.error('Erro ao carregar dados do painel. Verifique sua conexão.');
+      
       // Em caso de erro, define arrays vazios (não dados mockados)
       setProfissionais([]);
       setClientes([]);
       setAgendamentos([]);
     } finally {
       setLoading(false);
+      console.log('🔚 [CARREGAR DADOS] Carregamento finalizado. Loading:', false);
     }
   };
 
@@ -738,21 +767,31 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   // Funções de cliente
   const adicionarCliente = async (cliente: Omit<ClienteDono, "id" | "dataCadastro" | "totalAgendamentos" | "ticketMedio" | "frequencia">) => {
     try {
-      console.log('➕ Adicionando cliente ao banco de dados:', cliente.nome);
-      await apiPost('/dono/clientes', {
+      console.log('➕ [ADICIONAR CLIENTE] Iniciando...');
+      console.log('➕ [ADICIONAR CLIENTE] Dados:', cliente);
+      console.log('➕ [ADICIONAR CLIENTE] Token:', localStorage.getItem('token') ? 'Presente' : 'Ausente');
+      console.log('➕ [ADICIONAR CLIENTE] BarbeariaId:', barbeariaId);
+      
+      const resultado = await apiPost('/dono/clientes', {
         nome: cliente.nome,
         email: cliente.email,
         telefone: cliente.telefone,
         foto: cliente.foto,
         dataNascimento: cliente.dataNascimento,
       });
-      console.log('✅ Cliente adicionado ao banco, recarregando dados...');
+      
+      console.log('✅ [ADICIONAR CLIENTE] Cliente adicionado ao banco:', resultado);
+      console.log('🔄 [ADICIONAR CLIENTE] Iniciando recarregamento forçado de dados...');
+      
       // Forçar recarregamento imediato após adicionar cliente
       await carregarDados(true);
-      console.log('✅ Dados recarregados após adicionar cliente');
+      
+      console.log('✅ [ADICIONAR CLIENTE] Dados recarregados. Total de clientes agora:', clientes.length);
       toast.success('Cliente adicionado com sucesso!');
     } catch (error: any) {
-      console.error('❌ Erro ao adicionar cliente:', error);
+      console.error('❌ [ADICIONAR CLIENTE] Erro completo:', error);
+      console.error('❌ [ADICIONAR CLIENTE] Mensagem:', error.message);
+      console.error('❌ [ADICIONAR CLIENTE] Stack:', error.stack);
       toast.error(error.message || 'Erro ao adicionar cliente');
       throw error;
     }
