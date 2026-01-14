@@ -4,6 +4,14 @@
 
 O sistema está usando **Ethereal Email** (serviço de teste), que **NÃO envia emails reais**. Os emails só aparecem em https://ethereal.email para visualização.
 
+## ⚠️ Problema de Timeout com Outlook/Gmail
+
+Se você estiver recebendo erro "Connection timeout" ao usar Outlook ou Gmail, isso geralmente acontece porque:
+- O Railway pode bloquear conexões SMTP de saída
+- Provedores de email pessoais (Gmail, Outlook) podem bloquear conexões do Railway
+
+**Solução:** Use SendGrid ou Mailgun (recomendado para produção) - eles são serviços profissionais de email que funcionam melhor com Railway.
+
 ## ✅ Solução: Configurar SMTP Real no Railway
 
 ### Passo 1: Acessar Railway

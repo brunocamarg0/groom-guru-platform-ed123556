@@ -574,9 +574,30 @@ export async function enviarEmailRecuperacaoSenha(params: EnviarRecuperacaoSenha
       messageId: info.messageId,
       previewUrl: nodemailer.getTestMessageUrl ? nodemailer.getTestMessageUrl(info) : null,
     };
-  } catch (error) {
-    console.error('Erro ao enviar email de recuperação:', error);
-    throw new Error('Erro ao enviar email de recuperação de senha');
+  } catch (error: any) {
+    console.error('❌ [EMAIL] Erro ao enviar email de recuperação:', error);
+    console.error('❌ [EMAIL] Código do erro:', error.code);
+    console.error('❌ [EMAIL] Mensagem:', error.message);
+    
+    // Mensagens de erro mais específicas
+    if (error.code === 'ETIMEDOUT') {
+      console.error('❌ [EMAIL] Timeout ao conectar ao servidor SMTP');
+      console.error('❌ [EMAIL] Possíveis causas:');
+      console.error('   - Railway pode estar bloqueando conexões SMTP de saída');
+      console.error('   - Servidor SMTP pode estar indisponível');
+      console.error('   - Credenciais podem estar incorretas');
+      console.error('   - Porta pode estar bloqueada');
+      console.error('❌ [EMAIL] Recomendação: Use SendGrid ou Mailgun para produção');
+      throw new Error('Timeout ao conectar ao servidor de email. Tente usar SendGrid ou Mailgun.');
+    } else if (error.code === 'EAUTH') {
+      console.error('❌ [EMAIL] Erro de autenticação SMTP');
+      throw new Error('Erro de autenticação no servidor de email. Verifique SMTP_USER e SMTP_PASS.');
+    } else if (error.code === 'ECONNREFUSED') {
+      console.error('❌ [EMAIL] Conexão recusada pelo servidor SMTP');
+      throw new Error('Conexão recusada pelo servidor de email. Verifique SMTP_HOST e SMTP_PORT.');
+    }
+    
+    throw new Error(`Erro ao enviar email de recuperação de senha: ${error.message || 'Erro desconhecido'}`);
   }
 }
 
