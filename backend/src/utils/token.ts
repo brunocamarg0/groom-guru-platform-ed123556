@@ -42,7 +42,7 @@ export function validarToken(token: string): boolean {
 /**
  * Gera token JWT para autenticação
  */
-export function gerarTokenJWT(payload: { id: string; email: string; tipo: 'dono' | 'cliente' | 'admin' }): string {
+export function gerarTokenJWT(payload: { id: string; email: string; tipo: 'dono' | 'cliente' | 'admin'; barbeariaId?: string }): string {
   const secret = process.env.JWT_SECRET || 'seu-secret-super-seguro-aqui-mude-em-producao';
   return jwt.sign(payload, secret, {
     expiresIn: '7d', // Token expira em 7 dias
@@ -52,9 +52,9 @@ export function gerarTokenJWT(payload: { id: string; email: string; tipo: 'dono'
 /**
  * Verifica e decodifica token JWT
  */
-export function verificarTokenJWT(token: string): { id: string; email: string; tipo: 'dono' | 'cliente' | 'admin' } {
+export function verificarTokenJWT(token: string): { id: string; email: string; tipo: 'dono' | 'cliente' | 'admin'; barbeariaId?: string } {
   const secret = process.env.JWT_SECRET || 'seu-secret-super-seguro-aqui-mude-em-producao';
-  return jwt.verify(token, secret) as { id: string; email: string; tipo: 'dono' | 'cliente' | 'admin' };
+  return jwt.verify(token, secret) as { id: string; email: string; tipo: 'dono' | 'cliente' | 'admin'; barbeariaId?: string };
 }
 
 

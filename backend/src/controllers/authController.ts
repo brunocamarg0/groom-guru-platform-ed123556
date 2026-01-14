@@ -234,6 +234,7 @@ export async function cadastroDiretoDono(req: Request, res: Response) {
       id: resultado.dono.id,
       email: resultado.dono.email,
       tipo: 'dono',
+      barbeariaId: resultado.dono.barbeariaId,
     });
 
     res.status(201).json({
@@ -348,6 +349,7 @@ export async function registrarDono(req: Request, res: Response) {
       id: dono.id,
       email: dono.email,
       tipo: 'dono',
+      barbeariaId: dono.barbeariaId,
     });
 
     res.status(201).json({

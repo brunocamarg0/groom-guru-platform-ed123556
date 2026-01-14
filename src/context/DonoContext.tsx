@@ -13,8 +13,22 @@ import {
   RelatorioDono,
 } from "@/types/dono";
 import { apiGet, apiPost, apiPut, apiDelete } from "@/services/api";
-import { useBarbearias } from "@/context/BarbeariasContext";
 import { toast } from "sonner";
+
+// Função para decodificar JWT e obter barbeariaId
+function obterBarbeariaIdDoToken(): string | null {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+    
+    // Decodificar JWT (sem verificar assinatura, apenas para obter dados)
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.barbeariaId || null;
+  } catch (error) {
+    console.error('Erro ao decodificar token:', error);
+    return null;
+  }
+}
 
 interface DonoContextType {
   // Dados
@@ -198,8 +212,13 @@ const configuracaoInicial: ConfiguracaoBarbearia = {
 };
 
 export function DonoProvider({ children }: { children: ReactNode }) {
-  // Obter barbeariaId do localStorage (salvo após login)
+  // Obter barbeariaId do token JWT (prioridade) ou localStorage (fallback)
   const getBarbeariaIdFromStorage = (): string | null => {
+    // Primeiro tenta obter do token JWT
+    const tokenId = obterBarbeariaIdDoToken();
+    if (tokenId) return tokenId;
+    
+    // Fallback: tenta obter do localStorage
     try {
       const userStr = localStorage.getItem('user');
       const barbeariaStr = localStorage.getItem('barbearia');
