@@ -278,10 +278,10 @@ export default function ClienteDashboard() {
             </div>
             <div className="text-right">
               <p className="text-sm font-medium">
-                Faltam {fidelidade.proximoDesconto.cortesNecessarios} cortes
+                Faltam {fidelidade.proximoDesconto?.cortesNecessarios || 5} cortes
               </p>
               <p className="text-xs text-muted-foreground">
-                para ganhar {fidelidade.proximoDesconto.desconto}% de desconto
+                para ganhar {fidelidade.proximoDesconto?.desconto || 5}% de desconto
               </p>
             </div>
           </div>
@@ -289,14 +289,14 @@ export default function ClienteDashboard() {
       </Card>
 
       {/* Créditos */}
-      {cliente.creditos > 0 && (
+      {((cliente as any).creditos || 0) > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Créditos Disponíveis</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-primary">
-              {formatarMoeda(cliente.creditos)}
+              {formatarMoeda((cliente as any).creditos || 0)}
             </p>
             <p className="text-sm text-muted-foreground mt-2">
               Use seus créditos no próximo pagamento

@@ -47,6 +47,9 @@ interface ClienteContextType {
   barbearias: any[];
   buscarBarbearias: (busca?: string) => Promise<void>;
   buscarBarbeariaPorId: (id: string) => Promise<any>;
+  criarAvaliacao?: (dados: any) => Promise<void>;
+  realizarPagamento?: (agendamentoId: string, dados: any) => Promise<void>;
+  marcarNotificacaoLida?: (id: string) => Promise<void>;
 }
 
 const ClienteContext = createContext<ClienteContextType | undefined>(undefined);
@@ -429,6 +432,9 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
         barbearias,
         buscarBarbearias,
         buscarBarbeariaPorId,
+        criarAvaliacao: undefined, // TODO: Implementar
+        realizarPagamento: undefined, // TODO: Implementar
+        marcarNotificacaoLida: undefined, // TODO: Implementar
       }}
     >
       {children}
