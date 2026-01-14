@@ -105,6 +105,10 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
     if (isClienteRoute && token && userType === 'cliente') {
       console.log('🔄 Carregando dados do cliente do banco...');
       carregarDados();
+      // Carregar todas as barbearias ativas automaticamente ao fazer login
+      buscarBarbearias().catch((err) => {
+        console.warn('⚠️ Erro ao carregar barbearias iniciais:', err);
+      });
     } else if (isClienteRoute && !token) {
       console.warn('⚠️ Token não encontrado. Redirecionando para login...');
       window.location.href = '/login';

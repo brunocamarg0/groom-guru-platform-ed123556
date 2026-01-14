@@ -18,17 +18,23 @@ import {
   History,
   UserCircle,
   Gift,
+  MapPin,
+  Phone,
+  Mail,
+  Search,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 export default function ClienteDashboard() {
-  let cliente, getProximoAgendamento, fidelidade;
+  const navigate = useNavigate();
+  let cliente, getProximoAgendamento, fidelidade, barbearias;
   
   try {
     const clienteContext = useCliente();
     cliente = clienteContext.cliente;
     getProximoAgendamento = clienteContext.getProximoAgendamento;
     fidelidade = clienteContext.fidelidade;
+    barbearias = clienteContext.barbearias || [];
   } catch (error) {
     console.error("Erro ao carregar dados do cliente:", error);
     return (
