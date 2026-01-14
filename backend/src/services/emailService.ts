@@ -16,7 +16,9 @@ const createTransporter = async (): Promise<nodemailer.Transporter> => {
     console.log('📧 [EMAIL] Configurando SMTP real para produção');
     console.log('📧 [EMAIL] Host:', process.env.SMTP_HOST);
     console.log('📧 [EMAIL] Port:', process.env.SMTP_PORT || '587');
-    transporterCache = nodemailer.createTransport({
+    console.log('📧 [EMAIL] Secure:', process.env.SMTP_SECURE === 'true');
+    
+    const smtpConfig: any = {
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT || '587'),
       secure: process.env.SMTP_SECURE === 'true', // true para 465, false para outras portas
@@ -24,8 +26,30 @@ const createTransporter = async (): Promise<nodemailer.Transporter> => {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
-    });
-    console.log('✅ [EMAIL] SMTP real configurado com sucesso');
+      // Configurações adicionais para evitar timeout
+      connectionTimeout: 60000, // 60 segundos
+      greetingTimeout: 30000, // 30 segundos
+      socketTimeout: 60000, // 60 segundos
+      // Para Outlook/Hotmail, pode precisar de TLS
+      requireTLS: process.env.SMTP_HOST.includes('outlook') || process.env.SMTP_HOST.includes('hotmail'),
+      tls: {
+        // Não rejeitar certificados não autorizados (pode ser necessário para alguns servidores)
+        rejectUnauthorized: false,
+        ciphers: 'SSLv3'
+      }
+    };
+    
+    transporterCache = nodemailer.createTransport(smtpConfig);
+    
+    // Testar conexão
+    try {
+      await transporterCache.verify();
+      console.log('✅ [EMAIL] SMTP real configurado e verificado com sucesso');
+    } catch (verifyError) {
+      console.error('⚠️ [EMAIL] Erro ao verificar conexão SMTP:', verifyError);
+      console.warn('⚠️ [EMAIL] Continuando mesmo assim - tentará enviar quando necessário');
+    }
+    
     return transporterCache;
   }
 
