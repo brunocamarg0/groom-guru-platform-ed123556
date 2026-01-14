@@ -79,7 +79,17 @@ const Login = () => {
         }
 
         toast.success('Login realizado com sucesso!');
-        navigate(redirectPath);
+        
+        // Pequeno delay para garantir que os dados sejam salvos no localStorage
+        setTimeout(() => {
+          try {
+            navigate(redirectPath);
+          } catch (navError) {
+            console.error('Erro ao navegar:', navError);
+            // Fallback: recarregar a página
+            window.location.href = redirectPath;
+          }
+        }, 100);
       } else {
         throw new Error('Token não recebido');
       }
