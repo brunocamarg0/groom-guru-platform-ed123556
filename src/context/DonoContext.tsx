@@ -791,7 +791,7 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       console.log('➕ [ADICIONAR CLIENTE] Token:', localStorage.getItem('token') ? 'Presente' : 'Ausente');
       console.log('➕ [ADICIONAR CLIENTE] BarbeariaId:', barbeariaId);
       
-      const resultado = await apiPost('/dono/clientes', {
+      const resultado = await apiPost<any>('/dono/clientes', {
         nome: cliente.nome,
         email: cliente.email,
         telefone: cliente.telefone,
@@ -800,12 +800,42 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       });
       
       console.log('✅ [ADICIONAR CLIENTE] Cliente adicionado ao banco:', resultado);
+      
+      // Adicionar cliente temporariamente à lista enquanto recarrega
+      if (resultado && resultado.id) {
+        const novoCliente: ClienteDono = {
+          id: resultado.id,
+          nome: resultado.nome || cliente.nome,
+          email: resultado.email || cliente.email || '',
+          telefone: resultado.telefone || cliente.telefone || '',
+          foto: resultado.foto || cliente.foto,
+          dataNascimento: resultado.dataNascimento ? (typeof resultado.dataNascimento === 'string' ? resultado.dataNascimento.split('T')[0] : new Date(resultado.dataNascimento).toISOString().split('T')[0]) : cliente.dataNascimento,
+          vip: false,
+          totalAgendamentos: 0,
+          ticketMedio: 0,
+          frequencia: 0,
+          dataCadastro: resultado.createdAt ? (typeof resultado.createdAt === 'string' ? resultado.createdAt.split('T')[0] : new Date(resultado.createdAt).toISOString().split('T')[0]) : new Date().toISOString().split('T')[0],
+        };
+        
+        // Adicionar à lista imediatamente
+        setClientes(prev => {
+          // Verificar se já não existe (evitar duplicatas)
+          const existe = prev.find(c => c.id === novoCliente.id);
+          if (existe) return prev;
+          return [...prev, novoCliente];
+        });
+        
+        console.log('✅ [ADICIONAR CLIENTE] Cliente adicionado temporariamente à lista');
+      }
+      
       console.log('🔄 [ADICIONAR CLIENTE] Iniciando recarregamento forçado de dados...');
       
-      // Forçar recarregamento imediato após adicionar cliente
-      await carregarDados(true);
+      // Forçar recarregamento imediato após adicionar cliente (com pequeno delay para garantir que o banco commitou)
+      setTimeout(async () => {
+        await carregarDados(true);
+        console.log('✅ [ADICIONAR CLIENTE] Dados recarregados. Total de clientes agora:', clientes.length);
+      }, 500);
       
-      console.log('✅ [ADICIONAR CLIENTE] Dados recarregados. Total de clientes agora:', clientes.length);
       toast.success('Cliente adicionado com sucesso!');
     } catch (error: any) {
       console.error('❌ [ADICIONAR CLIENTE] Erro completo:', error);

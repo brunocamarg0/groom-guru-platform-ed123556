@@ -46,9 +46,10 @@ export async function listarClientes(req: AuthRequest, res: Response) {
     console.log('📋 [LISTAR CLIENTES] Total de clientes ativos no sistema:', clienteIdsAtivos.length);
     console.log('📋 [LISTAR CLIENTES] Total de IDs únicos a buscar:', todosClienteIds.length);
 
-    const where: any = {
-      id: { in: todosClienteIds.length > 0 ? todosClienteIds : [''] }, // Se não houver IDs, usar array vazio (retornará vazio)
-    };
+    // Se não houver IDs, retornar array vazio (não usar [''] que não funciona)
+    const where: any = todosClienteIds.length > 0 
+      ? { id: { in: todosClienteIds } }
+      : { id: { in: [] } }; // Array vazio retorna nada, que é o comportamento esperado
 
     if (busca && typeof busca === 'string') {
       where.OR = [
