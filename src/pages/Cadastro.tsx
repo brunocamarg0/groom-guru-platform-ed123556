@@ -97,7 +97,7 @@ const Cadastro = () => {
           telefone: formCliente.telefone || null,
           dataNascimento: formCliente.dataNascimento || null,
         };
-        redirectPath = '/client';
+        redirectPath = '/cliente';
       }
 
       console.log('🔍 Tentando conectar em:', url);

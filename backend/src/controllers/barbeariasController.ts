@@ -101,7 +101,7 @@ export async function buscarBarbearia(req: Request, res: Response) {
  */
 export async function criarBarbearia(req: Request, res: Response) {
   try {
-    const { nome, cnpjCpf, responsavel, plano, email, telefone, endereco, enviarEmail = true } = req.body;
+    const { nome, cnpjCpf, responsavel, plano, email, telefone, endereco, cidade, bairro, cep, enviarEmail = true } = req.body;
 
     // Validações básicas
     if (!nome || !cnpjCpf || !responsavel || !plano) {
@@ -122,6 +122,9 @@ export async function criarBarbearia(req: Request, res: Response) {
           email,
           telefone,
           endereco,
+          cidade,
+          bairro,
+          cep,
           dataVencimento,
           status: 'em_teste',
         },

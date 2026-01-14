@@ -13,15 +13,31 @@ import { Gift, Star, TrendingUp, Award, Calendar } from "lucide-react";
 export default function Fidelidade() {
   const { fidelidade, cliente } = useCliente();
 
-  const nivelConfig = {
+  // Proteção contra undefined
+  if (!fidelidade) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <p className="text-muted-foreground">Carregando dados de fidelidade...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const nivelConfig: Record<string, { label: string; cor: string; descricao: string }> = {
     bronze: { label: "Bronze", cor: "bg-amber-600", descricao: "Iniciante" },
     prata: { label: "Prata", cor: "bg-gray-400", descricao: "Fiel" },
     ouro: { label: "Ouro", cor: "bg-yellow-500", descricao: "VIP" },
     diamante: { label: "Diamante", cor: "bg-blue-500", descricao: "Premium" },
   };
 
-  const nivel = nivelConfig[fidelidade.nivel];
-  const progresso = (fidelidade.cortesRealizados / (fidelidade.cortesRealizados + fidelidade.proximoDesconto.cortesNecessarios)) * 100;
+  // Normalizar o nível para minúsculas para garantir que encontre no config
+  const nivelKey = (fidelidade?.nivel || "bronze").toLowerCase();
+  const nivel = nivelConfig[nivelKey] || nivelConfig.bronze;
+  
+  // Proteção contra divisão por zero
+  const totalCortes = fidelidade.cortesRealizados + (fidelidade.proximoDesconto?.cortesNecessarios || 5);
+  const progresso = totalCortes > 0 ? (fidelidade.cortesRealizados / totalCortes) * 100 : 0;
 
   return (
     <div className="space-y-6">
@@ -85,7 +101,7 @@ export default function Fidelidade() {
             <div className="flex justify-between text-sm mb-2">
               <span>
                 {fidelidade.cortesRealizados} de{" "}
-                {fidelidade.cortesRealizados + fidelidade.proximoDesconto.cortesNecessarios}{" "}
+                {fidelidade.cortesRealizados + (fidelidade.proximoDesconto?.cortesNecessarios || 5)}{" "}
                 cortes
               </span>
               <span>{Math.round(progresso)}%</span>
@@ -94,8 +110,8 @@ export default function Fidelidade() {
           </div>
           <div className="p-4 bg-primary/10 rounded-lg">
             <p className="font-medium">
-              Faça mais {fidelidade.proximoDesconto.cortesNecessarios} corte(s) e ganhe{" "}
-              {fidelidade.proximoDesconto.desconto}% de desconto no próximo!
+              Faça mais {fidelidade.proximoDesconto?.cortesNecessarios || 5} corte(s) e ganhe{" "}
+              {fidelidade.proximoDesconto?.desconto || 5}% de desconto no próximo!
             </p>
           </div>
         </CardContent>

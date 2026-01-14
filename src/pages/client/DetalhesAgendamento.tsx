@@ -48,7 +48,7 @@ export default function DetalhesAgendamento() {
       <div className="space-y-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
-            <Link to="/client">
+            <Link to="/cliente">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
@@ -75,7 +75,7 @@ export default function DetalhesAgendamento() {
         title: "Agendamento cancelado",
         description: "Seu agendamento foi cancelado com sucesso.",
       });
-      navigate("/client");
+      navigate("/cliente");
     }
   };
 
@@ -84,7 +84,7 @@ export default function DetalhesAgendamento() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
-            <Link to="/client">
+            <Link to="/cliente">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
@@ -98,7 +98,7 @@ export default function DetalhesAgendamento() {
         <div className="flex gap-2">
           {agendamento.status === "pagamento_pendente" && (
             <Button asChild>
-              <Link to={`/client/checkout/${agendamento.id}`}>
+              <Link to={`/cliente/checkout/${agendamento.id}`}>
                 Finalizar Pagamento
               </Link>
             </Button>
@@ -266,7 +266,7 @@ export default function DetalhesAgendamento() {
               ) : agendamento.status === "pagamento_pendente" ? (
                 <div className="pt-4">
                   <Button asChild className="w-full">
-                    <Link to={`/client/checkout/${agendamento.id}`}>
+                    <Link to={`/cliente/checkout/${agendamento.id}`}>
                       Finalizar Pagamento
                     </Link>
                   </Button>

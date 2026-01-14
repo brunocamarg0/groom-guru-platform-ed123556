@@ -35,7 +35,7 @@ const Login = () => {
         redirectPath = '/dono';
       } else if (activeTab === 'client') {
         endpoint = '/auth/cliente/login';
-        redirectPath = '/client';
+        redirectPath = '/cliente';
       } else if (activeTab === 'admin') {
         endpoint = '/auth/admin/login';
         redirectPath = '/admin';

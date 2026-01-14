@@ -202,6 +202,7 @@ export async function cadastroDiretoDono(req: Request, res: Response) {
           plano: 'basico', // Plano padrão
           email: email,
           telefone: telefone,
+          // cidade, bairro e cep podem ser adicionados depois nas configurações
           dataVencimento,
           status: 'em_teste',
         },

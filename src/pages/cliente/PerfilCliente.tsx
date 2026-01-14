@@ -24,13 +24,25 @@ import { TipoServico } from "@/types/cliente";
 export default function PerfilCliente() {
   const { cliente, atualizarPerfil } = useCliente();
   const { toast } = useToast();
+
+  // Proteção contra undefined
+  if (!cliente) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <p className="text-muted-foreground">Carregando perfil...</p>
+        </div>
+      </div>
+    );
+  }
+
   const [formData, setFormData] = useState({
-    nome: cliente.nome,
-    email: cliente.email,
-    telefone: cliente.telefone,
+    nome: cliente.nome || "",
+    email: cliente.email || "",
+    telefone: cliente.telefone || "",
     dataNascimento: cliente.dataNascimento || "",
-    profissionalFavorito: cliente.preferencias.profissionalFavorito || "",
-    servicoPreferido: cliente.preferencias.servicoPreferido || undefined,
+    profissionalFavorito: (cliente as any).preferencias?.profissionalFavorito || "",
+    servicoPreferido: (cliente as any).preferencias?.servicoPreferido || undefined,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -38,13 +50,9 @@ export default function PerfilCliente() {
     atualizarPerfil({
       nome: formData.nome,
       email: formData.email,
-      telefone: formData.telefone,
+      telefone: formData.telefone || undefined,
       dataNascimento: formData.dataNascimento || undefined,
-      preferencias: {
-        profissionalFavorito: formData.profissionalFavorito || undefined,
-        servicoPreferido: formData.servicoPreferido,
-      },
-    });
+    } as any);
     toast({
       title: "Perfil atualizado",
       description: "Suas informações foram atualizadas com sucesso.",

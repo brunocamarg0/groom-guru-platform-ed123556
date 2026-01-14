@@ -22,6 +22,8 @@ import donoAvaliacoesRoutes from './routes/dono/avaliacoes';
 import donoProdutosRoutes from './routes/dono/produtos';
 import donoNotificacoesRoutes from './routes/dono/notificacoes';
 import donoRelatoriosRoutes from './routes/dono/relatorios';
+import clientePanelRoutes from './routes/cliente/panel';
+import barbeariasPublicasRoutes from './routes/barbeariasPublicas';
 // Carregar configuração do Passport (pode falhar se OAuth não estiver configurado)
 try {
   require('./config/passport');
@@ -145,6 +147,13 @@ app.use('/api', ativacaoRoutes);
 app.use('/api/solicitacoes', solicitacoesRoutes);
 app.use('/api/agendamentos', agendamentosRoutes);
 
+// Rotas públicas de barbearias (para clientes)
+console.log('🔧 Registrando rotas públicas de barbearias em /api/barbearias');
+app.use('/api/barbearias', (req, res, next) => {
+  console.log('🔧 Rota /api/barbearias chamada:', req.method, req.originalUrl);
+  next();
+}, barbeariasPublicasRoutes);
+
 // Rotas do dono (requerem autenticação)
 app.use('/api/dono/profissionais', donoProfissionaisRoutes);
 app.use('/api/dono/clientes', donoClientesRoutes);
@@ -156,6 +165,9 @@ app.use('/api/dono/avaliacoes', donoAvaliacoesRoutes);
 app.use('/api/dono/produtos', donoProdutosRoutes);
 app.use('/api/dono/notificacoes', donoNotificacoesRoutes);
 app.use('/api/dono/relatorios', donoRelatoriosRoutes);
+
+// Rotas do cliente (requerem autenticação)
+app.use('/api/cliente', clientePanelRoutes);
 
 // Rotas admin - ordem importa! Rotas mais específicas primeiro
 app.use('/api/admin', criarExemploRoutes); // /api/admin/criar-exemplo

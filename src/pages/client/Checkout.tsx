@@ -129,7 +129,7 @@ function CheckoutForm({ agendamentoId, valor }: { agendamentoId: string; valor: 
           title: "Agendamento confirmado",
           description: "Você pagará em dinheiro no estabelecimento.",
         });
-        navigate(`/client/agendamentos/${agendamentoId}`);
+        navigate(`/cliente/agendamentos/${agendamentoId}`);
         setIsProcessing(false);
         return;
       }
@@ -225,7 +225,7 @@ function CheckoutForm({ agendamentoId, valor }: { agendamentoId: string; valor: 
                 Voltar
               </Button>
               <Button
-                onClick={() => navigate(`/client/agendamentos/${agendamentoId}`)}
+                onClick={() => navigate(`/cliente/agendamentos/${agendamentoId}`)}
                 className="flex-1"
               >
                 Ver Agendamento
@@ -368,7 +368,7 @@ function CheckoutForm({ agendamentoId, valor }: { agendamentoId: string; valor: 
         <Button
           type="button"
           variant="outline"
-          onClick={() => navigate("/client")}
+          onClick={() => navigate("/cliente")}
           disabled={isProcessing}
           className="flex-1"
         >
@@ -422,7 +422,7 @@ export default function Checkout() {
           description: "O agendamento solicitado não foi encontrado.",
           variant: "destructive",
         });
-        navigate("/client");
+        navigate("/cliente");
         return;
       }
 
@@ -431,7 +431,7 @@ export default function Checkout() {
           title: "Pagamento já processado",
           description: "Este agendamento já possui pagamento processado.",
         });
-        navigate(`/client/agendamentos/${id}`);
+        navigate(`/cliente/agendamentos/${id}`);
         return;
       }
 
@@ -453,7 +453,7 @@ export default function Checkout() {
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
-          <Link to="/client">
+          <Link to="/cliente">
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>

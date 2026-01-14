@@ -37,6 +37,9 @@ export default function CadastrarBarbearia() {
     email: "",
     telefone: "",
     endereco: "",
+    cidade: "",
+    bairro: "",
+    cep: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -172,15 +175,53 @@ export default function CadastrarBarbearia() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="endereco">Endereço</Label>
+              <Label htmlFor="endereco">Endereço (Rua e Número)</Label>
               <Input
                 id="endereco"
                 value={formData.endereco}
                 onChange={(e) =>
                   setFormData({ ...formData, endereco: e.target.value })
                 }
-                placeholder="Rua, número, bairro, cidade"
+                placeholder="Rua, número"
               />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="bairro">Bairro *</Label>
+                <Input
+                  id="bairro"
+                  value={(formData as any).bairro || ""}
+                  onChange={(e) =>
+                    setFormData({ ...formData, bairro: e.target.value } as any)
+                  }
+                  placeholder="Bairro"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cidade">Cidade *</Label>
+                <Input
+                  id="cidade"
+                  value={(formData as any).cidade || ""}
+                  onChange={(e) =>
+                    setFormData({ ...formData, cidade: e.target.value } as any)
+                  }
+                  placeholder="Cidade"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cep">CEP</Label>
+                <Input
+                  id="cep"
+                  value={(formData as any).cep || ""}
+                  onChange={(e) =>
+                    setFormData({ ...formData, cep: e.target.value } as any)
+                  }
+                  placeholder="00000-000"
+                />
+              </div>
             </div>
 
             <div className="flex justify-end gap-4">

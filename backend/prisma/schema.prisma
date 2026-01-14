@@ -35,6 +35,9 @@ model Barbearia {
   email             String?
   telefone          String?
   endereco          String?
+  cidade            String?
+  bairro            String?
+  cep               String?
   modoConfirmacao   String   @default("hibrido") // automatico, manual, hibrido
   
   // Relacionamentos

@@ -27,6 +27,9 @@ export default function HistoricoAgendamentos() {
   const { agendamentos, getAgendamentosPorStatus } = useCliente();
   const [filtroData, setFiltroData] = useState("");
 
+  // Garantir que agendamentos é um array
+  const agendamentosArray = Array.isArray(agendamentos) ? agendamentos : [];
+
   const formatarMoeda = (valor: number) => {
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
@@ -51,8 +54,8 @@ export default function HistoricoAgendamentos() {
   };
 
   const agendamentosFiltrados = filtroData
-    ? agendamentos.filter((a) => a.data === filtroData)
-    : agendamentos;
+    ? agendamentosArray.filter((a) => a.data === filtroData)
+    : agendamentosArray;
 
   return (
     <div className="space-y-6">
@@ -103,40 +106,48 @@ export default function HistoricoAgendamentos() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {agendamentosFiltrados.map((agendamento) => {
-                    const status = statusConfig[agendamento.status];
-                    return (
-                      <TableRow key={agendamento.id}>
-                        <TableCell>
-                          {formatarData(agendamento.data, agendamento.horario)}
-                        </TableCell>
-                        <TableCell>{agendamento.servicoNome}</TableCell>
-                        <TableCell>{agendamento.profissionalNome}</TableCell>
-                        <TableCell>{formatarMoeda(agendamento.valor)}</TableCell>
-                        <TableCell>
-                          <Badge variant={status.variant}>{status.label}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            {agendamento.status === "concluido" && !agendamento.avaliacao && (
-                              <Button variant="ghost" size="icon" asChild>
-                                <Link to={`/cliente/avaliacoes?agendamento=${agendamento.id}`}>
-                                  <Star className="h-4 w-4" />
-                                </Link>
-                              </Button>
-                            )}
-                            {agendamento.status === "concluido" && (
-                              <Button variant="ghost" size="icon" asChild>
-                                <Link to={`/cliente/agendar?reagendar=${agendamento.id}`}>
-                                  <CalendarCheck className="h-4 w-4" />
-                                </Link>
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                  {agendamentosFiltrados.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                        Nenhum agendamento encontrado
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    agendamentosFiltrados.map((agendamento) => {
+                      const status = statusConfig[agendamento.status as keyof typeof statusConfig] || statusConfig.confirmado;
+                      return (
+                        <TableRow key={agendamento.id}>
+                          <TableCell>
+                            {formatarData(agendamento.data, agendamento.hora)}
+                          </TableCell>
+                          <TableCell>{agendamento.servico?.nome || 'N/A'}</TableCell>
+                          <TableCell>N/A</TableCell>
+                          <TableCell>{formatarMoeda(agendamento.servico?.preco || 0)}</TableCell>
+                          <TableCell>
+                            <Badge variant={status.variant}>{status.label}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              {agendamento.status === "concluido" && (
+                                <Button variant="ghost" size="icon" asChild>
+                                  <Link to={`/cliente/avaliacoes?agendamento=${agendamento.id}`}>
+                                    <Star className="h-4 w-4" />
+                                  </Link>
+                                </Button>
+                              )}
+                              {agendamento.status === "concluido" && (
+                                <Button variant="ghost" size="icon" asChild>
+                                  <Link to={`/cliente/agendar?reagendar=${agendamento.id}`}>
+                                    <CalendarCheck className="h-4 w-4" />
+                                  </Link>
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -163,25 +174,33 @@ export default function HistoricoAgendamentos() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {getAgendamentosPorStatus(status).map((agendamento) => (
-                      <TableRow key={agendamento.id}>
-                        <TableCell>
-                          {formatarData(agendamento.data, agendamento.horario)}
-                        </TableCell>
-                        <TableCell>{agendamento.servicoNome}</TableCell>
-                        <TableCell>{agendamento.profissionalNome}</TableCell>
-                        <TableCell>{formatarMoeda(agendamento.valor)}</TableCell>
-                        <TableCell>
-                          {agendamento.status === "concluido" && !agendamento.avaliacao && (
-                            <Button variant="ghost" size="icon" asChild>
-                              <Link to={`/cliente/avaliacoes?agendamento=${agendamento.id}`}>
-                                <Star className="h-4 w-4" />
-                              </Link>
-                            </Button>
-                          )}
+                    {(getAgendamentosPorStatus && getAgendamentosPorStatus(status) || []).length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                          Nenhum agendamento {statusConfig[status].label.toLowerCase()} encontrado
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      (getAgendamentosPorStatus ? getAgendamentosPorStatus(status) : []).map((agendamento) => (
+                        <TableRow key={agendamento.id}>
+                          <TableCell>
+                            {formatarData(agendamento.data, agendamento.hora)}
+                          </TableCell>
+                          <TableCell>{agendamento.servico?.nome || 'N/A'}</TableCell>
+                          <TableCell>N/A</TableCell>
+                          <TableCell>{formatarMoeda(agendamento.servico?.preco || 0)}</TableCell>
+                          <TableCell>
+                            {agendamento.status === "concluido" && (
+                              <Button variant="ghost" size="icon" asChild>
+                                <Link to={`/cliente/avaliacoes?agendamento=${agendamento.id}`}>
+                                  <Star className="h-4 w-4" />
+                                </Link>
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>

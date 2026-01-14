@@ -33,6 +33,9 @@ export interface Barbearia {
   email?: string;
   telefone?: string;
   endereco?: string;
+  cidade?: string;
+  bairro?: string;
+  cep?: string;
 }
 
 export interface NovaBarbearia {
@@ -43,6 +46,9 @@ export interface NovaBarbearia {
   email?: string;
   telefone?: string;
   endereco?: string;
+  cidade?: string;
+  bairro?: string;
+  cep?: string;
 }
 
 export interface NovoServicoBarbearia {

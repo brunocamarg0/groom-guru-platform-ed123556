@@ -26,28 +26,28 @@ export async function listarClientes(req: AuthRequest, res: Response) {
       .map((a) => a.clienteId)
       .filter((id): id is string => id !== null);
 
-    // Buscar também clientes criados recentemente (últimos 30 dias)
-    // Isso garante que clientes recém-criados apareçam mesmo sem agendamentos
-    const dataLimite = new Date();
-    dataLimite.setDate(dataLimite.getDate() - 30);
-
-    const clientesRecentes = await prisma.cliente.findMany({
+    // Buscar TODOS os clientes ativos (sem limite de tempo)
+    // Isso garante que TODOS os clientes criados apareçam, mesmo sem agendamentos
+    // IMPORTANTE: Para o painel do dono, queremos ver todos os clientes disponíveis
+    const clientesAtivos = await prisma.cliente.findMany({
       where: {
-        createdAt: {
-          gte: dataLimite,
-        },
         ativo: true,
       },
       select: { id: true },
     });
 
-    const clienteIdsRecentes = clientesRecentes.map((c) => c.id);
+    const clienteIdsAtivos = clientesAtivos.map((c) => c.id);
 
-    // Combinar IDs: clientes com agendamentos + clientes recentes
-    const todosClienteIds = [...new Set([...clienteIdsComAgendamento, ...clienteIdsRecentes])];
+    // Combinar IDs: clientes com agendamentos na barbearia + todos os clientes ativos
+    // Isso garante que vemos clientes com histórico na barbearia E todos os clientes disponíveis
+    const todosClienteIds = [...new Set([...clienteIdsComAgendamento, ...clienteIdsAtivos])];
+
+    console.log('📋 [LISTAR CLIENTES] Clientes com agendamentos na barbearia:', clienteIdsComAgendamento.length);
+    console.log('📋 [LISTAR CLIENTES] Total de clientes ativos no sistema:', clienteIdsAtivos.length);
+    console.log('📋 [LISTAR CLIENTES] Total de IDs únicos a buscar:', todosClienteIds.length);
 
     const where: any = {
-      id: { in: todosClienteIds },
+      id: { in: todosClienteIds.length > 0 ? todosClienteIds : [''] }, // Se não houver IDs, usar array vazio (retornará vazio)
     };
 
     if (busca && typeof busca === 'string') {

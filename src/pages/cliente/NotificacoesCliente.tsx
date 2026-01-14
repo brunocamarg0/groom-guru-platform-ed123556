@@ -13,19 +13,26 @@ import { Bell, Mail, MessageSquare, CheckCircle, Calendar, Gift, CreditCard, Set
 export default function NotificacoesCliente() {
   const { notificacoes, marcarNotificacaoLida } = useCliente();
 
+  // Proteção contra undefined
+  const notificacoesArray = Array.isArray(notificacoes) ? notificacoes : [];
+
   const formatarData = (data: string) => {
-    return new Date(data).toLocaleString("pt-BR");
+    try {
+      return new Date(data).toLocaleString("pt-BR");
+    } catch {
+      return "Data inválida";
+    }
   };
 
-  const tipoConfig = {
-    agendamento: { label: "Agendamento", icon: Calendar, variant: "default" as const },
-    lembrete: { label: "Lembrete", icon: Bell, variant: "secondary" as const },
-    promocao: { label: "Promoção", icon: Gift, variant: "outline" as const },
-    pagamento: { label: "Pagamento", icon: CreditCard, variant: "default" as const },
-    sistema: { label: "Sistema", icon: Settings, variant: "secondary" as const },
+  const tipoConfig: Record<string, { label: string; icon: any; variant: "default" | "secondary" | "outline" }> = {
+    agendamento: { label: "Agendamento", icon: Calendar, variant: "default" },
+    lembrete: { label: "Lembrete", icon: Bell, variant: "secondary" },
+    promocao: { label: "Promoção", icon: Gift, variant: "outline" },
+    pagamento: { label: "Pagamento", icon: CreditCard, variant: "default" },
+    sistema: { label: "Sistema", icon: Settings, variant: "secondary" },
   };
 
-  const canalConfig = {
+  const canalConfig: Record<string, { label: string; icon: any }> = {
     app: { label: "App", icon: Bell },
     email: { label: "Email", icon: Mail },
     whatsapp: { label: "WhatsApp", icon: MessageSquare },
@@ -44,19 +51,22 @@ export default function NotificacoesCliente() {
         <CardHeader>
           <CardTitle>Suas Notificações</CardTitle>
           <CardDescription>
-            {notificacoes.filter((n) => !n.lida).length} não lidas
+            {notificacoesArray.filter((n) => !n.lida).length} não lidas
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {notificacoes.length === 0 ? (
+            {notificacoesArray.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
                 Nenhuma notificação
               </p>
             ) : (
-              notificacoes.map((notificacao) => {
-                const tipo = tipoConfig[notificacao.tipo] || tipoConfig.sistema;
+              notificacoesArray.map((notificacao) => {
+                const tipoKey = notificacao.tipo || "sistema";
+                const tipo = tipoConfig[tipoKey] || tipoConfig.sistema;
                 const TipoIcon = tipo.icon;
+                const canalKey = notificacao.canal || "app";
+                const canal = canalConfig[canalKey] || canalConfig.app;
                 return (
                   <div
                     key={notificacao.id}
@@ -75,26 +85,30 @@ export default function NotificacoesCliente() {
                             </Badge>
                           )}
                         </div>
-                        <h4 className="font-medium">{notificacao.titulo}</h4>
+                        <h4 className="font-medium">{notificacao.titulo || "Sem título"}</h4>
                         <p className="text-sm text-muted-foreground mt-1">
-                          {notificacao.mensagem}
+                          {notificacao.mensagem || "Sem mensagem"}
                         </p>
                         <div className="flex items-center gap-2 mt-2">
                           {notificacao.canal && (
                             <Badge variant="outline" className="text-xs">
-                              {canalConfig[notificacao.canal].label}
+                              {canal.label}
                             </Badge>
                           )}
                           <span className="text-xs text-muted-foreground">
-                            {formatarData(notificacao.data)}
+                            {formatarData(notificacao.data || new Date().toISOString())}
                           </span>
                         </div>
                       </div>
-                      {!notificacao.lida && (
+                      {!notificacao.lida && marcarNotificacaoLida && (
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => marcarNotificacaoLida(notificacao.id)}
+                          onClick={async () => {
+                            if (marcarNotificacaoLida) {
+                              await marcarNotificacaoLida(notificacao.id);
+                            }
+                          }}
                         >
                           <CheckCircle className="h-4 w-4" />
                         </Button>

@@ -18,17 +18,23 @@ import {
   History,
   UserCircle,
   Gift,
+  MapPin,
+  Phone,
+  Mail,
+  Search,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 export default function ClienteDashboard() {
-  let cliente, getProximoAgendamento, fidelidade;
+  const navigate = useNavigate();
+  let cliente, getProximoAgendamento, fidelidade, barbearias;
   
   try {
     const clienteContext = useCliente();
     cliente = clienteContext.cliente;
     getProximoAgendamento = clienteContext.getProximoAgendamento;
     fidelidade = clienteContext.fidelidade;
+    barbearias = clienteContext.barbearias || [];
   } catch (error) {
     console.error("Erro ao carregar dados do cliente:", error);
     return (
@@ -278,10 +284,10 @@ export default function ClienteDashboard() {
             </div>
             <div className="text-right">
               <p className="text-sm font-medium">
-                Faltam {fidelidade.proximoDesconto.cortesNecessarios} cortes
+                Faltam {fidelidade.proximoDesconto?.cortesNecessarios || 5} cortes
               </p>
               <p className="text-xs text-muted-foreground">
-                para ganhar {fidelidade.proximoDesconto.desconto}% de desconto
+                para ganhar {fidelidade.proximoDesconto?.desconto || 5}% de desconto
               </p>
             </div>
           </div>
@@ -289,14 +295,14 @@ export default function ClienteDashboard() {
       </Card>
 
       {/* Créditos */}
-      {cliente.creditos > 0 && (
+      {((cliente as any).creditos || 0) > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Créditos Disponíveis</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-primary">
-              {formatarMoeda(cliente.creditos)}
+              {formatarMoeda((cliente as any).creditos || 0)}
             </p>
             <p className="text-sm text-muted-foreground mt-2">
               Use seus créditos no próximo pagamento
@@ -304,6 +310,139 @@ export default function ClienteDashboard() {
           </CardContent>
         </Card>
       )}
+
+      {/* Barbearias Disponíveis */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">Barbearias Disponíveis</h2>
+            <p className="text-muted-foreground">
+              Escolha uma barbearia para agendar seu serviço
+            </p>
+          </div>
+          <Button variant="outline" onClick={() => navigate('/cliente/barbearias')}>
+            <Search className="h-4 w-4 mr-2" />
+            Buscar Mais
+          </Button>
+        </div>
+
+        {barbearias.length === 0 ? (
+          <Card>
+            <CardContent className="py-8 text-center">
+              <p className="text-muted-foreground">
+                Nenhuma barbearia disponível no momento.
+              </p>
+              <Button 
+                className="mt-4" 
+                onClick={() => navigate('/cliente/barbearias')}
+              >
+                Buscar Barbearias
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {barbearias.slice(0, 6).map((barbearia: any) => (
+              <Card
+                key={barbearia.id}
+                className="cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => navigate(`/cliente/agendar?barbearia=${barbearia.id}`)}
+              >
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-primary p-2 rounded-full">
+                        <Scissors className="h-5 w-5 text-primary-foreground" />
+                      </div>
+                      <div className="flex-1">
+                        <CardTitle className="text-lg">{barbearia.nome}</CardTitle>
+                        {(barbearia.endereco || barbearia.cidade || barbearia.bairro) && (
+                          <CardDescription className="flex items-center gap-1 mt-1">
+                            <MapPin className="h-3 w-3" />
+                            {[
+                              barbearia.endereco,
+                              barbearia.bairro,
+                              barbearia.cidade
+                            ].filter(Boolean).join(', ')}
+                          </CardDescription>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {/* Informações de contato */}
+                  <div className="space-y-1 text-sm">
+                    {barbearia.telefone && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Phone className="h-3 w-3" />
+                        {barbearia.telefone}
+                      </div>
+                    )}
+                    {barbearia.email && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Mail className="h-3 w-3" />
+                        {barbearia.email}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Estatísticas */}
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    {barbearia.totalServicos > 0 && (
+                      <div className="flex items-center gap-1">
+                        <Scissors className="h-3 w-3" />
+                        {barbearia.totalServicos} serviços
+                      </div>
+                    )}
+                    {barbearia.profissionais && barbearia.profissionais.length > 0 && (
+                      <div className="flex items-center gap-1">
+                        <User className="h-3 w-3" />
+                        {barbearia.profissionais.length} profissionais
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Serviços disponíveis (primeiros 2) */}
+                  {barbearia.servicos && barbearia.servicos.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Serviços:
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {barbearia.servicos.slice(0, 2).map((servico: any) => (
+                          <Badge key={servico.id} variant="secondary" className="text-xs">
+                            {servico.nome}
+                          </Badge>
+                        ))}
+                        {barbearia.servicos.length > 2 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{barbearia.servicos.length - 2} mais
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Botão de ação */}
+                  <Button className="w-full mt-4" variant="default">
+                    <CalendarCheck className="h-4 w-4 mr-2" />
+                    Agendar Agora
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {barbearias.length > 6 && (
+          <div className="mt-4 text-center">
+            <Button variant="outline" onClick={() => navigate('/cliente/barbearias')}>
+              Ver Todas as {barbearias.length} Barbearias
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
