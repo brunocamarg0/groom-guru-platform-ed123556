@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { hashSenha, compararSenha } from '../utils/password';
 import { gerarTokenJWT } from '../utils/token';
+import { enviarEmailRecuperacaoSenha } from '../services/emailService';
 
 /**
  * Registro de cliente
@@ -577,6 +578,164 @@ export async function alterarSenhaDono(req: Request, res: Response) {
     res.status(500).json({ 
       error: 'Erro ao alterar senha',
       detalhes: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+    });
+  }
+}
+
+/**
+ * Recuperação de senha para dono
+ */
+export async function esqueciMinhaSenhaDono(req: Request, res: Response) {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email é obrigatório' });
+    }
+
+    // Buscar dono pelo email
+    const dono = await prisma.usuarioDono.findUnique({
+      where: { email },
+      include: {
+        barbearia: {
+          select: {
+            nome: true,
+          },
+        },
+      },
+    });
+
+    // Por segurança, sempre retornar sucesso mesmo se o email não existir
+    // Isso previne enumeração de emails
+    if (!dono) {
+      console.log('⚠️ Tentativa de recuperação de senha para email não cadastrado (dono):', email);
+      return res.status(200).json({ 
+        message: 'Se o email estiver cadastrado, você receberá uma nova senha por email' 
+      });
+    }
+
+    if (!dono.ativo) {
+      console.log('⚠️ Tentativa de recuperação de senha para conta inativa (dono):', email);
+      return res.status(200).json({ 
+        message: 'Se o email estiver cadastrado, você receberá uma nova senha por email' 
+      });
+    }
+
+    // Gerar senha aleatória
+    const caracteres = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&*';
+    let senhaNova = '';
+    for (let i = 0; i < 12; i++) {
+      senhaNova += caracteres.charAt(Math.floor(Math.random() * caracteres.length));
+    }
+
+    // Hash da nova senha
+    const senhaHash = await hashSenha(senhaNova);
+
+    // Atualizar senha no banco
+    await prisma.usuarioDono.update({
+      where: { id: dono.id },
+      data: { senha: senhaHash },
+    });
+
+    console.log('✅ Nova senha gerada para dono:', dono.email);
+
+    // Enviar email com a nova senha
+    try {
+      await enviarEmailRecuperacaoSenha({
+        email: dono.email,
+        nome: dono.nome,
+        senhaNova,
+        tipo: 'dono',
+        nomeBarbearia: dono.barbearia?.nome,
+      });
+      console.log('✅ Email de recuperação enviado para:', dono.email);
+    } catch (emailError) {
+      console.error('❌ Erro ao enviar email de recuperação:', emailError);
+      // Não falhar a operação se o email falhar, mas logar o erro
+    }
+
+    return res.status(200).json({ 
+      message: 'Se o email estiver cadastrado, você receberá uma nova senha por email' 
+    });
+  } catch (error: any) {
+    console.error('❌ Erro ao recuperar senha do dono:', error);
+    return res.status(500).json({ 
+      error: 'Erro ao processar solicitação de recuperação de senha' 
+    });
+  }
+}
+
+/**
+ * Recuperação de senha para cliente
+ */
+export async function esqueciMinhaSenhaCliente(req: Request, res: Response) {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email é obrigatório' });
+    }
+
+    // Buscar cliente pelo email
+    const cliente = await prisma.cliente.findUnique({
+      where: { email },
+    });
+
+    // Por segurança, sempre retornar sucesso mesmo se o email não existir
+    // Isso previne enumeração de emails
+    if (!cliente) {
+      console.log('⚠️ Tentativa de recuperação de senha para email não cadastrado (cliente):', email);
+      return res.status(200).json({ 
+        message: 'Se o email estiver cadastrado, você receberá uma nova senha por email' 
+      });
+    }
+
+    if (!cliente.ativo) {
+      console.log('⚠️ Tentativa de recuperação de senha para conta inativa (cliente):', email);
+      return res.status(200).json({ 
+        message: 'Se o email estiver cadastrado, você receberá uma nova senha por email' 
+      });
+    }
+
+    // Gerar senha aleatória
+    const caracteres = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&*';
+    let senhaNova = '';
+    for (let i = 0; i < 12; i++) {
+      senhaNova += caracteres.charAt(Math.floor(Math.random() * caracteres.length));
+    }
+
+    // Hash da nova senha
+    const senhaHash = await hashSenha(senhaNova);
+
+    // Atualizar senha no banco
+    await prisma.cliente.update({
+      where: { id: cliente.id },
+      data: { senha: senhaHash },
+    });
+
+    console.log('✅ Nova senha gerada para cliente:', cliente.email);
+
+    // Enviar email com a nova senha
+    try {
+      await enviarEmailRecuperacaoSenha({
+        email: cliente.email,
+        nome: cliente.nome,
+        senhaNova,
+        tipo: 'cliente',
+      });
+      console.log('✅ Email de recuperação enviado para:', cliente.email);
+    } catch (emailError) {
+      console.error('❌ Erro ao enviar email de recuperação:', emailError);
+      // Não falhar a operação se o email falhar, mas logar o erro
+    }
+
+    return res.status(200).json({ 
+      message: 'Se o email estiver cadastrado, você receberá uma nova senha por email' 
+    });
+  } catch (error: any) {
+    console.error('❌ Erro ao recuperar senha do cliente:', error);
+    return res.status(500).json({ 
+      error: 'Erro ao processar solicitação de recuperação de senha' 
     });
   }
 }

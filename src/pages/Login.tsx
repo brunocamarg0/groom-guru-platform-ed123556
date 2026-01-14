@@ -12,7 +12,9 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://groom-guru-platform-pro
 
 const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("owner");
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'owner';
+  const [activeTab, setActiveTab] = useState(initialTab === 'client' ? 'client' : initialTab === 'admin' ? 'admin' : 'owner');
   const navigate = useNavigate();
   
   // Estados para formulários
@@ -140,12 +142,19 @@ const Login = () => {
                   >
                     {isLoading ? "Entrando..." : "Entrar"}
                   </Button>
-                  <p className="text-center text-sm text-muted-foreground">
-                    Não tem uma conta?{" "}
-                    <Link to="/cadastro?tipo=dono" className="text-primary hover:underline">
-                      Cadastre-se
-                    </Link>
-                  </p>
+                  <div className="space-y-2">
+                    <p className="text-center text-sm text-muted-foreground">
+                      <Link to="/esqueci-senha?tipo=dono" className="text-primary hover:underline">
+                        Esqueci minha senha
+                      </Link>
+                    </p>
+                    <p className="text-center text-sm text-muted-foreground">
+                      Não tem uma conta?{" "}
+                      <Link to="/cadastro?tipo=dono" className="text-primary hover:underline">
+                        Cadastre-se
+                      </Link>
+                    </p>
+                  </div>
                 </form>
               </CardContent>
             </Card>
@@ -191,12 +200,19 @@ const Login = () => {
                   >
                     {isLoading ? "Entrando..." : "Entrar"}
                   </Button>
-                  <p className="text-center text-sm text-muted-foreground">
-                    Primeira vez aqui?{" "}
-                    <Link to="/cadastro?tipo=cliente" className="text-primary hover:underline">
-                      Criar conta
-                    </Link>
-                  </p>
+                  <div className="space-y-2">
+                    <p className="text-center text-sm text-muted-foreground">
+                      <Link to="/esqueci-senha?tipo=cliente" className="text-primary hover:underline">
+                        Esqueci minha senha
+                      </Link>
+                    </p>
+                    <p className="text-center text-sm text-muted-foreground">
+                      Primeira vez aqui?{" "}
+                      <Link to="/cadastro?tipo=cliente" className="text-primary hover:underline">
+                        Criar conta
+                      </Link>
+                    </p>
+                  </div>
                 </form>
               </CardContent>
             </Card>

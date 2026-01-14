@@ -65,6 +65,7 @@ import AtivarConta from "./pages/AtivarConta";
 import AuthCallback from "./pages/AuthCallback";
 import Funcionalidades from "./pages/Funcionalidades";
 import Cadastro from "./pages/Cadastro";
+import EsqueciSenha from "./pages/EsqueciSenha";
 
 const queryClient = new QueryClient();
 
@@ -90,6 +91,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/cadastro" element={<Cadastro />} />
+            <Route path="/esqueci-senha" element={<EsqueciSenha />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/ativar-conta" element={<AtivarConta />} />
             <Route path="/funcionalidades" element={<Funcionalidades />} />

@@ -29,7 +29,7 @@ const createTransporter = async (): Promise<nodemailer.Transporter> => {
   // Gera credenciais automaticamente
   try {
     const testAccount = await nodemailer.createTestAccount();
-    transporterCache = nodemailer.createTransport({
+    transporterCache = nodemailer.createTransporter({
       host: 'smtp.ethereal.email',
       port: 587,
       secure: false,
@@ -369,6 +369,180 @@ export async function enviarEmailSenha(params: EnviarSenhaParams) {
 }
 
 /**
+ * Envia email de recuperação de senha
+ */
+interface EnviarRecuperacaoSenhaParams {
+  email: string;
+  nome: string;
+  senhaNova: string;
+  tipo: 'dono' | 'cliente';
+  nomeBarbearia?: string;
+}
+
+export async function enviarEmailRecuperacaoSenha(params: EnviarRecuperacaoSenhaParams) {
+  const { email, nome, senhaNova, tipo, nomeBarbearia } = params;
+
+  const transporter = await createTransporter();
+
+  const titulo = tipo === 'dono' 
+    ? `Recuperação de Senha - ${nomeBarbearia || 'Groom Guru'}`
+    : 'Recuperação de Senha - Groom Guru';
+
+  const htmlTemplate = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          line-height: 1.6;
+          color: #333;
+        }
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 20px;
+        }
+        .header {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 30px;
+          text-align: center;
+          border-radius: 10px 10px 0 0;
+        }
+        .content {
+          background: #f9f9f9;
+          padding: 30px;
+          border-radius: 0 0 10px 10px;
+        }
+        .senha-box {
+          background: #fff;
+          border: 2px dashed #667eea;
+          padding: 20px;
+          text-align: center;
+          margin: 20px 0;
+          border-radius: 5px;
+        }
+        .senha {
+          font-size: 24px;
+          font-weight: bold;
+          color: #667eea;
+          letter-spacing: 2px;
+          font-family: monospace;
+        }
+        .button {
+          display: inline-block;
+          padding: 15px 30px;
+          background: #667eea;
+          color: white;
+          text-decoration: none;
+          border-radius: 5px;
+          margin: 20px 0;
+        }
+        .footer {
+          text-align: center;
+          margin-top: 20px;
+          color: #666;
+          font-size: 12px;
+        }
+        .info {
+          background: #e7f3ff;
+          border-left: 4px solid #2196F3;
+          padding: 15px;
+          margin: 20px 0;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>🔐 Recuperação de Senha</h1>
+        </div>
+        <div class="content">
+          <p>Olá <strong>${nome}</strong>,</p>
+          
+          <p>Recebemos uma solicitação de recuperação de senha para sua conta${tipo === 'dono' && nomeBarbearia ? ` na barbearia <strong>${nomeBarbearia}</strong>` : ''}.</p>
+          
+          <p>Sua nova senha foi gerada automaticamente. Use as credenciais abaixo para fazer login:</p>
+          
+          <div class="senha-box">
+            <p style="margin: 0 0 10px 0; color: #666;">Sua nova senha:</p>
+            <div class="senha">${senhaNova}</div>
+          </div>
+          
+          <div class="info">
+            <strong>ℹ️ Informação:</strong> Esta senha é sua nova senha oficial. Você pode mantê-la ou alterá-la nas configurações da sua conta quando desejar.
+          </div>
+          
+          <div style="text-align: center;">
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/${tipo === 'dono' ? 'dono' : 'cliente'}/login" class="button">Fazer Login</a>
+          </div>
+          
+          <p>Use seu email (<strong>${email}</strong>) e a senha acima para fazer login.</p>
+          
+          <p><strong>⚠️ Importante:</strong> Se você não solicitou esta recuperação de senha, entre em contato conosco imediatamente.</p>
+        </div>
+        <div class="footer">
+          <p>Este é um email automático, por favor não responda.</p>
+          <p>© ${new Date().getFullYear()} Groom Guru Platform</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const textTemplate = `
+    Recuperação de Senha
+    
+    Olá ${nome},
+    
+    Recebemos uma solicitação de recuperação de senha para sua conta${tipo === 'dono' && nomeBarbearia ? ` na barbearia ${nomeBarbearia}` : ''}.
+    
+    Sua nova senha foi gerada automaticamente. Use as credenciais abaixo para fazer login:
+    
+    Email: ${email}
+    Nova senha: ${senhaNova}
+    
+    ℹ️ Informação: Esta senha é sua nova senha oficial. Você pode mantê-la ou alterá-la nas configurações da sua conta quando desejar.
+    
+    Acesse: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/${tipo === 'dono' ? 'dono' : 'cliente'}/login
+    
+    ⚠️ Importante: Se você não solicitou esta recuperação de senha, entre em contato conosco imediatamente.
+    
+    © ${new Date().getFullYear()} Groom Guru Platform
+  `;
+
+  try {
+    const info = await transporter.sendMail({
+      from: process.env.EMAIL_FROM || '"Groom Guru" <noreply@groomguru.com>',
+      to: email,
+      subject: titulo,
+      text: textTemplate,
+      html: htmlTemplate,
+    });
+
+    console.log('✅ Email de recuperação de senha enviado:', info.messageId);
+    
+    if (info.messageId) {
+      const previewUrl = nodemailer.getTestMessageUrl(info);
+      if (previewUrl) {
+        console.log('📧 Preview do email:', previewUrl);
+      }
+    }
+
+    return {
+      sucesso: true,
+      messageId: info.messageId,
+      previewUrl: nodemailer.getTestMessageUrl ? nodemailer.getTestMessageUrl(info) : null,
+    };
+  } catch (error) {
+    console.error('Erro ao enviar email de recuperação:', error);
+    throw new Error('Erro ao enviar email de recuperação de senha');
+  }
+}
+
+/**
  * Gera credenciais Ethereal para desenvolvimento
  */
 export async function gerarCredenciaisEthereal() {
@@ -384,4 +558,3 @@ export async function gerarCredenciaisEthereal() {
     preview: 'https://ethereal.email',
   };
 }
-
