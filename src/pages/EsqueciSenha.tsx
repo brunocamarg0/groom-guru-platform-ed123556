@@ -26,6 +26,8 @@ const EsqueciSenha = () => {
         ? '/auth/dono/esqueci-senha'
         : '/auth/cliente/esqueci-senha';
 
+      console.log('📧 Enviando solicitação de recuperação de senha para:', `${API_URL}${endpoint}`);
+      
       const response = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         headers: {
@@ -34,7 +36,21 @@ const EsqueciSenha = () => {
         body: JSON.stringify({ email }),
       });
 
-      const data = await response.json();
+      console.log('📧 Resposta recebida:', response.status, response.statusText);
+      console.log('📧 Content-Type:', response.headers.get('content-type'));
+
+      // Verificar se a resposta é JSON antes de fazer parse
+      const contentType = response.headers.get('content-type');
+      let data;
+      
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        // Se não for JSON, ler como texto para ver o erro
+        const text = await response.text();
+        console.error('❌ Resposta não é JSON:', text.substring(0, 200));
+        throw new Error(`Erro no servidor: ${response.status} ${response.statusText}`);
+      }
 
       if (!response.ok) {
         throw new Error(data.error || 'Erro ao solicitar recuperação de senha');
@@ -43,8 +59,9 @@ const EsqueciSenha = () => {
       toast.success(data.message || 'Se o email estiver cadastrado, você receberá uma nova senha por email');
       setEmailEnviado(true);
     } catch (error: any) {
-      console.error('Erro ao solicitar recuperação de senha:', error);
-      toast.error(error.message || 'Erro ao solicitar recuperação de senha');
+      console.error('❌ Erro ao solicitar recuperação de senha:', error);
+      const errorMessage = error.message || 'Erro ao solicitar recuperação de senha. Verifique se o servidor está funcionando.';
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
