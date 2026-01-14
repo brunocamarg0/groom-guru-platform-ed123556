@@ -137,7 +137,9 @@ app.use(passport.session());
 
 // Rotas públicas (autenticação e ativação de conta)
 // Log para debug - verificar se as rotas estão sendo registradas
+// FORÇAR REBUILD: Atualizado em 2024 para incluir rotas de recuperação de senha
 console.log('🔧 Registrando rotas de autenticação em /api/auth');
+console.log('🔧 Incluindo rotas: /api/auth/cliente/esqueci-senha, /api/auth/dono/esqueci-senha');
 app.use('/api/auth', (req, res, next) => {
   console.log('🔧 Rota /api/auth chamada:', req.method, req.path);
   console.log('🔧 URL completa:', req.originalUrl);

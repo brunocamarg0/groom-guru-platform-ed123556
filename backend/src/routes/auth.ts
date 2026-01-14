@@ -5,7 +5,9 @@ import { autenticarDono } from '../middleware/auth';
 const router = Router();
 
 // Log para debug - verificar se o router está sendo criado
+// FORÇAR REBUILD: Adicionado em 2024 para incluir rotas de recuperação de senha
 console.log('🔧 Router de autenticação criado');
+console.log('🔧 Rotas disponíveis: /cliente/esqueci-senha, /dono/esqueci-senha');
 
 // Rotas de cliente
 router.post('/cliente/registro', authController.registrarCliente);
