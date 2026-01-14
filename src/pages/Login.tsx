@@ -12,10 +12,18 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://groom-guru-platform-pro
 
 const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [searchParams] = useSearchParams();
-  const initialTab = searchParams.get('tab') || 'owner';
-  const [activeTab, setActiveTab] = useState(initialTab === 'client' ? 'client' : initialTab === 'admin' ? 'admin' : 'owner');
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  
+  // Obter tab da URL ou usar 'owner' como padrão
+  const tabFromUrl = searchParams.get('tab');
+  const getInitialTab = () => {
+    if (tabFromUrl === 'client') return 'client';
+    if (tabFromUrl === 'admin') return 'admin';
+    return 'owner';
+  };
+  
+  const [activeTab, setActiveTab] = useState(getInitialTab());
   
   // Estados para formulários
   const [formData, setFormData] = useState({
