@@ -23,6 +23,7 @@ import donoProdutosRoutes from './routes/dono/produtos';
 import donoNotificacoesRoutes from './routes/dono/notificacoes';
 import donoRelatoriosRoutes from './routes/dono/relatorios';
 import clientePanelRoutes from './routes/cliente/panel';
+import barbeariasPublicasRoutes from './routes/barbeariasPublicas';
 // Carregar configuração do Passport (pode falhar se OAuth não estiver configurado)
 try {
   require('./config/passport');
@@ -145,6 +146,9 @@ app.use('/api/auth/google', googleAuthRoutes);
 app.use('/api', ativacaoRoutes);
 app.use('/api/solicitacoes', solicitacoesRoutes);
 app.use('/api/agendamentos', agendamentosRoutes);
+
+// Rotas públicas de barbearias (para clientes)
+app.use('/api/barbearias', barbeariasPublicasRoutes);
 
 // Rotas do dono (requerem autenticação)
 app.use('/api/dono/profissionais', donoProfissionaisRoutes);

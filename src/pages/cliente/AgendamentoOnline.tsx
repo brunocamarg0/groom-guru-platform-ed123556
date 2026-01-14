@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCliente } from "@/context/ClienteContext";
-import { useBarbearias } from "@/context/BarbeariasContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,17 +18,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Scissors, User, Clock, CheckCircle } from "lucide-react";
+import { Scissors, User, Clock, CheckCircle, ArrowLeft, MapPin, Phone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { TipoServico, NovoAgendamento } from "@/types/cliente";
-import { useNavigate } from "react-router-dom";
-
-// Mock de dados
-const profissionais = [
-  { id: "1", nome: "Carlos Barbeiro", especialidades: ["Corte", "Barba"], disponivel: true },
-  { id: "2", nome: "João Silva", especialidades: ["Corte"], disponivel: true },
-  { id: "3", nome: "Pedro Santos", especialidades: ["Barba", "Combo"], disponivel: false },
-];
+import { NovoAgendamento } from "@/types/cliente";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 const horariosDisponiveis = [
   "08:00", "08:30", "09:00", "09:30", "10:00", "10:30",
@@ -38,28 +31,56 @@ const horariosDisponiveis = [
 ];
 
 export default function AgendamentoOnline() {
-  const { criarAgendamento } = useCliente();
-  const { getBarbearia } = useBarbearias();
+  const { criarAgendamento, buscarBarbeariaPorId } = useCliente();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const [step, setStep] = useState(1);
+  const [barbearia, setBarbearia] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<Partial<NovoAgendamento>>({
-    barbeariaId: "1",
-    profissionalId: "",
-    servico: undefined,
+    barbeariaId: searchParams.get("barbearia") || "",
+    servicoId: "",
     data: "",
-    horario: "",
+    hora: "",
+    observacoes: "",
   });
 
-  // Buscar serviços da barbearia selecionada (apenas os ativos)
-  const barbearia = formData.barbeariaId ? getBarbearia(formData.barbeariaId) : undefined;
-  const servicosDisponiveis = barbearia?.servicos?.filter((s) => s.ativo) || [];
-  
-  const servicoSelecionado = servicosDisponiveis.find((s) => s.tipo === formData.servico);
-  const profissionalSelecionado = profissionais.find((p) => p.id === formData.profissionalId);
+  // Carregar barbearia quando barbeariaId mudar
+  useEffect(() => {
+    const loadBarbearia = async () => {
+      if (formData.barbeariaId) {
+        setLoading(true);
+        try {
+          const barbeariaData = await buscarBarbeariaPorId(formData.barbeariaId);
+          setBarbearia(barbeariaData);
+        } catch (error) {
+          toast({
+            title: "Erro",
+            description: "Não foi possível carregar a barbearia. Tente novamente.",
+            variant: "destructive",
+          });
+          navigate("/cliente/barbearias");
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        // Se não tiver barbearia selecionada, redirecionar para buscar
+        navigate("/cliente/barbearias");
+      }
+    };
 
-  const handleSubmit = () => {
-    if (!formData.profissionalId || !formData.servico || !formData.data || !formData.horario) {
+    loadBarbearia();
+  }, [formData.barbeariaId]);
+
+  const servicosDisponiveis = barbearia?.servicos || [];
+  const profissionaisDisponiveis = barbearia?.profissionais || [];
+  
+  const servicoSelecionado = servicosDisponiveis.find((s: any) => s.id === formData.servicoId);
+  const profissionalSelecionado = profissionaisDisponiveis.find((p: any) => p.id === formData.profissionalId);
+
+  const handleSubmit = async () => {
+    if (!formData.servicoId || !formData.data || !formData.hora) {
       toast({
         title: "Erro",
         description: "Preencha todos os campos obrigatórios.",
@@ -68,12 +89,27 @@ export default function AgendamentoOnline() {
       return;
     }
 
-    criarAgendamento(formData as NovoAgendamento);
-    toast({
-      title: "Agendamento criado!",
-      description: "Seu agendamento foi criado com sucesso.",
-    });
-    navigate("/cliente");
+    try {
+      await criarAgendamento({
+        barbeariaId: formData.barbeariaId!,
+        servicoId: formData.servicoId!,
+        data: formData.data!,
+        hora: formData.hora!,
+        observacoes: formData.observacoes,
+      });
+      
+      toast({
+        title: "Agendamento criado!",
+        description: "Seu agendamento foi criado com sucesso.",
+      });
+      navigate("/cliente");
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message || "Não foi possível criar o agendamento.",
+        variant: "destructive",
+      });
+    }
   };
 
   const formatarMoeda = (valor: number) => {
@@ -83,14 +119,81 @@ export default function AgendamentoOnline() {
     }).format(valor);
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <p className="text-muted-foreground">Carregando barbearia...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!barbearia) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" asChild>
+            <Link to="/cliente/barbearias">
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          </Button>
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight">Barbearia não encontrada</h2>
+            <p className="text-muted-foreground">
+              Selecione uma barbearia para continuar
+            </p>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="py-8 text-center">
+            <Button asChild>
+              <Link to="/cliente/barbearias">Buscar Barbearias</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Agendar Serviço</h2>
-        <p className="text-muted-foreground">
-          Escolha o serviço, profissional, data e horário
-        </p>
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" asChild>
+          <Link to="/cliente/barbearias">
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+        </Button>
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Agendar Serviço</h2>
+          <p className="text-muted-foreground">
+            {barbearia.nome}
+          </p>
+        </div>
       </div>
+
+      {/* Informações da barbearia */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-start justify-between">
+            <div className="space-y-2">
+              <h3 className="font-semibold text-lg">{barbearia.nome}</h3>
+              {barbearia.endereco && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <MapPin className="h-4 w-4" />
+                  {barbearia.endereco}
+                </div>
+              )}
+              {barbearia.telefone && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Phone className="h-4 w-4" />
+                  {barbearia.telefone}
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Progress Steps */}
       <div className="flex items-center justify-between mb-6">
@@ -122,36 +225,48 @@ export default function AgendamentoOnline() {
             <CardDescription>Selecione o serviço desejado</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {servicosDisponiveis.map((servico) => (
-              <div
-                key={servico.id}
-                className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                  formData.servico === servico.tipo
-                    ? "border-primary bg-primary/5"
-                    : "hover:bg-accent"
-                }`}
-                onClick={() => setFormData({ ...formData, servico: servico.tipo as TipoServico })}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Scissors className="h-5 w-5" />
-                    <div>
-                      <p className="font-medium">{servico.nome}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {servico.duracao} minutos
-                      </p>
+            {servicosDisponiveis.length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">
+                Nenhum serviço disponível nesta barbearia.
+              </p>
+            ) : (
+              servicosDisponiveis.map((servico: any) => (
+                <div
+                  key={servico.id}
+                  className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                    formData.servicoId === servico.id
+                      ? "border-primary bg-primary/5"
+                      : "hover:bg-accent"
+                  }`}
+                  onClick={() => setFormData({ ...formData, servicoId: servico.id })}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Scissors className="h-5 w-5" />
+                      <div>
+                        <p className="font-medium">{servico.nome}</p>
+                        {servico.descricao && (
+                          <p className="text-sm text-muted-foreground">
+                            {servico.descricao}
+                          </p>
+                        )}
+                        <p className="text-sm text-muted-foreground">
+                          <Clock className="h-3 w-3 inline mr-1" />
+                          {servico.duracao} minutos
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold">{formatarMoeda(servico.preco)}</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold">{formatarMoeda(servico.valor)}</p>
-                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
             <Button
               className="w-full mt-4"
               onClick={() => setStep(2)}
-              disabled={!formData.servico}
+              disabled={!formData.servicoId}
             >
               Continuar
             </Button>
@@ -159,43 +274,66 @@ export default function AgendamentoOnline() {
         </Card>
       )}
 
-      {/* Step 2: Escolher Profissional */}
+      {/* Step 2: Escolher Profissional (opcional) */}
       {step === 2 && (
         <Card>
           <CardHeader>
-            <CardTitle>2. Escolha o Profissional</CardTitle>
-            <CardDescription>Selecione o barbeiro</CardDescription>
+            <CardTitle>2. Escolha o Profissional (Opcional)</CardTitle>
+            <CardDescription>Selecione o barbeiro ou deixe em branco</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {profissionais
-              .filter((p) => p.disponivel)
-              .map((profissional) => (
+            {profissionaisDisponiveis.length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">
+                Nenhum profissional disponível. Você pode continuar sem selecionar.
+              </p>
+            ) : (
+              <>
                 <div
-                  key={profissional.id}
                   className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                    formData.profissionalId === profissional.id
+                    !formData.profissionalId
                       ? "border-primary bg-primary/5"
                       : "hover:bg-accent"
                   }`}
-                  onClick={() => setFormData({ ...formData, profissionalId: profissional.id })}
+                  onClick={() => setFormData({ ...formData, profissionalId: "" })}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <User className="h-5 w-5" />
-                      <div>
-                        <p className="font-medium">{profissional.nome}</p>
-                        <div className="flex gap-2 mt-1">
-                          {profissional.especialidades.map((esp) => (
-                            <Badge key={esp} variant="secondary" className="text-xs">
-                              {esp}
-                            </Badge>
-                          ))}
+                  <div className="flex items-center gap-3">
+                    <User className="h-5 w-5" />
+                    <div>
+                      <p className="font-medium">Qualquer profissional disponível</p>
+                    </div>
+                  </div>
+                </div>
+                {profissionaisDisponiveis.map((profissional: any) => (
+                  <div
+                    key={profissional.id}
+                    className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                      formData.profissionalId === profissional.id
+                        ? "border-primary bg-primary/5"
+                        : "hover:bg-accent"
+                    }`}
+                    onClick={() => setFormData({ ...formData, profissionalId: profissional.id })}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <User className="h-5 w-5" />
+                        <div>
+                          <p className="font-medium">{profissional.nome}</p>
+                          {profissional.especialidades && profissional.especialidades.length > 0 && (
+                            <div className="flex gap-2 mt-1">
+                              {profissional.especialidades.map((esp: string) => (
+                                <Badge key={esp} variant="secondary" className="text-xs">
+                                  {esp}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </>
+            )}
             <div className="flex gap-2 mt-4">
               <Button variant="outline" onClick={() => setStep(1)}>
                 Voltar
@@ -203,7 +341,6 @@ export default function AgendamentoOnline() {
               <Button
                 className="flex-1"
                 onClick={() => setStep(3)}
-                disabled={!formData.profissionalId}
               >
                 Continuar
               </Button>
@@ -235,14 +372,23 @@ export default function AgendamentoOnline() {
                 {horariosDisponiveis.map((horario) => (
                   <Button
                     key={horario}
-                    variant={formData.horario === horario ? "default" : "outline"}
-                    onClick={() => setFormData({ ...formData, horario })}
+                    type="button"
+                    variant={formData.hora === horario ? "default" : "outline"}
+                    onClick={() => setFormData({ ...formData, hora: horario })}
                   >
                     <Clock className="h-4 w-4 mr-1" />
                     {horario}
                   </Button>
                 ))}
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Observações (Opcional)</Label>
+              <Input
+                placeholder="Alguma observação especial?"
+                value={formData.observacoes}
+                onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
+              />
             </div>
             <div className="flex gap-2 mt-4">
               <Button variant="outline" onClick={() => setStep(2)}>
@@ -251,7 +397,7 @@ export default function AgendamentoOnline() {
               <Button
                 className="flex-1"
                 onClick={() => setStep(4)}
-                disabled={!formData.data || !formData.horario}
+                disabled={!formData.data || !formData.hora}
               >
                 Continuar
               </Button>
@@ -270,13 +416,19 @@ export default function AgendamentoOnline() {
           <CardContent className="space-y-4">
             <div className="space-y-3">
               <div className="flex items-center justify-between p-3 border rounded-lg">
+                <span className="text-muted-foreground">Barbearia:</span>
+                <span className="font-medium">{barbearia.nome}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 border rounded-lg">
                 <span className="text-muted-foreground">Serviço:</span>
                 <span className="font-medium">{servicoSelecionado?.nome}</span>
               </div>
-              <div className="flex items-center justify-between p-3 border rounded-lg">
-                <span className="text-muted-foreground">Profissional:</span>
-                <span className="font-medium">{profissionalSelecionado?.nome}</span>
-              </div>
+              {profissionalSelecionado && (
+                <div className="flex items-center justify-between p-3 border rounded-lg">
+                  <span className="text-muted-foreground">Profissional:</span>
+                  <span className="font-medium">{profissionalSelecionado.nome}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between p-3 border rounded-lg">
                 <span className="text-muted-foreground">Data:</span>
                 <span className="font-medium">
@@ -286,7 +438,7 @@ export default function AgendamentoOnline() {
               </div>
               <div className="flex items-center justify-between p-3 border rounded-lg">
                 <span className="text-muted-foreground">Horário:</span>
-                <span className="font-medium">{formData.horario}</span>
+                <span className="font-medium">{formData.hora}</span>
               </div>
               <div className="flex items-center justify-between p-3 border rounded-lg">
                 <span className="text-muted-foreground">Duração:</span>
@@ -294,7 +446,7 @@ export default function AgendamentoOnline() {
               </div>
               <div className="flex items-center justify-between p-3 border rounded-lg font-bold text-lg">
                 <span>Total:</span>
-                <span>{formatarMoeda(servicoSelecionado?.valor || 0)}</span>
+                <span>{formatarMoeda(servicoSelecionado?.preco || 0)}</span>
               </div>
             </div>
             <div className="flex gap-2 mt-6">
@@ -311,4 +463,3 @@ export default function AgendamentoOnline() {
     </div>
   );
 }
-

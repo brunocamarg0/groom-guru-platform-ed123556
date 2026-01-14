@@ -38,6 +38,7 @@ import Configuracoes from "./pages/admin/Configuracoes";
 import ClienteLayout from "./pages/cliente/ClienteLayout";
 import ClienteDashboard from "./pages/cliente/ClienteDashboard";
 import AgendamentoOnline from "./pages/cliente/AgendamentoOnline";
+import BuscarBarbearias from "./pages/cliente/BuscarBarbearias";
 import PagamentoIntegrado from "./pages/cliente/PagamentoIntegrado";
 import HistoricoAgendamentos from "./pages/cliente/HistoricoAgendamentos";
 import Avaliacoes from "./pages/cliente/Avaliacoes";
@@ -116,6 +117,7 @@ const App = () => (
               </ErrorBoundary>
             }>
               <Route index element={<ErrorBoundary><ClienteDashboard /></ErrorBoundary>} />
+              <Route path="barbearias" element={<ErrorBoundary><BuscarBarbearias /></ErrorBoundary>} />
               <Route path="agendar" element={<ErrorBoundary><AgendamentoOnline /></ErrorBoundary>} />
               <Route path="pagamentos" element={<ErrorBoundary><PagamentoIntegrado /></ErrorBoundary>} />
               <Route path="historico" element={<ErrorBoundary><HistoricoAgendamentos /></ErrorBoundary>} />

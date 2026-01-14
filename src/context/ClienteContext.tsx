@@ -43,6 +43,9 @@ interface ClienteContextType {
     progressoProximoNivel: number;
   };
   notificacoes: Array<{ id: string; titulo: string; mensagem: string; lida: boolean; data: string }>;
+  barbearias: any[];
+  buscarBarbearias: (busca?: string) => Promise<void>;
+  buscarBarbeariaPorId: (id: string) => Promise<any>;
 }
 
 const ClienteContext = createContext<ClienteContextType | undefined>(undefined);
@@ -54,6 +57,7 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
   const [pagamentos, setPagamentos] = useState<Pagamento[]>([]);
   const [loading, setLoading] = useState(true);
   const [notificacoes, setNotificacoes] = useState<any[]>([]);
+  const [barbearias, setBarbearias] = useState<any[]>([]);
   const [fidelidade, setFidelidade] = useState({
     pontos: 0,
     nivel: 'Bronze',
@@ -352,6 +356,34 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
     return servicos.filter((s) => s.barbeariaId === barbeariaId && s.ativo);
   };
 
+  const buscarBarbearias = async (busca?: string) => {
+    try {
+      console.log('🔍 [CLIENTE] Buscando barbearias...', busca ? `com busca: ${busca}` : 'todas');
+      
+      const params = busca ? `?busca=${encodeURIComponent(busca)}` : '';
+      const barbeariasData = await apiGet<any[]>(`/barbearias${params}`);
+      
+      setBarbearias(barbeariasData);
+      console.log('✅ [CLIENTE] Barbearias encontradas:', barbeariasData.length);
+    } catch (error: any) {
+      console.error('❌ [CLIENTE] Erro ao buscar barbearias:', error);
+      toast.error('Erro ao buscar barbearias');
+      setBarbearias([]);
+    }
+  };
+
+  const buscarBarbeariaPorId = async (id: string) => {
+    try {
+      console.log('🔍 [CLIENTE] Buscando barbearia por ID:', id);
+      const barbearia = await apiGet<any>(`/barbearias/${id}`);
+      return barbearia;
+    } catch (error: any) {
+      console.error('❌ [CLIENTE] Erro ao buscar barbearia:', error);
+      toast.error('Erro ao buscar barbearia');
+      throw error;
+    }
+  };
+
   const getProximoAgendamento = (): Agendamento | null => {
     const agora = new Date();
     const agendamentosFuturos = agendamentos
@@ -388,6 +420,9 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
         getProximoAgendamento,
         fidelidade,
         notificacoes,
+        barbearias,
+        buscarBarbearias,
+        buscarBarbeariaPorId,
       }}
     >
       {children}
