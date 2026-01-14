@@ -50,7 +50,7 @@ export default function PagamentoIntegrado() {
     }).format(valor);
   };
 
-  const handlePagar = (agendamentoId: string, valor: number) => {
+  const handlePagar = async (agendamentoId: string, valor: number) => {
     let valorFinal = valor;
     let desconto = 0;
 
@@ -106,14 +106,14 @@ export default function PagamentoIntegrado() {
             <CardHeader>
               <CardTitle>Agendamento #{agendamento.id.slice(0, 6)}</CardTitle>
               <CardDescription>
-                {agendamento.servicoNome} • {agendamento.profissionalNome}
+                {agendamento.servico?.nome || "Serviço"} • {"Profissional"}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
                 <span className="text-lg font-medium">Valor Total:</span>
                 <span className="text-2xl font-bold">
-                  {formatarMoeda(agendamento.valor)}
+                  {formatarMoeda(agendamento.servico?.preco || 0)}
                 </span>
               </div>
 
