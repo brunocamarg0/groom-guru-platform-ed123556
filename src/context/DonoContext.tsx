@@ -710,8 +710,50 @@ export function DonoProvider({ children }: { children: ReactNode }) {
         observacao: agendamento.observacoes || null,
       });
 
-      // Recarregar agendamentos
-      await carregarDados();
+      // Adicionar novo agendamento à lista local (otimização: não recarregar todos os dados)
+      if (novoAgendamento.agendamento) {
+        const agendamentoTransformado: AgendamentoDono = {
+          id: novoAgendamento.agendamento.id,
+          clienteId: novoAgendamento.agendamento.clienteId || '',
+          clienteNome: novoAgendamento.agendamento.clienteRel?.nome || novoAgendamento.agendamento.cliente || 'Cliente não cadastrado',
+          clienteTelefone: novoAgendamento.agendamento.clienteRel?.telefone || novoAgendamento.agendamento.telefone,
+          profissionalId: novoAgendamento.agendamento.profissionais?.[0]?.profissionalId || '',
+          profissionalNome: novoAgendamento.agendamento.profissionais?.[0]?.profissional?.nome || 'Não atribuído',
+          servicoId: novoAgendamento.agendamento.servicoId,
+          servicoNome: novoAgendamento.agendamento.servico?.nome || '',
+          data: novoAgendamento.agendamento.data.split('T')[0],
+          horario: novoAgendamento.agendamento.horario || new Date(novoAgendamento.agendamento.data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+          duracao: novoAgendamento.agendamento.servico?.duracao || 40,
+          valor: novoAgendamento.agendamento.servico?.preco || 0,
+          status: novoAgendamento.agendamento.status,
+          observacoes: novoAgendamento.agendamento.observacao,
+          dataCriacao: novoAgendamento.agendamento.createdAt,
+        };
+        
+        setAgendamentos(prev => [...prev, agendamentoTransformado]);
+      } else {
+        // Fallback: recarregar apenas agendamentos se formato não for o esperado
+        const agendamentosData = await apiGet<any[]>(`/agendamentos/barbearia/${barbeariaId}`).catch(() => []);
+        const agendamentosTransformados: AgendamentoDono[] = agendamentosData.map((ag: any) => ({
+          id: ag.id,
+          clienteId: ag.clienteId || '',
+          clienteNome: ag.clienteRel?.nome || ag.cliente || 'Cliente não cadastrado',
+          clienteTelefone: ag.clienteRel?.telefone || ag.telefone,
+          profissionalId: ag.profissionais?.[0]?.profissionalId || '',
+          profissionalNome: ag.profissionais?.[0]?.profissional?.nome || 'Não atribuído',
+          servicoId: ag.servicoId,
+          servicoNome: ag.servico?.nome || '',
+          data: ag.data.split('T')[0],
+          horario: ag.horario || new Date(ag.data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+          duracao: ag.servico?.duracao || 40,
+          valor: ag.servico?.preco || 0,
+          status: ag.status,
+          observacoes: ag.observacao,
+          dataCriacao: ag.createdAt,
+        }));
+        setAgendamentos(agendamentosTransformados);
+      }
+      
       toast.success('Agendamento criado com sucesso!');
     } catch (error: any) {
       console.error('Erro ao criar agendamento:', error);

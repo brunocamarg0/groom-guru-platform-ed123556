@@ -579,9 +579,37 @@ export async function criarAgendamento(req: Request, res: Response) {
         dataConfirmacaoAutomatica,
       },
       include: {
-        clienteRel: true,
-        servico: true,
-        barbearia: true,
+        clienteRel: {
+          select: {
+            id: true,
+            nome: true,
+            telefone: true,
+          },
+        },
+        servico: {
+          select: {
+            id: true,
+            nome: true,
+            preco: true,
+            duracao: true,
+          },
+        },
+        barbearia: {
+          select: {
+            id: true,
+            nome: true,
+          },
+        },
+        profissionais: {
+          include: {
+            profissional: {
+              select: {
+                id: true,
+                nome: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -595,29 +623,29 @@ export async function criarAgendamento(req: Request, res: Response) {
       });
     }
 
-    // Enviar notificação se foi confirmado automaticamente
+    // Enviar notificação de forma assíncrona (não bloquear resposta)
     if (statusInicial === 'confirmado') {
-      try {
-        const telefoneCliente = agendamento.clienteRel?.telefone || agendamento.telefone;
-        if (telefoneCliente) {
-          await notificarConfirmacaoAgendamento({
-            telefone: telefoneCliente,
-            nomeCliente: agendamento.clienteRel?.nome || agendamento.cliente,
-            nomeBarbearia: agendamento.barbearia.nome,
-            data: agendamento.data,
-            horario: agendamento.data.toLocaleTimeString('pt-BR', {
-              hour: '2-digit',
-              minute: '2-digit',
-            }),
-            servico: agendamento.servico.nome,
-          });
-        }
-      } catch (notifError) {
-        console.error('Erro ao enviar notificação de confirmação automática:', notifError);
-        // Não falha a criação se a notificação falhar
+      const telefoneCliente = agendamento.clienteRel?.telefone || agendamento.telefone;
+      if (telefoneCliente) {
+        // Executar notificação em background (não esperar)
+        notificarConfirmacaoAgendamento({
+          telefone: telefoneCliente,
+          nomeCliente: agendamento.clienteRel?.nome || agendamento.cliente,
+          nomeBarbearia: agendamento.barbearia.nome,
+          data: agendamento.data,
+          horario: agendamento.data.toLocaleTimeString('pt-BR', {
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+          servico: agendamento.servico.nome,
+        }).catch((notifError) => {
+          console.error('Erro ao enviar notificação de confirmação automática:', notifError);
+          // Não falha a criação se a notificação falhar
+        });
       }
     }
 
+    // Retornar resposta imediatamente (sem esperar notificação)
     res.status(201).json({
       sucesso: true,
       mensagem: `Agendamento criado e ${statusInicial === 'confirmado' ? 'confirmado automaticamente' : 'aguardando confirmação'}`,
