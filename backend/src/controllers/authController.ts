@@ -121,7 +121,11 @@ export async function loginCliente(req: Request, res: Response) {
 
     // Verificar senha (pode ser null se criado via OAuth)
     if (!cliente.senha) {
-      return res.status(401).json({ error: 'Esta conta foi criada com Google. Use o login com Google.' });
+      let provider = 'OAuth';
+      if (cliente.googleId) provider = 'Google';
+      else if (cliente.facebookId) provider = 'Facebook';
+      else if (cliente.appleId) provider = 'Apple';
+      return res.status(401).json({ error: `Esta conta foi criada com ${provider}. Use o login com ${provider}.` });
     }
 
     const senhaValida = await compararSenha(senha, cliente.senha);
@@ -401,7 +405,11 @@ export async function loginDono(req: Request, res: Response) {
 
     // Verificar senha (pode ser null se criado via OAuth)
     if (!dono.senha) {
-      return res.status(401).json({ error: 'Esta conta foi criada com Google. Use o login com Google.' });
+      let provider = 'OAuth';
+      if (dono.googleId) provider = 'Google';
+      else if (dono.facebookId) provider = 'Facebook';
+      else if (dono.appleId) provider = 'Apple';
+      return res.status(401).json({ error: `Esta conta foi criada com ${provider}. Use o login com ${provider}.` });
     }
 
     const senhaValida = await compararSenha(senha, dono.senha);

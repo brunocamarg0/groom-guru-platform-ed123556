@@ -10,6 +10,8 @@ import criarExemploRoutes from './routes/admin/criar-exemplo';
 import ativacaoRoutes from './routes/ativacao';
 import authRoutes from './routes/auth';
 import googleAuthRoutes from './routes/googleAuth';
+import facebookAuthRoutes from './routes/facebookAuth';
+import appleAuthRoutes from './routes/appleAuth';
 import solicitacoesRoutes from './routes/solicitacoes';
 import agendamentosRoutes from './routes/agendamentos';
 import donoProfissionaisRoutes from './routes/dono/profissionais';
@@ -22,6 +24,7 @@ import donoAvaliacoesRoutes from './routes/dono/avaliacoes';
 import donoProdutosRoutes from './routes/dono/produtos';
 import donoNotificacoesRoutes from './routes/dono/notificacoes';
 import donoRelatoriosRoutes from './routes/dono/relatorios';
+import donoConfiguracaoRoutes from './routes/dono/configuracao';
 import clientePanelRoutes from './routes/cliente/panel';
 import barbeariasPublicasRoutes from './routes/barbeariasPublicas';
 import emergencyRoutes from './routes/emergency';
@@ -180,6 +183,8 @@ app.use('/api/auth', (req, res, next) => {
   next();
 }, authRoutes);
 app.use('/api/auth/google', googleAuthRoutes);
+app.use('/api/auth/facebook', facebookAuthRoutes);
+app.use('/api/auth/apple', appleAuthRoutes);
 app.use('/api', ativacaoRoutes);
 app.use('/api/solicitacoes', solicitacoesRoutes);
 app.use('/api/agendamentos', agendamentosRoutes);
@@ -202,6 +207,7 @@ app.use('/api/dono/avaliacoes', donoAvaliacoesRoutes);
 app.use('/api/dono/produtos', donoProdutosRoutes);
 app.use('/api/dono/notificacoes', donoNotificacoesRoutes);
 app.use('/api/dono/relatorios', donoRelatoriosRoutes);
+app.use('/api/dono/configuracao', donoConfiguracaoRoutes);
 
 // Rotas do cliente (requerem autenticação)
 app.use('/api/cliente', clientePanelRoutes);

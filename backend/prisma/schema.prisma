@@ -142,8 +142,10 @@ model Cliente {
   email       String        @unique
   senha       String?       // Hash da senha (opcional se usar OAuth)
   googleId    String?       @unique // ID do Google OAuth
+  facebookId  String?       @unique // ID do Facebook OAuth
+  appleId     String?       @unique // ID do Apple OAuth
   telefone    String?
-  foto        String?       // Foto do perfil Google
+  foto        String?       // Foto do perfil OAuth
   dataNascimento DateTime?
   ativo       Boolean       @default(true)
   emailVerificado Boolean   @default(true) // Google já verifica email
@@ -312,4 +314,6 @@ model Pagamento {
   
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+}
+
 }
