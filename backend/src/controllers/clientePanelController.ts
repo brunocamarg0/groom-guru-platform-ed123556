@@ -282,6 +282,77 @@ export async function criarMeuAgendamento(req: AuthRequestCliente, res: Response
 }
 
 /**
+ * Criar pagamento para um agendamento
+ */
+export async function criarPagamento(req: AuthRequestCliente, res: Response) {
+  try {
+    const clienteId = req.userId;
+    const { agendamentoId, valor, metodo, status, cupomDesconto, cashbackGerado } = req.body;
+
+    if (!clienteId) {
+      return res.status(401).json({ error: 'Cliente não autenticado' });
+    }
+
+    if (!agendamentoId || !valor || !metodo) {
+      return res.status(400).json({ error: 'Dados incompletos para criar pagamento' });
+    }
+
+    // Verificar se o agendamento pertence ao cliente
+    const agendamento = await prisma.agendamento.findFirst({
+      where: {
+        id: agendamentoId,
+        clienteId,
+      },
+      include: {
+        servico: true,
+        pagamento: true,
+      },
+    });
+
+    if (!agendamento) {
+      return res.status(404).json({ error: 'Agendamento não encontrado ou não pertence a você' });
+    }
+
+    // Verificar se já existe pagamento
+    if (agendamento.pagamento) {
+      return res.status(400).json({ error: 'Este agendamento já possui um pagamento' });
+    }
+
+    // Criar pagamento
+    const pagamento = await prisma.pagamento.create({
+      data: {
+        agendamentoId,
+        valor: parseFloat(valor),
+        metodo,
+        status: status || 'pago',
+        dataPagamento: status === 'pago' ? new Date() : null,
+        taxaGateway: metodo === 'pix' ? 0 : valor * 0.039, // 3.9% para cartão
+      },
+      include: {
+        agendamento: {
+          include: {
+            servico: true,
+          },
+        },
+      },
+    });
+
+    // Atualizar status do agendamento se pagamento foi aprovado
+    if (status === 'pago') {
+      await prisma.agendamento.update({
+        where: { id: agendamentoId },
+        data: { status: 'confirmado' },
+      });
+    }
+
+    res.status(201).json(pagamento);
+  } catch (error) {
+    console.error('Erro ao criar pagamento:', error);
+    res.status(500).json({ error: 'Erro ao criar pagamento' });
+  }
+}
+
+/**
  * Cancelar agendamento do cliente
  */
 export async function cancelarMeuAgendamento(req: AuthRequestCliente, res: Response) {

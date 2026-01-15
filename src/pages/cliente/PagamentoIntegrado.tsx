@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCliente } from "@/context/ClienteContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,9 +15,13 @@ import { Badge } from "@/components/ui/badge";
 import { CreditCard, Wallet, QrCode, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { MetodoPagamento } from "@/types/cliente";
+import { useSearchParams, useNavigate } from "react-router-dom";
 
 export default function PagamentoIntegrado() {
-  const { agendamentos, realizarPagamento, cliente } = useCliente();
+  const { agendamentos, realizarPagamento, cliente, carregarDados } = useCliente();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const agendamentoIdParam = searchParams.get("agendamento");
   
   // Proteção: se realizarPagamento não existir, criar função placeholder
   const handleRealizarPagamento = realizarPagamento || (async () => {
@@ -38,10 +42,22 @@ export default function PagamentoIntegrado() {
     );
   }
 
+  // Recarregar dados quando componente montar ou agendamentoIdParam mudar
+  useEffect(() => {
+    if (agendamentoIdParam) {
+      carregarDados();
+    }
+  }, [agendamentoIdParam]);
+
   const agendamentosArray = Array.isArray(agendamentos) ? agendamentos : [];
-  const agendamentosPendentes = agendamentosArray.filter(
-    (a) => a.status === "aguardando_pagamento" || !a.pagamento
-  );
+  
+  // Se houver agendamentoIdParam, filtrar apenas esse agendamento
+  // Caso contrário, mostrar todos os agendamentos pendentes
+  const agendamentosPendentes = agendamentoIdParam
+    ? agendamentosArray.filter((a) => a.id === agendamentoIdParam)
+    : agendamentosArray.filter(
+        (a) => a.status === "aguardando_pagamento" || (!a.pagamento && a.status !== "cancelado")
+      );
 
   const formatarMoeda = (valor: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -75,12 +91,22 @@ export default function PagamentoIntegrado() {
         cupomDesconto: cupom || undefined,
         cashbackGerado: valorFinal * 0.05, // 5% cashback
       });
+      
+      // Recarregar dados após pagamento
+      await carregarDados();
+      
+      toast({
+        title: "Pagamento realizado!",
+        description: "Seu pagamento foi processado com sucesso.",
+      });
+      
+      // Se veio de um agendamento específico, redirecionar para dashboard
+      if (agendamentoIdParam) {
+        setTimeout(() => {
+          navigate("/cliente");
+        }, 1500);
+      }
     }
-
-    toast({
-      title: "Pagamento realizado!",
-      description: "Seu pagamento foi processado com sucesso.",
-    });
   };
 
   return (

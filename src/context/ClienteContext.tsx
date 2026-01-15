@@ -487,7 +487,7 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
         buscarBarbearias,
         buscarBarbeariaPorId,
         criarAvaliacao: undefined, // TODO: Implementar
-        realizarPagamento: undefined, // TODO: Implementar
+        realizarPagamento,
         marcarNotificacaoLida: undefined, // TODO: Implementar
       }}
     >

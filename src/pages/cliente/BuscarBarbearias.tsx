@@ -24,9 +24,15 @@ export default function BuscarBarbearias() {
   const [buscando, setBuscando] = useState(false);
 
   useEffect(() => {
-    // Carregar todas as barbearias ao montar
-    buscarBarbearias().catch((err) => {
+    // Carregar TODAS as barbearias ao montar (sem filtros)
+    console.log('🔍 [BUSCAR BARBEARIAS] Carregando todas as barbearias...');
+    buscarBarbearias(undefined, undefined, undefined).catch((err) => {
       console.warn('Erro ao carregar barbearias iniciais:', err);
+      toast({
+        title: "Aviso",
+        description: "Não foi possível carregar todas as barbearias. Tente buscar novamente.",
+        variant: "default",
+      });
     });
   }, []);
 

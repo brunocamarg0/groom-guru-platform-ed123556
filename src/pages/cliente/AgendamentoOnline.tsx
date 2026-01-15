@@ -90,7 +90,7 @@ export default function AgendamentoOnline() {
     }
 
     try {
-      await criarAgendamento({
+      const novoAgendamento = await criarAgendamento({
         barbeariaId: formData.barbeariaId!,
         servicoId: formData.servicoId!,
         data: formData.data!,
@@ -100,9 +100,11 @@ export default function AgendamentoOnline() {
       
       toast({
         title: "Agendamento criado!",
-        description: "Seu agendamento foi criado com sucesso.",
+        description: "Redirecionando para página de pagamento...",
       });
-      navigate("/cliente");
+      
+      // Redirecionar para página de pagamento após criar agendamento
+      navigate(`/cliente/pagamento?agendamento=${novoAgendamento.id}`);
     } catch (error: any) {
       toast({
         title: "Erro",

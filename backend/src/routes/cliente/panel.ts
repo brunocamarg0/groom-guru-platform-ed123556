@@ -17,5 +17,8 @@ router.get('/agendamentos/:id', clientePanelController.buscarMeuAgendamento);
 router.post('/agendamentos', clientePanelController.criarMeuAgendamento);
 router.put('/agendamentos/:id/cancelar', clientePanelController.cancelarMeuAgendamento);
 
+// Pagamentos
+router.post('/pagamentos', clientePanelController.criarPagamento);
+
 export default router;
 
