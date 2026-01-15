@@ -368,6 +368,49 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
     return agendamentos.filter((a) => a.status === status);
   };
 
+  const realizarPagamento = async (agendamentoId: string, dados: any) => {
+    try {
+      console.log('💳 [CLIENTE] Realizando pagamento:', { agendamentoId, dados });
+      
+      // Criar pagamento via API
+      const pagamento = await apiPost('/cliente/pagamentos', {
+        agendamentoId,
+        valor: dados.valor,
+        metodo: dados.metodo,
+        status: dados.status || 'pago',
+        cupomDesconto: dados.cupomDesconto,
+        cashbackGerado: dados.cashbackGerado || 0,
+      });
+
+      // Atualizar estado local
+      setPagamentos([...pagamentos, pagamento]);
+      
+      // Atualizar status do agendamento
+      setAgendamentos(
+        agendamentos.map((a) =>
+          a.id === agendamentoId
+            ? { 
+                ...a, 
+                status: dados.status === 'pago' ? 'confirmado' as StatusAgendamento : a.status,
+                pagamento,
+                updatedAt: new Date().toISOString() 
+              }
+            : a
+        )
+      );
+
+      // Recarregar dados para garantir sincronização
+      await carregarDados();
+
+      toast.success('Pagamento realizado com sucesso!');
+      return pagamento;
+    } catch (error: any) {
+      console.error('❌ [CLIENTE] Erro ao realizar pagamento:', error);
+      toast.error(error.message || 'Erro ao realizar pagamento');
+      throw error;
+    }
+  };
+
   const buscarBarbearias = async (busca?: string, cidade?: string, bairro?: string) => {
     try {
       console.log('🔍 [CLIENTE] Buscando barbearias...', { busca, cidade, bairro });
