@@ -643,21 +643,59 @@ export async function criarAgendamento(req: Request, res: Response) {
       });
     }
 
+    // Buscar agendamento novamente com profissional associado (se foi associado)
+    const agendamentoCompleto = await prisma.agendamento.findUnique({
+      where: { id: agendamento.id },
+      include: {
+        clienteRel: {
+          select: {
+            id: true,
+            nome: true,
+            telefone: true,
+          },
+        },
+        servico: {
+          select: {
+            id: true,
+            nome: true,
+            preco: true,
+            duracao: true,
+          },
+        },
+        barbearia: {
+          select: {
+            id: true,
+            nome: true,
+          },
+        },
+        profissionais: {
+          include: {
+            profissional: {
+              select: {
+                id: true,
+                nome: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
     // Enviar notificação de forma assíncrona (não bloquear resposta)
-    if (statusInicial === 'confirmado') {
-      const telefoneCliente = agendamento.clienteRel?.telefone || agendamento.telefone;
+    if (statusInicial === 'confirmado' && agendamentoCompleto) {
+      const telefoneCliente = agendamentoCompleto.clienteRel?.telefone || agendamentoCompleto.telefone;
       if (telefoneCliente) {
         // Executar notificação em background (não esperar)
         notificarConfirmacaoAgendamento({
           telefone: telefoneCliente,
-          nomeCliente: agendamento.clienteRel?.nome || agendamento.cliente,
-          nomeBarbearia: agendamento.barbearia.nome,
-          data: agendamento.data,
-          horario: agendamento.data.toLocaleTimeString('pt-BR', {
+          nomeCliente: agendamentoCompleto.clienteRel?.nome || agendamentoCompleto.cliente,
+          nomeBarbearia: agendamentoCompleto.barbearia.nome,
+          data: agendamentoCompleto.data,
+          horario: agendamentoCompleto.data.toLocaleTimeString('pt-BR', {
             hour: '2-digit',
             minute: '2-digit',
           }),
-          servico: agendamento.servico.nome,
+          servico: agendamentoCompleto.servico.nome,
         }).catch((notifError) => {
           console.error('Erro ao enviar notificação de confirmação automática:', notifError);
           // Não falha a criação se a notificação falhar
@@ -669,7 +707,7 @@ export async function criarAgendamento(req: Request, res: Response) {
     res.status(201).json({
       sucesso: true,
       mensagem: `Agendamento criado e ${statusInicial === 'confirmado' ? 'confirmado automaticamente' : 'aguardando confirmação'}`,
-      agendamento,
+      agendamento: agendamentoCompleto || agendamento,
     });
   } catch (error) {
     console.error('Erro ao criar agendamento:', error);
