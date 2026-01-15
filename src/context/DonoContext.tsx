@@ -56,6 +56,7 @@ interface DonoContextType {
   
   adicionarCliente: (cliente: Omit<ClienteDono, "id" | "dataCadastro" | "totalAgendamentos" | "ticketMedio" | "frequencia">) => Promise<void>;
   atualizarCliente: (id: string, dados: Partial<ClienteDono>) => Promise<void>;
+  removerCliente: (id: string) => Promise<void>;
   marcarClienteVIP: (id: string, vip: boolean) => void;
   
   // Funções de serviços
@@ -965,6 +966,18 @@ export function DonoProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const removerCliente = async (id: string) => {
+    try {
+      await apiDelete(`/dono/clientes/${id}`);
+      await carregarDados(true);
+      toast.success('Cliente removido com sucesso!');
+    } catch (error: any) {
+      console.error('Erro ao remover cliente:', error);
+      toast.error(error.message || 'Erro ao remover cliente');
+      throw error;
+    }
+  };
+
   const marcarClienteVIP = async (id: string, vip: boolean) => {
     // Implementar quando o backend tiver suporte a VIP
     toast.info('Funcionalidade VIP em desenvolvimento');
@@ -1200,6 +1213,7 @@ export function DonoProvider({ children }: { children: ReactNode }) {
         removerProfissional,
         adicionarCliente,
         atualizarCliente,
+        removerCliente,
         marcarClienteVIP,
         adicionarServico,
         atualizarServico,

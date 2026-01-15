@@ -27,14 +27,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Crown, Search } from "lucide-react";
+import { Plus, Crown, Search, Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function GestaoClientes() {
-  const { clientes, marcarClienteVIP, adicionarCliente } = useDono();
+  const { clientes, marcarClienteVIP, adicionarCliente, atualizarCliente, removerCliente } = useDono();
   const [busca, setBusca] = useState("");
   const [modalAberto, setModalAberto] = useState(false);
+  const [modalEdicaoAberto, setModalEdicaoAberto] = useState(false);
+  const [clienteEditando, setClienteEditando] = useState<{ id: string; nome: string; email: string; telefone: string } | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const [excluindo, setExcluindo] = useState<string | null>(null);
   const [formCliente, setFormCliente] = useState({
     nome: "",
     email: "",
@@ -98,6 +101,76 @@ export default function GestaoClientes() {
       toast.error(error.message || "Erro ao adicionar cliente");
     } finally {
       setSalvando(false);
+    }
+  };
+
+  const handleEditar = (cliente: any) => {
+    setClienteEditando({
+      id: cliente.id,
+      nome: cliente.nome,
+      email: cliente.email || "",
+      telefone: cliente.telefone || "",
+    });
+    setFormCliente({
+      nome: cliente.nome,
+      email: cliente.email || "",
+      telefone: cliente.telefone || "",
+    });
+    setModalEdicaoAberto(true);
+  };
+
+  const handleSalvarEdicao = async () => {
+    if (!clienteEditando) return;
+
+    if (!formCliente.nome.trim()) {
+      toast.error("Nome é obrigatório");
+      return;
+    }
+
+    if (!formCliente.email.trim()) {
+      toast.error("Email é obrigatório");
+      return;
+    }
+
+    if (!formCliente.telefone.trim()) {
+      toast.error("Telefone é obrigatório");
+      return;
+    }
+
+    setSalvando(true);
+    try {
+      await atualizarCliente(clienteEditando.id, {
+        nome: formCliente.nome.trim(),
+        email: formCliente.email.trim(),
+        telefone: formCliente.telefone.trim(),
+      });
+
+      setModalEdicaoAberto(false);
+      setClienteEditando(null);
+      setFormCliente({
+        nome: "",
+        email: "",
+        telefone: "",
+      });
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao atualizar cliente");
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const handleExcluir = async (id: string, nome: string) => {
+    if (!confirm(`Tem certeza que deseja remover o cliente "${nome}"?`)) {
+      return;
+    }
+
+    setExcluindo(id);
+    try {
+      await removerCliente(id);
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao remover cliente");
+    } finally {
+      setExcluindo(null);
     }
   };
 
@@ -216,13 +289,38 @@ export default function GestaoClientes() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => marcarClienteVIP(cliente.id, !cliente.vip)}
-                    >
-                      {cliente.vip ? "Remover VIP" : "Marcar VIP"}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditar(cliente)}
+                        title="Editar cliente"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleExcluir(cliente.id, cliente.nome)}
+                        disabled={excluindo === cliente.id}
+                        title="Excluir cliente"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        {excluindo === cliente.id ? (
+                          "Excluindo..."
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => marcarClienteVIP(cliente.id, !cliente.vip)}
+                        title={cliente.vip ? "Remover VIP" : "Marcar VIP"}
+                      >
+                        {cliente.vip ? "Remover VIP" : "Marcar VIP"}
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -299,6 +397,83 @@ export default function GestaoClientes() {
               disabled={salvando}
             >
               {salvando ? "Salvando..." : "Salvar Cliente"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal para editar cliente */}
+      <Dialog open={modalEdicaoAberto} onOpenChange={setModalEdicaoAberto}>
+        <DialogContent className="bg-white text-gray-900">
+          <DialogHeader>
+            <DialogTitle className="text-gray-900">Editar Cliente</DialogTitle>
+            <DialogDescription className="text-gray-600">
+              Atualize as informações do cliente
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-nome" className="text-gray-900">
+                Nome *
+              </Label>
+              <Input
+                id="edit-nome"
+                placeholder="Nome completo do cliente"
+                value={formCliente.nome}
+                onChange={(e) =>
+                  setFormCliente({ ...formCliente, nome: e.target.value })
+                }
+                className="bg-white text-gray-900 border-gray-300"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-email" className="text-gray-900">
+                Email *
+              </Label>
+              <Input
+                id="edit-email"
+                type="email"
+                placeholder="email@exemplo.com"
+                value={formCliente.email}
+                onChange={(e) =>
+                  setFormCliente({ ...formCliente, email: e.target.value })
+                }
+                className="bg-white text-gray-900 border-gray-300"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-telefone" className="text-gray-900">
+                Telefone *
+              </Label>
+              <Input
+                id="edit-telefone"
+                placeholder="(11) 99999-9999"
+                value={formCliente.telefone}
+                onChange={(e) =>
+                  setFormCliente({ ...formCliente, telefone: e.target.value })
+                }
+                className="bg-white text-gray-900 border-gray-300"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setModalEdicaoAberto(false);
+                setClienteEditando(null);
+                setFormCliente({ nome: "", email: "", telefone: "" });
+              }}
+              className="text-gray-900 border-gray-300"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleSalvarEdicao} 
+              className="bg-blue-600 hover:bg-blue-700"
+              disabled={salvando}
+            >
+              {salvando ? "Salvando..." : "Salvar Alterações"}
             </Button>
           </DialogFooter>
         </DialogContent>

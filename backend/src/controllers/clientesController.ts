@@ -363,3 +363,38 @@ export async function atualizarCliente(req: AuthRequest, res: Response) {
     res.status(500).json({ error: 'Erro ao atualizar cliente' });
   }
 }
+
+/**
+ * Deletar cliente (soft delete - marcar como inativo)
+ */
+export async function deletarCliente(req: AuthRequest, res: Response) {
+  try {
+    const { id } = req.params;
+
+    const cliente = await prisma.cliente.findUnique({
+      where: { id },
+    });
+
+    if (!cliente) {
+      return res.status(404).json({ error: 'Cliente não encontrado' });
+    }
+
+    // Soft delete: marcar como inativo em vez de deletar fisicamente
+    // Isso preserva histórico de agendamentos e pagamentos
+    const clienteDesativado = await prisma.cliente.update({
+      where: { id },
+      data: {
+        ativo: false,
+      },
+    });
+
+    res.json({ 
+      sucesso: true,
+      mensagem: 'Cliente removido com sucesso',
+      cliente: clienteDesativado 
+    });
+  } catch (error) {
+    console.error('Erro ao deletar cliente:', error);
+    res.status(500).json({ error: 'Erro ao deletar cliente' });
+  }
+}
