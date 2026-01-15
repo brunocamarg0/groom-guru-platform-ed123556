@@ -11,8 +11,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Scissors, MapPin, Phone, Mail, Search, Star, Users, Clock } from "lucide-react";
+import { Scissors, MapPin, Phone, Mail, Search, Star, Users, Clock, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 export default function BuscarBarbearias() {
   const { barbearias, buscarBarbearias } = useCliente();
@@ -40,9 +41,9 @@ export default function BuscarBarbearias() {
     setBuscando(true);
     try {
       await buscarBarbearias(
-        busca || undefined,
-        cidade || undefined,
-        bairro || undefined
+        busca.trim() || undefined,
+        cidade.trim() || undefined,
+        bairro.trim() || undefined
       );
     } catch (error) {
       console.error('Erro ao buscar:', error);
@@ -55,6 +56,7 @@ export default function BuscarBarbearias() {
       setBuscando(false);
     }
   };
+
 
   const handleSelecionarBarbearia = (barbeariaId: string) => {
     // Navegar para agendamento com a barbearia selecionada
@@ -69,11 +71,11 @@ export default function BuscarBarbearias() {
   };
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto p-4">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">Buscar Barbearias</h2>
+        <h2 className="text-3xl font-bold tracking-tight">Agendar Serviço</h2>
         <p className="text-muted-foreground">
-          Encontre a barbearia perfeita para você
+          Escolha uma barbearia e agende seu serviço
         </p>
       </div>
 
@@ -136,109 +138,137 @@ export default function BuscarBarbearias() {
 
       {/* Lista de barbearias */}
       {buscando ? (
-        <div className="text-center py-8">
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">Buscando barbearias...</p>
         </div>
       ) : barbearias.length === 0 ? (
         <Card>
-          <CardContent className="py-8 text-center">
-            <p className="text-muted-foreground">
-              Nenhuma barbearia encontrada. Tente uma busca diferente.
+          <CardContent className="py-12 text-center">
+            <Scissors className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground text-lg mb-2">
+              Nenhuma barbearia encontrada
             </p>
+            <p className="text-sm text-muted-foreground">
+              Tente uma busca diferente ou limpe os filtros para ver todas as barbearias
+            </p>
+            <Button 
+              variant="outline" 
+              className="mt-4"
+              onClick={() => {
+                setBusca("");
+                setCidade("");
+                setBairro("");
+                buscarBarbearias(undefined, undefined, undefined);
+              }}
+            >
+              Limpar Filtros
+            </Button>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {barbearias.map((barbearia) => (
-            <Card
-              key={barbearia.id}
-              className="cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => handleSelecionarBarbearia(barbearia.id)}
-            >
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-primary p-2 rounded-full">
-                      <Scissors className="h-5 w-5 text-primary-foreground" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">{barbearia.nome}</CardTitle>
-                      {(barbearia.endereco || barbearia.cidade || barbearia.bairro) && (
-                        <CardDescription className="flex items-center gap-1 mt-1">
-                          <MapPin className="h-3 w-3" />
-                          {[
-                            barbearia.endereco,
-                            barbearia.bairro,
-                            barbearia.cidade
-                          ].filter(Boolean).join(', ')}
+        <>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm text-muted-foreground">
+              {barbearias.length} {barbearias.length === 1 ? 'barbearia encontrada' : 'barbearias encontradas'}
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {barbearias.map((barbearia) => (
+              <Card
+                key={barbearia.id}
+                className="cursor-pointer hover:shadow-xl transition-all duration-300 hover:scale-105 border-2 hover:border-primary/50"
+                onClick={() => handleSelecionarBarbearia(barbearia.id)}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-start gap-3">
+                    <Avatar className="h-16 w-16 border-2 border-primary/20">
+                      <AvatarFallback className="bg-primary/10 text-primary text-lg font-bold">
+                        {barbearia.nome.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-lg leading-tight mb-1 line-clamp-2">
+                        {barbearia.nome}
+                      </CardTitle>
+                      {(barbearia.bairro || barbearia.cidade) && (
+                        <CardDescription className="flex items-center gap-1 mt-1 text-xs">
+                          <MapPin className="h-3 w-3 flex-shrink-0" />
+                          <span className="truncate">
+                            {[barbearia.bairro, barbearia.cidade].filter(Boolean).join(', ')}
+                          </span>
                         </CardDescription>
                       )}
                     </div>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {/* Informações de contato */}
-                <div className="space-y-1 text-sm">
+                </CardHeader>
+                <CardContent className="space-y-3 pt-0">
+                  {/* Informações de contato */}
                   {barbearia.telefone && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Phone className="h-3 w-3" />
-                      {barbearia.telefone}
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Phone className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span className="truncate">{barbearia.telefone}</span>
                     </div>
                   )}
-                  {barbearia.email && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Mail className="h-3 w-3" />
-                      {barbearia.email}
-                    </div>
-                  )}
-                </div>
 
-                {/* Estatísticas */}
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  {barbearia.totalServicos > 0 && (
-                    <div className="flex items-center gap-1">
-                      <Scissors className="h-3 w-3" />
-                      {barbearia.totalServicos} serviços
-                    </div>
-                  )}
-                  {barbearia.profissionais && barbearia.profissionais.length > 0 && (
-                    <div className="flex items-center gap-1">
-                      <Users className="h-3 w-3" />
-                      {barbearia.profissionais.length} profissionais
-                    </div>
-                  )}
-                </div>
+                  {/* Estatísticas */}
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground pt-2 border-t">
+                    {barbearia.totalServicos > 0 && (
+                      <div className="flex items-center gap-1">
+                        <Scissors className="h-3 w-3" />
+                        <span>{barbearia.totalServicos}</span>
+                      </div>
+                    )}
+                    {barbearia.profissionais && barbearia.profissionais.length > 0 && (
+                      <div className="flex items-center gap-1">
+                        <Users className="h-3 w-3" />
+                        <span>{barbearia.profissionais.length}</span>
+                      </div>
+                    )}
+                    {barbearia.totalAgendamentos > 0 && (
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        <span>{barbearia.totalAgendamentos}</span>
+                      </div>
+                    )}
+                  </div>
 
-                {/* Serviços disponíveis */}
-                {barbearia.servicos && barbearia.servicos.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      Serviços disponíveis:
-                    </p>
-                    <div className="flex flex-wrap gap-1">
-                      {barbearia.servicos.slice(0, 3).map((servico: any) => (
-                        <Badge key={servico.id} variant="secondary" className="text-xs">
-                          {servico.nome} - {formatarMoeda(servico.preco)}
-                        </Badge>
-                      ))}
-                      {barbearia.servicos.length > 3 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{barbearia.servicos.length - 3} mais
-                        </Badge>
+                  {/* Serviços disponíveis - Preview */}
+                  {barbearia.servicos && barbearia.servicos.length > 0 && (
+                    <div className="space-y-2 pt-2 border-t">
+                      <p className="text-xs font-semibold text-muted-foreground">
+                        Serviços:
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {barbearia.servicos.slice(0, 2).map((servico: any) => (
+                          <Badge key={servico.id} variant="secondary" className="text-xs">
+                            {servico.nome}
+                          </Badge>
+                        ))}
+                        {barbearia.servicos.length > 2 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{barbearia.servicos.length - 2}
+                          </Badge>
+                        )}
+                      </div>
+                      {barbearia.servicos.length > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          A partir de {formatarMoeda(Math.min(...barbearia.servicos.map((s: any) => s.preco)))}
+                        </p>
                       )}
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Botão de ação */}
-                <Button className="w-full mt-4" variant="default">
-                  Agendar Agora
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                  {/* Botão de ação */}
+                  <Button className="w-full mt-4" variant="default" size="sm">
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Agendar Agora
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
