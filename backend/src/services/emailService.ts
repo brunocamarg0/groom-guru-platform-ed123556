@@ -594,17 +594,46 @@ Acesse: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/${tipo === 'dono'
 © ${new Date().getFullYear()} Groom Guru Platform
     `;
 
-    // Enviar via Resend
-    const { data, error } = await resendClient.emails.send({
-      from: process.env.EMAIL_FROM || 'Groom Guru <onboarding@resend.dev>',
-      to: email,
-      subject: titulo,
-      html: htmlContent,
-      text: textContent,
-    });
+        // Enviar via Resend
+        // IMPORTANTE: Resend requer domínio verificado. Use o domínio padrão do Resend para emails de teste
+        // Para produção, você precisa verificar seu domínio em https://resend.com/domains
+        // IMPORTANTE: No plano gratuito do Resend, você DEVE usar 'onboarding@resend.dev'
+        // Se EMAIL_FROM estiver configurado com domínio não verificado, forçar uso do domínio padrão
+        let emailFrom = process.env.EMAIL_FROM || 'Groom Guru <onboarding@resend.dev>';
+        
+        // Se EMAIL_FROM não contém 'onboarding@resend.dev' ou 'resend.dev', usar o padrão
+        // Isso garante que sempre use um domínio válido no plano gratuito
+        if (!emailFrom.includes('resend.dev')) {
+          console.warn('⚠️ [EMAIL] EMAIL_FROM configurado com domínio não verificado:', emailFrom);
+          console.warn('⚠️ [EMAIL] Usando domínio padrão do Resend (onboarding@resend.dev)');
+          emailFrom = 'Groom Guru <onboarding@resend.dev>';
+        }
+        
+        console.log('📧 [EMAIL] Enviando de:', emailFrom);
+        console.log('📧 [EMAIL] Enviando para:', email);
+        
+        const { data, error } = await resendClient.emails.send({
+          from: emailFrom,
+          to: email,
+          subject: titulo,
+          html: htmlContent,
+          text: textContent,
+        });
 
     if (error) {
       console.error('❌ [EMAIL] Erro ao enviar via Resend:', error);
+      console.error('❌ [EMAIL] Status Code:', error?.statusCode);
+      console.error('❌ [EMAIL] Mensagem:', error?.message);
+      console.error('❌ [EMAIL] Nome do erro:', error?.name);
+      
+      // Se o erro for de domínio não verificado, sugerir usar o domínio padrão
+      if (error?.statusCode === 403 && error?.message?.includes('domain is not verified')) {
+        console.error('⚠️ [EMAIL] Domínio não verificado no Resend!');
+        console.error('⚠️ [EMAIL] Solução: Use o domínio padrão do Resend (onboarding@resend.dev)');
+        console.error('⚠️ [EMAIL] Ou verifique seu domínio em: https://resend.com/domains');
+        console.error('⚠️ [EMAIL] Remova a variável EMAIL_FROM do Railway se estiver configurada com domínio não verificado');
+      }
+      
       return false;
     }
 
