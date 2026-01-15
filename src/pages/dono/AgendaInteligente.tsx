@@ -103,12 +103,12 @@ export default function AgendaInteligente() {
   const verificarDisponibilidade = (horario: string, profissionalId: string, data: string, servicoId?: string): boolean => {
     if (!profissionalId || !data) return true;
 
-    // Buscar agendamentos confirmados do profissional naquela data
+    // Buscar agendamentos confirmados ou pendentes do profissional naquela data
     const agendamentosDoProfissional = agendamentos.filter(
       (a) =>
         a.profissionalId === profissionalId &&
         a.data === data &&
-        (a.status === "confirmado" || a.status === "pendente")
+        (a.status === "confirmado" || a.status === "pendente" || a.status === "concluido")
     );
 
     if (agendamentosDoProfissional.length === 0) return true;
@@ -122,15 +122,18 @@ export default function AgendaInteligente() {
       ? servicosAtivos.find((s: any) => s.id === servicoId)?.duracao || 40
       : 40;
 
+    const novoFimMinutos = horarioMinutos + duracaoServico;
+
     // Verificar conflitos com agendamentos existentes
     for (const agendamento of agendamentosDoProfissional) {
+      // Pular se não tiver horário válido
+      if (!agendamento.horario || !agendamento.duracao) continue;
+
       const [agHoraStr, agMinutoStr] = agendamento.horario.split(":");
       const agHorarioMinutos = parseInt(agHoraStr) * 60 + parseInt(agMinutoStr);
-      const agFimMinutos = agHorarioMinutos + agendamento.duracao;
+      const agFimMinutos = agHorarioMinutos + (agendamento.duracao || 40);
 
-      const novoFimMinutos = horarioMinutos + duracaoServico;
-
-      // Verificar se há sobreposição
+      // Verificar se há sobreposição (qualquer sobreposição = conflito)
       if (
         (horarioMinutos >= agHorarioMinutos && horarioMinutos < agFimMinutos) ||
         (novoFimMinutos > agHorarioMinutos && novoFimMinutos <= agFimMinutos) ||
@@ -147,19 +150,56 @@ export default function AgendaInteligente() {
   const horariosDisponiveis = useMemo(() => {
     const todosHorarios = gerarHorariosDisponiveis();
     
+    // Se não tiver profissional e data selecionados, retornar todos os horários
     if (!formNovoAgendamento.profissionalId || !formNovoAgendamento.data) {
       return todosHorarios;
     }
 
-    // Filtrar apenas horários disponíveis
-    return todosHorarios.filter((horario) =>
-      verificarDisponibilidade(
-        horario,
-        formNovoAgendamento.profissionalId,
-        formNovoAgendamento.data,
-        formNovoAgendamento.servicoId
-      )
-    );
+    // Filtrar apenas horários disponíveis para o profissional na data selecionada
+    const horariosFiltrados = todosHorarios.filter((horario) => {
+      // Buscar agendamentos confirmados ou pendentes do profissional naquela data
+      const agendamentosDoProfissional = agendamentos.filter(
+        (a) =>
+          a.profissionalId === formNovoAgendamento.profissionalId &&
+          a.data === formNovoAgendamento.data &&
+          (a.status === "confirmado" || a.status === "pendente" || a.status === "concluido")
+      );
+
+      if (agendamentosDoProfissional.length === 0) return true;
+
+      // Converter horário para minutos
+      const [horaStr, minutoStr] = horario.split(":");
+      const horarioMinutos = parseInt(horaStr) * 60 + parseInt(minutoStr);
+
+      // Duração do serviço selecionado
+      const duracaoServico = formNovoAgendamento.servicoId
+        ? servicosAtivos.find((s: any) => s.id === formNovoAgendamento.servicoId)?.duracao || 40
+        : 40;
+
+      const novoFimMinutos = horarioMinutos + duracaoServico;
+
+      // Verificar conflitos
+      for (const agendamento of agendamentosDoProfissional) {
+        if (!agendamento.horario || !agendamento.duracao) continue;
+
+        const [agHoraStr, agMinutoStr] = agendamento.horario.split(":");
+        const agHorarioMinutos = parseInt(agHoraStr) * 60 + parseInt(agMinutoStr);
+        const agFimMinutos = agHorarioMinutos + (agendamento.duracao || 40);
+
+        // Verificar sobreposição
+        if (
+          (horarioMinutos >= agHorarioMinutos && horarioMinutos < agFimMinutos) ||
+          (novoFimMinutos > agHorarioMinutos && novoFimMinutos <= agFimMinutos) ||
+          (horarioMinutos <= agHorarioMinutos && novoFimMinutos >= agFimMinutos)
+        ) {
+          return false; // Conflito encontrado
+        }
+      }
+
+      return true; // Horário disponível
+    });
+
+    return horariosFiltrados;
   }, [formNovoAgendamento.profissionalId, formNovoAgendamento.data, formNovoAgendamento.servicoId, agendamentos, servicos]);
 
   // Filtrar agendamentos por profissional e status
