@@ -315,5 +315,3 @@ model Pagamento {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 }
-
-}
