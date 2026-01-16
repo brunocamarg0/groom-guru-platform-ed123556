@@ -495,7 +495,7 @@ export default function AgendaInteligente() {
             </Button>
           </div>
           <div>
-            <h2 className="text-2xl font-bold tracking-tight">
+            <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
               {visualizacao === "dia" && format(dataSelecionada, "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
               {visualizacao === "semana" && `${format(semanaInicio, "d 'de' MMM", { locale: ptBR })} - ${format(semanaFim, "d 'de' MMM 'de' yyyy", { locale: ptBR })}`}
               {visualizacao === "mes" && format(dataSelecionada, "MMMM 'de' yyyy", { locale: ptBR })}
@@ -527,11 +527,11 @@ export default function AgendaInteligente() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
                   <AlertCircle className="h-5 w-5 text-yellow-600" />
                   Agendamentos Pendentes de Confirmação
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-gray-700 dark:text-gray-300">
                   {listaAgendamentosPendentes.length} agendamento(s) aguardando sua confirmação
                 </CardDescription>
               </div>
@@ -616,13 +616,13 @@ export default function AgendaInteligente() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Data e Hora Atual</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-gray-900 dark:text-gray-100">Data e Hora Atual</CardTitle>
+              <CardDescription className="text-gray-700 dark:text-gray-300">
                 Selecione uma data no calendário para ver os agendamentos
               </CardDescription>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-bold">
+              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {format(new Date(), "HH:mm")}
               </div>
               <div className="text-sm text-muted-foreground">
@@ -674,7 +674,7 @@ export default function AgendaInteligente() {
                 </div>
               </div>
               <div className="space-y-2">
-                <h3 className="font-semibold">Agendamentos de {format(dataSelecionada, "dd/MM/yyyy")}</h3>
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100">Agendamentos de {format(dataSelecionada, "dd/MM/yyyy")}</h3>
                 {agendamentosDoDia.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Nenhum agendamento para este dia</p>
                 ) : (
@@ -748,8 +748,8 @@ export default function AgendaInteligente() {
         <TabsContent value="dia" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Agenda do Dia</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-gray-900 dark:text-gray-100">Agenda do Dia</CardTitle>
+              <CardDescription className="text-gray-700 dark:text-gray-300">
                 {format(dataSelecionada, "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
               </CardDescription>
             </CardHeader>
@@ -819,8 +819,8 @@ export default function AgendaInteligente() {
         <TabsContent value="semana" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Agenda da Semana</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-gray-900 dark:text-gray-100">Agenda da Semana</CardTitle>
+              <CardDescription className="text-gray-700 dark:text-gray-300">
                 {format(semanaInicio, "d 'de' MMM", { locale: ptBR })} - {format(semanaFim, "d 'de' MMM 'de' yyyy", { locale: ptBR })}
               </CardDescription>
             </CardHeader>
@@ -860,8 +860,8 @@ export default function AgendaInteligente() {
         <TabsContent value="mes" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Agenda do Mês</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-gray-900 dark:text-gray-100">Agenda do Mês</CardTitle>
+              <CardDescription className="text-gray-700 dark:text-gray-300">
                 {format(dataSelecionada, "MMMM 'de' yyyy", { locale: ptBR })}
               </CardDescription>
             </CardHeader>
