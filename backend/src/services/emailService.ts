@@ -669,12 +669,27 @@ Acesse: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/${tipo === 'dono'
       console.error('❌ [EMAIL] Tentando fallback para nodemailer (SMTP)...');
       console.error('');
       
-      // Se o erro for de domínio não verificado, sugerir usar o domínio padrão
-      if (error?.statusCode === 403 && error?.message?.includes('domain is not verified')) {
-        console.error('⚠️ [EMAIL] Domínio não verificado no Resend!');
-        console.error('⚠️ [EMAIL] Solução: Use o domínio padrão do Resend (onboarding@resend.dev)');
-        console.error('⚠️ [EMAIL] Ou verifique seu domínio em: https://resend.com/domains');
-        console.error('⚠️ [EMAIL] Remova a variável EMAIL_FROM do Railway se estiver configurada com domínio não verificado');
+      // Se o erro for de domínio não verificado ou plano de teste
+      if (error?.statusCode === 403) {
+        if (error?.message?.includes('domain is not verified')) {
+          console.error('⚠️ [EMAIL] Domínio não verificado no Resend!');
+          console.error('⚠️ [EMAIL] Solução: Verifique seu domínio em: https://resend.com/domains');
+          console.error('⚠️ [EMAIL] Ou use o email cadastrado no Resend para testes');
+        } else if (error?.message?.includes('only send testing emails to your own email address')) {
+          console.error('');
+          console.error('⚠️ [EMAIL] ⚠️ RESEND PLANO GRATUITO - LIMITAÇÃO DETECTADA ⚠️');
+          console.error('⚠️ [EMAIL] O plano gratuito do Resend só permite enviar para o email cadastrado');
+          console.error('⚠️ [EMAIL] Email cadastrado no Resend: brunocamargocontato@hotmail.com');
+          console.error('⚠️ [EMAIL] Email de destino tentado: ' + email);
+          console.error('');
+          console.error('✅ [EMAIL] SOLUÇÕES:');
+          console.error('   1. Para TESTES: Use o email cadastrado (brunocamargocontato@hotmail.com)');
+          console.error('   2. Para PRODUÇÃO: Verifique um domínio em https://resend.com/domains');
+          console.error('   3. Alternativa: Configure SendGrid ou Mailgun no Railway');
+          console.error('');
+          console.error('📖 [EMAIL] Guia completo: VERIFICAR_DOMINIO_RESEND.md');
+          console.error('');
+        }
       }
       
       // Se o erro for de email inválido ou bloqueado, ainda tentar fallback
