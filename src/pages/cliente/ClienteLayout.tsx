@@ -35,6 +35,9 @@ import { Badge } from "@/components/ui/badge";
 export default function ClienteLayout() {
   const location = useLocation();
   
+  // Hooks devem estar sempre no topo do componente
+  const [loadingTimeout, setLoadingTimeout] = React.useState(false);
+  
   let cliente, notificacoes, notificacoesNaoLidas = 0, loading = false;
   
   try {
@@ -68,6 +71,19 @@ export default function ClienteLayout() {
       </div>
     );
   }
+
+  // Timeout para loading
+  React.useEffect(() => {
+    if (loading) {
+      const timer = setTimeout(() => {
+        console.warn('⚠️ [CLIENTE] Loading demorou mais de 3 segundos, usando dados do localStorage');
+        setLoadingTimeout(true);
+      }, 3000);
+      return () => clearTimeout(timer);
+    } else {
+      setLoadingTimeout(false);
+    }
+  }, [loading]);
 
   const menuItems = [
     {
@@ -149,21 +165,6 @@ export default function ClienteLayout() {
     }
   }
 
-  // Mostrar loading apenas se ainda estiver carregando E não tem dados do localStorage
-  // Timeout: se loading demorar mais de 3 segundos, usar dados do localStorage
-  const [loadingTimeout, setLoadingTimeout] = React.useState(false);
-  
-  React.useEffect(() => {
-    if (loading) {
-      const timer = setTimeout(() => {
-        console.warn('⚠️ [CLIENTE] Loading demorou mais de 3 segundos, usando dados do localStorage');
-        setLoadingTimeout(true);
-      }, 3000);
-      return () => clearTimeout(timer);
-    } else {
-      setLoadingTimeout(false);
-    }
-  }, [loading]);
 
   if (loading && !loadingTimeout && (!cliente || !cliente.nome)) {
     return (
