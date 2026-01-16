@@ -12,7 +12,9 @@ export async function listarBarbeariasPublicas(req: Request, res: Response) {
     const { busca, cidade, bairro } = req.query;
 
     const where: any = {
-      status: 'ativa', // Apenas barbearias ativas
+      // Não filtrar por status por enquanto - mostrar todas as barbearias
+      // Se houver campo status, pode ser 'ativa', 'pendente', null, etc.
+      // Vamos mostrar todas e deixar o frontend filtrar se necessário
     };
 
     // Busca geral (nome, cidade, bairro ou endereço)
@@ -61,6 +63,8 @@ export async function listarBarbeariasPublicas(req: Request, res: Response) {
       };
     }
 
+    console.log('🔧 [BARBEARIAS] Where clause:', JSON.stringify(where, null, 2));
+    
     const barbearias = await prisma.barbearia.findMany({
       where,
       include: {
@@ -105,6 +109,8 @@ export async function listarBarbeariasPublicas(req: Request, res: Response) {
       },
     });
 
+    console.log('🔧 [BARBEARIAS] Total de barbearias encontradas:', barbearias.length);
+    
     // Formatar resposta para o frontend
     const barbeariasFormatadas = barbearias.map((b) => ({
       id: b.id,
@@ -146,7 +152,7 @@ export async function buscarBarbeariaPublica(req: Request, res: Response) {
     const barbearia = await prisma.barbearia.findFirst({
       where: {
         id,
-        status: 'ativa', // Apenas se estiver ativa
+        // Não filtrar por status - mostrar qualquer barbearia pelo ID
       },
       include: {
         servicos: {
