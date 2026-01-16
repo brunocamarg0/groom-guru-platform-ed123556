@@ -146,23 +146,78 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       console.log('📥 [CLIENTE] Carregando dados do banco...');
+      console.log('📥 [CLIENTE] Token presente:', !!localStorage.getItem('token'));
+      console.log('📥 [CLIENTE] UserType:', localStorage.getItem('userType'));
 
-      // Carregar perfil do cliente
-      const perfil = await apiGet<Cliente>('/cliente/perfil').catch((err) => {
-        console.warn('⚠️ Erro ao carregar perfil:', err);
-        return null;
-      });
+      // Timeout de 10 segundos para cada requisição
+      const timeout = (ms: number) => new Promise((_, reject) => 
+        setTimeout(() => reject(new Error(`Timeout após ${ms}ms`)), ms)
+      );
+
+      // Carregar perfil do cliente com timeout
+      let perfil: Cliente | null = null;
+      try {
+        perfil = await Promise.race([
+          apiGet<Cliente>('/cliente/perfil'),
+          timeout(10000)
+        ]) as Cliente;
+        console.log('✅ [CLIENTE] Perfil carregado:', perfil?.nome);
+      } catch (err: any) {
+        console.error('❌ [CLIENTE] Erro ao carregar perfil:', err);
+        console.error('❌ [CLIENTE] Erro detalhado:', {
+          message: err?.message,
+          status: err?.status,
+          stack: err?.stack
+        });
+        // Se erro 401, token inválido
+        if (err?.status === 401 || err?.message?.includes('401')) {
+          console.error('❌ [CLIENTE] Token inválido ou expirado');
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          localStorage.removeItem('userType');
+          window.location.href = '/login?tab=client';
+          return;
+        }
+      }
 
       if (perfil) {
         setCliente(perfil);
         localStorage.setItem('user', JSON.stringify(perfil));
+      } else {
+        // Se não conseguiu carregar perfil, usar dados do localStorage
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+          try {
+            const userData = JSON.parse(userStr);
+            if (userData && userData.nome) {
+              console.log('⚠️ [CLIENTE] Usando dados do localStorage como fallback');
+              setCliente({
+                id: userData.id,
+                nome: userData.nome,
+                email: userData.email,
+                telefone: userData.telefone || undefined,
+                dataNascimento: userData.dataNascimento || undefined,
+                createdAt: userData.createdAt || new Date().toISOString(),
+              });
+            }
+          } catch (parseError) {
+            console.error('❌ [CLIENTE] Erro ao parsear localStorage:', parseError);
+          }
+        }
       }
 
-      // Carregar agendamentos
-      const agendamentosData = await apiGet<any[]>('/cliente/agendamentos').catch((err) => {
-        console.warn('⚠️ Erro ao carregar agendamentos:', err);
-        return [];
-      });
+      // Carregar agendamentos com timeout
+      let agendamentosData: any[] = [];
+      try {
+        agendamentosData = await Promise.race([
+          apiGet<any[]>('/cliente/agendamentos'),
+          timeout(10000)
+        ]) as any[];
+        console.log('✅ [CLIENTE] Agendamentos carregados:', agendamentosData.length);
+      } catch (err: any) {
+        console.error('❌ [CLIENTE] Erro ao carregar agendamentos:', err);
+        agendamentosData = [];
+      }
 
       // Transformar agendamentos do banco para o formato do frontend
       const agendamentosFormatados: Agendamento[] = agendamentosData.map((a: any) => ({
@@ -236,9 +291,41 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
         },
       });
     } catch (error: any) {
-      console.error('❌ [CLIENTE] Erro ao carregar dados:', error);
-      toast.error('Erro ao carregar dados do cliente');
+      console.error('❌ [CLIENTE] Erro geral ao carregar dados:', error);
+      console.error('❌ [CLIENTE] Erro completo:', {
+        message: error?.message,
+        stack: error?.stack,
+        name: error?.name,
+      });
+      
+      // Tentar usar dados do localStorage como último recurso
+      const userStr = localStorage.getItem('user');
+      if (userStr && !cliente) {
+        try {
+          const userData = JSON.parse(userStr);
+          if (userData && userData.nome) {
+            console.log('⚠️ [CLIENTE] Usando dados do localStorage após erro');
+            setCliente({
+              id: userData.id,
+              nome: userData.nome,
+              email: userData.email,
+              telefone: userData.telefone || undefined,
+              dataNascimento: userData.dataNascimento || undefined,
+              createdAt: userData.createdAt || new Date().toISOString(),
+            });
+          }
+        } catch (parseError) {
+          console.error('❌ [CLIENTE] Erro ao parsear localStorage:', parseError);
+        }
+      }
+      
+      // Não mostrar toast de erro se conseguiu usar dados do localStorage
+      if (!cliente) {
+        toast.error('Erro ao carregar dados do cliente. Tente fazer login novamente.');
+      }
     } finally {
+      // SEMPRE setar loading como false, mesmo em caso de erro
+      console.log('✅ [CLIENTE] Finalizando carregamento (loading = false)');
       setLoading(false);
     }
   };
