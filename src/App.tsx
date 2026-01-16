@@ -129,6 +129,8 @@ const App = () => (
               <Route path="fidelidade" element={<ErrorBoundary><Fidelidade /></ErrorBoundary>} />
               <Route path="suporte" element={<ErrorBoundary><SuporteCliente /></ErrorBoundary>} />
               <Route path="configuracoes" element={<ErrorBoundary><ConfiguracoesCliente /></ErrorBoundary>} />
+              {/* Catch-all para rotas do cliente não encontradas */}
+              <Route path="*" element={<NotFound />} />
             </Route>
             <Route path="/dono" element={
               <ErrorBoundary>
