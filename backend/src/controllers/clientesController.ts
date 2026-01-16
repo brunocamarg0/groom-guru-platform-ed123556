@@ -15,9 +15,12 @@ export async function listarClientes(req: AuthRequest, res: Response) {
       return res.status(401).json({ error: 'Barbearia não identificada' });
     }
 
-    // Buscar clientes que têm agendamentos na barbearia
+    // Buscar APENAS clientes que têm agendamentos nesta barbearia específica
+    // IMPORTANTE: Cada barbearia só deve ver seus próprios clientes
     const agendamentos = await prisma.agendamento.findMany({
-      where: { barbeariaId },
+      where: { 
+        barbeariaId, // Filtrar apenas agendamentos desta barbearia
+      },
       select: { clienteId: true },
       distinct: ['clienteId'],
     });
@@ -26,36 +29,26 @@ export async function listarClientes(req: AuthRequest, res: Response) {
       .map((a) => a.clienteId)
       .filter((id): id is string => id !== null);
 
-    // Buscar TODOS os clientes ativos (sem limite de tempo)
-    // Isso garante que TODOS os clientes criados apareçam, mesmo sem agendamentos
-    // IMPORTANTE: Para o painel do dono, queremos ver todos os clientes disponíveis
-    const clientesAtivos = await prisma.cliente.findMany({
-      where: {
-        ativo: true,
-      },
-      select: { id: true },
-    });
+    console.log('📋 [LISTAR CLIENTES] Barbearia ID:', barbeariaId);
+    console.log('📋 [LISTAR CLIENTES] Clientes com agendamentos nesta barbearia:', clienteIdsComAgendamento.length);
 
-    const clienteIdsAtivos = clientesAtivos.map((c) => c.id);
-
-    // Combinar IDs: clientes com agendamentos na barbearia + todos os clientes ativos
-    // Isso garante que vemos clientes com histórico na barbearia E todos os clientes disponíveis
-    const todosClienteIds = [...new Set([...clienteIdsComAgendamento, ...clienteIdsAtivos])];
-
-    console.log('📋 [LISTAR CLIENTES] Clientes com agendamentos na barbearia:', clienteIdsComAgendamento.length);
-    console.log('📋 [LISTAR CLIENTES] Total de clientes ativos no sistema:', clienteIdsAtivos.length);
-    console.log('📋 [LISTAR CLIENTES] Total de IDs únicos a buscar:', todosClienteIds.length);
-
-    // Construir query: sempre buscar por ativo=true E (IDs OU sem filtro de ID se não houver IDs)
-    // Isso garante que TODOS os clientes ativos sejam retornados
+    // Construir query: buscar APENAS clientes que têm agendamentos nesta barbearia
     const where: any = {
       ativo: true, // Sempre filtrar por ativo
     };
 
-    // Se houver IDs específicos, adicionar filtro de ID
-    // Mas se não houver, ainda retornar todos os ativos
-    if (todosClienteIds.length > 0) {
-      where.id = { in: todosClienteIds };
+    // IMPORTANTE: Só buscar clientes que têm agendamentos nesta barbearia específica
+    // Se não houver clientes com agendamentos, retornar array vazio
+    if (clienteIdsComAgendamento.length > 0) {
+      where.id = { in: clienteIdsComAgendamento };
+    } else {
+      // Se não houver clientes com agendamentos, retornar array vazio
+      // Não buscar todos os clientes do sistema
+      return res.json({
+        sucesso: true,
+        clientes: [],
+        total: 0,
+      });
     }
 
     if (busca && typeof busca === 'string') {
@@ -194,10 +187,16 @@ export async function buscarCliente(req: AuthRequest, res: Response) {
 
 /**
  * Criar novo cliente
+ * IMPORTANTE: Cliente criado pelo dono deve ser associado à barbearia através de um agendamento
  */
 export async function criarCliente(req: AuthRequest, res: Response) {
   try {
+    const { barbeariaId } = req;
     const { nome, email, telefone, foto, dataNascimento } = req.body;
+
+    if (!barbeariaId) {
+      return res.status(401).json({ error: 'Barbearia não identificada' });
+    }
 
     // Validação de campos obrigatórios
     if (!nome || nome.trim() === '') {
@@ -254,32 +253,73 @@ export async function criarCliente(req: AuthRequest, res: Response) {
       }
     }
 
-    // Criar cliente
-    console.log('✅ Criando cliente:', { nome, email: emailFinal, telefone });
-    const cliente = await prisma.cliente.create({
-      data: {
-        nome: nome.trim(),
-        email: emailFinal!,
-        telefone: telefone?.trim() || null,
-        foto: foto || null,
-        dataNascimento: dataNascimento ? new Date(dataNascimento) : null,
+    // Criar cliente e associar à barbearia através de um agendamento "cadastro"
+    console.log('✅ Criando cliente:', { nome, email: emailFinal, telefone, barbeariaId });
+    
+    // Buscar o primeiro serviço da barbearia para criar agendamento de cadastro
+    const primeiroServico = await prisma.servico.findFirst({
+      where: {
+        barbeariaId,
         ativo: true,
-        emailVerificado: false,
       },
-      select: {
-        id: true,
-        nome: true,
-        email: true,
-        telefone: true,
-        foto: true,
-        dataNascimento: true,
-        ativo: true,
-        createdAt: true,
+      orderBy: {
+        createdAt: 'asc',
       },
     });
 
-    console.log('✅ Cliente criado com sucesso:', cliente.id);
-    res.status(201).json(cliente);
+    if (!primeiroServico) {
+      return res.status(400).json({ 
+        error: 'Barbearia não possui serviços cadastrados',
+        detalhes: 'É necessário cadastrar pelo menos um serviço antes de adicionar clientes'
+      });
+    }
+
+    // Criar cliente e agendamento de cadastro em uma transação
+    const resultado = await prisma.$transaction(async (tx) => {
+      // Criar cliente
+      const cliente = await tx.cliente.create({
+        data: {
+          nome: nome.trim(),
+          email: emailFinal!,
+          telefone: telefone?.trim() || null,
+          foto: foto || null,
+          dataNascimento: dataNascimento ? new Date(dataNascimento) : null,
+          ativo: true,
+          emailVerificado: false,
+        },
+        select: {
+          id: true,
+          nome: true,
+          email: true,
+          telefone: true,
+          foto: true,
+          dataNascimento: true,
+          ativo: true,
+          createdAt: true,
+        },
+      });
+
+      // Criar agendamento "cadastro" para associar cliente à barbearia
+      // Este agendamento é apenas para vincular o cliente à barbearia
+      await tx.agendamento.create({
+        data: {
+          cliente: cliente.nome,
+          telefone: cliente.telefone || '',
+          clienteId: cliente.id,
+          servicoId: primeiroServico.id,
+          barbeariaId: barbeariaId,
+          data: new Date(),
+          horario: '00:00',
+          status: 'cadastro', // Status especial para agendamentos de cadastro
+          observacao: 'Cliente cadastrado pelo dono da barbearia',
+        },
+      });
+
+      console.log('✅ Cliente criado e associado à barbearia:', cliente.id);
+      return cliente;
+    });
+
+    res.status(201).json(resultado);
   } catch (error: any) {
     console.error('❌ Erro ao criar cliente:', error);
     console.error('❌ Stack:', error.stack);
