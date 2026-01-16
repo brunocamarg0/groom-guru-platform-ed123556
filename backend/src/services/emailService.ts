@@ -611,30 +611,52 @@ Acesse: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/${tipo === 'dono'
         
         console.log('📧 [EMAIL] Enviando de:', emailFrom);
         console.log('📧 [EMAIL] Enviando para:', email);
+        console.log('📧 [EMAIL] Assunto:', titulo);
+        console.log('📧 [EMAIL] Tamanho do HTML:', htmlContent.length, 'bytes');
+        console.log('📧 [EMAIL] Iniciando envio via Resend...');
         
-        // Enviar com timeout de 5 segundos para falhar rápido se houver problema
+        // Enviar com timeout de 10 segundos (aumentado de 5 para 10)
         const sendPromise = resendClient.emails.send({
           from: emailFrom,
           to: email,
           subject: titulo,
           html: htmlContent,
           text: textContent,
+        }).then((result) => {
+          console.log('📧 [EMAIL] Resend retornou resultado:', JSON.stringify(result, null, 2));
+          return result;
+        }).catch((err) => {
+          console.error('📧 [EMAIL] Erro na promise do Resend:', err);
+          throw err;
         });
 
-        // Timeout de 5 segundos para Resend (deve ser muito rápido)
+        // Timeout de 10 segundos para Resend (aumentado de 5 para 10)
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Timeout: Resend demorou mais de 5 segundos')), 5000);
+          setTimeout(() => {
+            console.error('📧 [EMAIL] TIMEOUT: Resend demorou mais de 10 segundos');
+            reject(new Error('Timeout: Resend demorou mais de 10 segundos'));
+          }, 10000);
         });
 
-        const { data, error } = await Promise.race([sendPromise, timeoutPromise]) as any;
+        console.log('📧 [EMAIL] Aguardando resposta do Resend (timeout: 10s)...');
+        const resultado = await Promise.race([sendPromise, timeoutPromise]) as any;
+        console.log('📧 [EMAIL] Resultado recebido do Resend:', JSON.stringify(resultado, null, 2));
+        
+        const { data, error } = resultado || {};
 
     if (error) {
-      console.error('❌ [EMAIL] Erro ao enviar via Resend:', error);
+      console.error('');
+      console.error('═══════════════════════════════════════════════════════');
+      console.error('❌ [EMAIL] ERRO AO ENVIAR VIA RESEND');
+      console.error('═══════════════════════════════════════════════════════');
+      console.error('❌ [EMAIL] Erro completo:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
       console.error('❌ [EMAIL] Status Code:', error?.statusCode);
       console.error('❌ [EMAIL] Mensagem:', error?.message);
       console.error('❌ [EMAIL] Nome do erro:', error?.name);
+      console.error('❌ [EMAIL] Stack:', error?.stack);
       console.error('❌ [EMAIL] Email de destino:', email);
       console.error('❌ [EMAIL] Tentando fallback para nodemailer (SMTP)...');
+      console.error('');
       
       // Se o erro for de domínio não verificado, sugerir usar o domínio padrão
       if (error?.statusCode === 403 && error?.message?.includes('domain is not verified')) {
@@ -653,17 +675,29 @@ Acesse: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/${tipo === 'dono'
       return false;
     }
 
-    console.log('✅ [EMAIL] Email enviado via Resend com sucesso!');
+    console.log('');
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('✅ [EMAIL] EMAIL ENVIADO VIA RESEND COM SUCESSO!');
+    console.log('═══════════════════════════════════════════════════════');
     console.log('✅ [EMAIL] Email ID:', data?.id);
+    console.log('✅ [EMAIL] Email de destino:', email);
+    console.log('✅ [EMAIL] Assunto:', titulo);
+    console.log('✅ [EMAIL] Verifique a caixa de entrada e spam do email:', email);
+    console.log('');
     
     return true;
   } catch (error: any) {
-    console.error('❌ [EMAIL] Erro ao enviar via Resend:');
+    console.error('');
+    console.error('═══════════════════════════════════════════════════════');
+    console.error('❌ [EMAIL] EXCEÇÃO AO ENVIAR VIA RESEND');
+    console.error('═══════════════════════════════════════════════════════');
     console.error('❌ [EMAIL] Tipo do erro:', error?.constructor?.name);
     console.error('❌ [EMAIL] Mensagem:', error?.message);
     console.error('❌ [EMAIL] Stack:', error?.stack);
     console.error('❌ [EMAIL] Erro completo:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+    console.error('❌ [EMAIL] Email de destino:', email);
     console.error('❌ [EMAIL] Tentando fallback para nodemailer...');
+    console.error('');
     return false;
   }
 }
