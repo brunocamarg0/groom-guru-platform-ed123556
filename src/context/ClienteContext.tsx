@@ -104,14 +104,41 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
     
     if (isClienteRoute && token && userType === 'cliente') {
       console.log('🔄 Carregando dados do cliente do banco...');
-      carregarDados();
+      console.log('🔄 Token presente:', !!token);
+      console.log('🔄 UserType:', userType);
+      
+      // Se já tem cliente no localStorage, usar temporariamente enquanto carrega
+      const userStr = localStorage.getItem('user');
+      if (userStr && !cliente) {
+        try {
+          const userData = JSON.parse(userStr);
+          if (userData && userData.nome) {
+            setCliente({
+              id: userData.id,
+              nome: userData.nome,
+              email: userData.email,
+              telefone: userData.telefone || undefined,
+              dataNascimento: userData.dataNascimento || undefined,
+              createdAt: userData.createdAt || new Date().toISOString(),
+            });
+          }
+        } catch (error) {
+          console.error('Erro ao parsear dados do localStorage:', error);
+        }
+      }
+      
+      carregarDados().catch((err) => {
+        console.error('❌ Erro ao carregar dados do cliente:', err);
+        setLoading(false);
+      });
+      
       // Carregar todas as barbearias ativas automaticamente ao fazer login
       buscarBarbearias().catch((err) => {
         console.warn('⚠️ Erro ao carregar barbearias iniciais:', err);
       });
     } else if (isClienteRoute && !token) {
       console.warn('⚠️ Token não encontrado. Redirecionando para login...');
-      window.location.href = '/login';
+      window.location.href = '/login?tab=client';
     }
   }, []);
 

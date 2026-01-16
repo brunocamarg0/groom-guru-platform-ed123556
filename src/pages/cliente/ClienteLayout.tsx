@@ -34,28 +34,38 @@ import { Badge } from "@/components/ui/badge";
 export default function ClienteLayout() {
   const location = useLocation();
   
-  let cliente, notificacoes, notificacoesNaoLidas = 0;
+  let cliente, notificacoes, notificacoesNaoLidas = 0, loading = false;
   
   try {
     const clienteContext = useCliente();
     cliente = clienteContext.cliente;
+    loading = clienteContext.loading;
     notificacoes = clienteContext.notificacoes || [];
     notificacoesNaoLidas = notificacoes.filter((n) => !n.lida).length;
   } catch (error) {
     console.error("Erro ao carregar contexto do cliente:", error);
     // Fallback para evitar crash
-    cliente = { 
-      id: "1",
-      nome: "Cliente", 
-      email: "", 
-      telefone: "",
-      pontosFidelidade: 0,
-      creditos: 0,
-      dataCadastro: new Date().toISOString(),
-      preferencias: {}
-    };
+    cliente = null;
+    loading = false;
     notificacoes = [];
     notificacoesNaoLidas = 0;
+  }
+
+  // Verificar se há token no localStorage
+  const token = localStorage.getItem('token');
+  const userType = localStorage.getItem('userType');
+
+  // Se não há token ou userType não é 'cliente', redirecionar para login
+  if (!token || userType !== 'cliente') {
+    console.warn('⚠️ Token não encontrado ou tipo de usuário incorreto. Redirecionando...');
+    window.location.href = '/login?tab=client';
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-muted-foreground">Redirecionando para login...</p>
+        </div>
+      </div>
+    );
   }
 
   const menuItems = [
@@ -117,14 +127,54 @@ export default function ClienteLayout() {
     },
   ];
 
-  if (!cliente || !cliente.nome) {
+  // Mostrar loading apenas se ainda estiver carregando
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
           <p className="text-muted-foreground">Carregando painel do cliente...</p>
+          <p className="text-sm text-muted-foreground">Aguarde alguns instantes</p>
         </div>
       </div>
     );
+  }
+
+  // Se não está carregando mas não tem cliente, tentar carregar do localStorage
+  if (!cliente || !cliente.nome) {
+    // Tentar carregar do localStorage como fallback
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const userData = JSON.parse(userStr);
+        if (userData && userData.nome) {
+          cliente = {
+            id: userData.id || '1',
+            nome: userData.nome || 'Cliente',
+            email: userData.email || '',
+            telefone: userData.telefone || '',
+          };
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao carregar do localStorage:', error);
+    }
+
+    // Se ainda não tem cliente, mostrar erro
+    if (!cliente || !cliente.nome) {
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center space-y-4">
+            <p className="text-lg font-semibold text-foreground">Erro ao carregar dados do cliente</p>
+            <p className="text-muted-foreground">Não foi possível carregar seus dados.</p>
+            <p className="text-sm text-muted-foreground">Por favor, faça login novamente.</p>
+            <Button asChild className="mt-4">
+              <a href="/login?tab=client">Fazer Login Novamente</a>
+            </Button>
+          </div>
+        </div>
+      );
+    }
   }
 
   return (
