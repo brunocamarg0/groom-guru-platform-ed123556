@@ -709,20 +709,37 @@ export async function esqueciMinhaSenhaCliente(req: Request, res: Response) {
     }
 
     // Buscar cliente pelo email
-    const cliente = await prisma.cliente.findUnique({
-      where: { email },
-      select: {
-        id: true,
-        nome: true,
-        email: true,
-        senha: true,
-        ativo: true,
-        emailVerificado: true,
-        googleId: true,
-        facebookId: true,
-        appleId: true,
-      },
-    });
+    // Usar select mínimo para evitar problemas com colunas OAuth que podem não existir
+    let cliente;
+    try {
+      cliente = await prisma.cliente.findUnique({
+        where: { email },
+        select: {
+          id: true,
+          nome: true,
+          email: true,
+          senha: true,
+          ativo: true,
+          emailVerificado: true,
+        },
+      });
+    } catch (prismaError: any) {
+      // Se der erro por colunas não existentes, tentar sem select (pegar tudo que existe)
+      if (prismaError.code === 'P2022' || prismaError.message?.includes('does not exist')) {
+        console.warn('⚠️ Colunas OAuth não existem, tentando query alternativa');
+        cliente = await prisma.$queryRaw`
+          SELECT id, nome, email, senha, ativo, "emailVerificado"
+          FROM "Cliente"
+          WHERE email = ${email}
+          LIMIT 1
+        ` as any;
+        if (cliente && Array.isArray(cliente) && cliente.length > 0) {
+          cliente = cliente[0];
+        }
+      } else {
+        throw prismaError;
+      }
+    }
 
     // Por segurança, sempre retornar sucesso mesmo se o email não existir
     // Isso previne enumeração de emails
