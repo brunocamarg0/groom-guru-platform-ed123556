@@ -190,7 +190,7 @@ export async function enviarEmailConvite(params: EnviarConviteParams) {
     <body>
       <div class="container">
         <div class="header">
-          <h1>🎉 Bem-vindo ao Groom Guru!</h1>
+          <h1>🎉 Bem-vindo ao Barber Master!</h1>
         </div>
         <div class="content">
           <p>Olá <strong>${nomeResponsavel}</strong>,</p>
@@ -228,7 +228,7 @@ export async function enviarEmailConvite(params: EnviarConviteParams) {
   `;
 
   const textTemplate = `
-    Bem-vindo ao Groom Guru!
+    Bem-vindo ao Barber Master!
     
     Olá ${nomeResponsavel},
     
@@ -475,8 +475,8 @@ async function enviarEmailViaResend(params: EnviarRecuperacaoSenhaParams): Promi
     console.log('📧 [EMAIL] Tipo:', tipo);
     
     const titulo = tipo === 'dono' 
-      ? `Recuperação de Senha - ${nomeBarbearia || 'Groom Guru'}`
-      : 'Recuperação de Senha - Groom Guru';
+      ? `Recuperação de Senha - ${nomeBarbearia || 'Barber Master'}`
+      : 'Recuperação de Senha - Barber Master';
 
     // HTML do email
     const htmlContent = `
@@ -599,14 +599,14 @@ Acesse: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/${tipo === 'dono'
         // Para produção, você precisa verificar seu domínio em https://resend.com/domains
         // IMPORTANTE: No plano gratuito do Resend, você DEVE usar 'onboarding@resend.dev'
         // Se EMAIL_FROM estiver configurado com domínio não verificado, forçar uso do domínio padrão
-        let emailFrom = process.env.EMAIL_FROM || 'Groom Guru <onboarding@resend.dev>';
+        let emailFrom = process.env.EMAIL_FROM || 'Barber Master <onboarding@resend.dev>';
         
         // Se EMAIL_FROM não contém 'onboarding@resend.dev' ou 'resend.dev', usar o padrão
         // Isso garante que sempre use um domínio válido no plano gratuito
         if (!emailFrom.includes('resend.dev')) {
           console.warn('⚠️ [EMAIL] EMAIL_FROM configurado com domínio não verificado:', emailFrom);
           console.warn('⚠️ [EMAIL] Usando domínio padrão do Resend (onboarding@resend.dev)');
-          emailFrom = 'Groom Guru <onboarding@resend.dev>';
+          emailFrom = 'Barber Master <onboarding@resend.dev>';
         }
         
         console.log('📧 [EMAIL] Enviando de:', emailFrom);
