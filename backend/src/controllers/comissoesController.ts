@@ -159,6 +159,11 @@ export async function listarResumoComissoes(req: AuthRequest, res: Response) {
     const { barbeariaId } = req;
     const { mes, ano } = req.query;
 
+    console.log('📊 [COMISSÕES] listarResumoComissoes chamado');
+    console.log('   barbeariaId:', barbeariaId);
+    console.log('   mes:', mes);
+    console.log('   ano:', ano);
+
     if (!barbeariaId) {
       return res.status(401).json({ error: 'Barbearia não identificada' });
     }
@@ -167,8 +172,15 @@ export async function listarResumoComissoes(req: AuthRequest, res: Response) {
     const anoAtual = ano ? Number(ano) : new Date().getFullYear();
     const mesReferencia = `${anoAtual}-${String(mesAtual).padStart(2, '0')}`;
 
+    console.log('   mesAtual:', mesAtual);
+    console.log('   anoAtual:', anoAtual);
+    console.log('   mesReferencia:', mesReferencia);
+
     const dataInicio = new Date(anoAtual, mesAtual - 1, 1);
     const dataFim = new Date(anoAtual, mesAtual, 0, 23, 59, 59);
+
+    console.log('   dataInicio:', dataInicio);
+    console.log('   dataFim:', dataFim);
 
     // Buscar todos os profissionais da barbearia
     const profissionais = await prisma.profissional.findMany({
@@ -178,84 +190,106 @@ export async function listarResumoComissoes(req: AuthRequest, res: Response) {
       },
     });
 
+    console.log('   profissionais encontrados:', profissionais.length);
+
     // Calcular comissões para cada profissional
     const resumos = await Promise.all(
       profissionais.map(async (profissional) => {
-        // Buscar agendamentos do profissional no mês
-        const agendamentosRaw = await prisma.agendamento.findMany({
-          where: {
-            barbeariaId,
-            profissionais: {
-              some: {
-                profissionalId: profissional.id,
+        try {
+          // Buscar agendamentos do profissional no mês
+          const agendamentosRaw = await prisma.agendamento.findMany({
+            where: {
+              barbeariaId,
+              profissionais: {
+                some: {
+                  profissionalId: profissional.id,
+                },
+              },
+              data: {
+                gte: dataInicio,
+                lte: dataFim,
+              },
+              status: {
+                in: ['confirmado', 'concluido'],
+              },
+              pagamento: {
+                isNot: null,
               },
             },
-            data: {
-              gte: dataInicio,
-              lte: dataFim,
+            include: {
+              servico: true,
+              pagamento: true,
             },
-            status: {
-              in: ['confirmado', 'concluido'],
+          });
+
+          // Filtrar apenas agendamentos com pagamento pago
+          const agendamentos = agendamentosRaw.filter(
+            (a) => a.pagamento && a.pagamento.status === 'pago'
+          );
+
+          // Calcular comissões
+          let totalComissao = 0;
+          let totalValor = 0;
+
+          agendamentos
+            .filter((a) => a.servico !== null)
+            .forEach((agendamento) => {
+              const valorTotal = agendamento.servico!.preco;
+              totalValor += valorTotal;
+
+              if (profissional.comissaoTipo === 'percentual') {
+                totalComissao += (valorTotal * profissional.comissaoValor) / 100;
+              } else {
+                totalComissao += profissional.comissaoValor;
+              }
+            });
+
+          // Verificar quanto já foi pago
+          const comissoesPagas = await prisma.comissaoPaga.findMany({
+            where: {
+              profissionalId: profissional.id,
+              mesReferencia,
+              pago: true,
             },
-            pagamento: {
-              isNot: null,
+          });
+
+          const totalPago = comissoesPagas.reduce((sum, c) => sum + c.valorComissao, 0);
+          const totalPendente = totalComissao - totalPago;
+
+          return {
+            profissional: {
+              id: profissional.id,
+              nome: profissional.nome,
+              comissaoTipo: profissional.comissaoTipo,
+              comissaoValor: profissional.comissaoValor,
             },
-          },
-          include: {
-            servico: true,
-            pagamento: true,
-          },
-        });
-
-        // Filtrar apenas agendamentos com pagamento pago
-        const agendamentos = agendamentosRaw.filter(
-          (a) => a.pagamento && a.pagamento.status === 'pago'
-        );
-
-        // Calcular comissões
-        let totalComissao = 0;
-        let totalValor = 0;
-
-        agendamentos
-          .filter((a) => a.servico !== null)
-          .forEach((agendamento) => {
-            const valorTotal = agendamento.servico!.preco;
-          totalValor += valorTotal;
-
-          if (profissional.comissaoTipo === 'percentual') {
-            totalComissao += (valorTotal * profissional.comissaoValor) / 100;
-          } else {
-            totalComissao += profissional.comissaoValor;
-          }
-        });
-
-        // Verificar quanto já foi pago
-        const comissoesPagas = await prisma.comissaoPaga.findMany({
-          where: {
-            profissionalId: profissional.id,
-            mesReferencia,
-            pago: true,
-          },
-        });
-
-        const totalPago = comissoesPagas.reduce((sum, c) => sum + c.valorComissao, 0);
-        const totalPendente = totalComissao - totalPago;
-
-        return {
-          profissional: {
-            id: profissional.id,
-            nome: profissional.nome,
-            comissaoTipo: profissional.comissaoTipo,
-            comissaoValor: profissional.comissaoValor,
-          },
-          resumo: {
-            totalAgendamentos: agendamentos.length,
-            totalValor,
-            totalComissao,
-            totalPago,
-            totalPendente,
-          },
-        };
+            resumo: {
+              totalAgendamentos: agendamentos.length,
+              totalValor,
+              totalComissao,
+              totalPago,
+              totalPendente,
+            },
+          };
+        } catch (error) {
+          console.error(`Erro ao calcular comissões para profissional ${profissional.id}:`, error);
+          // Retornar resumo vazio em caso de erro
+          return {
+            profissional: {
+              id: profissional.id,
+              nome: profissional.nome,
+              comissaoTipo: profissional.comissaoTipo,
+              comissaoValor: profissional.comissaoValor,
+            },
+            resumo: {
+              totalAgendamentos: 0,
+              totalValor: 0,
+              totalComissao: 0,
+              totalPago: 0,
+              totalPendente: 0,
+            },
+          };
+        }
       })
     );
 
@@ -277,9 +311,13 @@ export async function listarResumoComissoes(req: AuthRequest, res: Response) {
       },
       profissionais: resumos,
     });
-  } catch (error) {
-    console.error('Erro ao listar resumo de comissões:', error);
-    res.status(500).json({ error: 'Erro ao listar resumo de comissões' });
+  } catch (error: any) {
+    console.error('❌ [COMISSÕES] Erro ao listar resumo de comissões:', error);
+    console.error('   Stack:', error?.stack);
+    res.status(500).json({ 
+      error: 'Erro ao listar resumo de comissões',
+      message: error?.message || 'Erro desconhecido'
+    });
   }
 }
 
