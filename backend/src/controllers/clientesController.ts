@@ -409,9 +409,15 @@ export async function atualizarCliente(req: AuthRequest, res: Response) {
  */
 export async function deletarCliente(req: AuthRequest, res: Response) {
   try {
-    console.log('🔍 deletarCliente chamado - ID:', req.params.id);
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('🗑️ [DELETE CLIENTE] Requisição recebida');
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('🔍 ID:', req.params.id);
     console.log('🔍 Method:', req.method);
     console.log('🔍 URL:', req.originalUrl);
+    console.log('🔍 Path:', req.path);
+    console.log('🔍 Barbearia ID:', req.barbeariaId);
+    console.log('═══════════════════════════════════════════════════════');
     
     const { id } = req.params;
 
