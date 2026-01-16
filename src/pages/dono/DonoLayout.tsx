@@ -140,10 +140,11 @@ function DonoLayoutContent() {
                     <SidebarMenuButton
                       asChild
                       isActive={location.pathname === item.url || location.pathname.startsWith(item.url + "/")}
+                      className="text-gray-900 dark:text-gray-100"
                     >
-                      <Link to={item.url}>
+                      <Link to={item.url} className="text-gray-900 dark:text-gray-100">
                         <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
+                        <span className="text-gray-900 dark:text-gray-100">{item.title}</span>
                         {item.badge && (
                           <Badge variant="destructive" className="ml-auto">
                             {item.badge}
