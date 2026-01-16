@@ -17,13 +17,15 @@ export async function listarClientes(req: AuthRequest, res: Response) {
 
     // Buscar APENAS clientes que têm agendamentos nesta barbearia específica
     // IMPORTANTE: Cada barbearia só deve ver seus próprios clientes
-    // Filtrar também por agendamentos ativos (não cancelados) para garantir que são clientes reais
+    // Incluir TODOS os status (incluindo 'cadastro') para garantir que clientes criados pelo dono apareçam
     const agendamentos = await prisma.agendamento.findMany({
       where: { 
         barbeariaId, // Filtrar apenas agendamentos desta barbearia
-        // Incluir agendamentos de cadastro e outros status válidos
+        clienteId: { not: null }, // Apenas agendamentos com cliente associado
+        // Incluir TODOS os status, incluindo 'cadastro', 'confirmado', 'concluido', etc
+        // Excluir apenas cancelados
         status: {
-          not: 'cancelado', // Excluir apenas cancelados
+          not: 'cancelado',
         },
       },
       select: { 
@@ -41,6 +43,7 @@ export async function listarClientes(req: AuthRequest, res: Response) {
     console.log('📋 [LISTAR CLIENTES] Total de agendamentos encontrados:', agendamentos.length);
     console.log('📋 [LISTAR CLIENTES] Clientes únicos com agendamentos nesta barbearia:', clienteIdsComAgendamento.length);
     console.log('📋 [LISTAR CLIENTES] IDs dos clientes:', clienteIdsComAgendamento);
+    console.log('📋 [LISTAR CLIENTES] Status dos agendamentos:', agendamentos.map(a => a.status));
 
     // Construir query: buscar APENAS clientes que têm agendamentos nesta barbearia
     const where: any = {
@@ -48,18 +51,14 @@ export async function listarClientes(req: AuthRequest, res: Response) {
     };
 
     // IMPORTANTE: Só buscar clientes que têm agendamentos nesta barbearia específica
-    // Se não houver clientes com agendamentos, retornar array vazio
+    // Isso garante que cada barbearia vê apenas seus próprios clientes
     if (clienteIdsComAgendamento.length > 0) {
       where.id = { in: clienteIdsComAgendamento };
     } else {
       // Se não houver clientes com agendamentos, retornar array vazio
       // Não buscar todos os clientes do sistema
       console.log('📋 [LISTAR CLIENTES] Nenhum cliente encontrado para esta barbearia, retornando array vazio');
-      return res.json({
-        sucesso: true,
-        clientes: [],
-        total: 0,
-      });
+      return res.json([]);
     }
 
     if (busca && typeof busca === 'string') {
@@ -126,9 +125,11 @@ export async function listarClientes(req: AuthRequest, res: Response) {
       };
     });
 
+    console.log('✅ [LISTAR CLIENTES] Clientes encontrados e retornados:', clientesComEstatisticas.length);
+    
     res.json(clientesComEstatisticas);
   } catch (error) {
-    console.error('Erro ao listar clientes:', error);
+    console.error('❌ [LISTAR CLIENTES] Erro ao listar clientes:', error);
     res.status(500).json({ error: 'Erro ao listar clientes' });
   }
 }
