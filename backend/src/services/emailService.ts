@@ -465,10 +465,11 @@ async function enviarEmailViaResend(params: EnviarRecuperacaoSenhaParams): Promi
     return false;
   }
 
+  // Extrair email antes do try para garantir que esteja no escopo do catch
+  const { email, nome, senhaNova, tipo, nomeBarbearia } = params;
+
   try {
     console.log('📧 [EMAIL] Tentando enviar via Resend...');
-    
-    const { email, nome, senhaNova, tipo, nomeBarbearia } = params;
     
     console.log('📧 [EMAIL] Enviando para:', email);
     console.log('📧 [EMAIL] Nome:', nome);
