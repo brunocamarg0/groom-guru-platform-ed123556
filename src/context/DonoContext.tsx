@@ -334,12 +334,8 @@ export function DonoProvider({ children }: { children: ReactNode }) {
 
     window.addEventListener('popstate', handlePopState);
 
-    // Verificar periodicamente (fallback para React Router)
-    const interval = setInterval(checkRoute, 2000);
-
     return () => {
       window.removeEventListener('popstate', handlePopState);
-      clearInterval(interval);
     };
   }, [barbeariaId]);
 

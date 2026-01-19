@@ -20,12 +20,12 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Download, 
-  DollarSign, 
-  CreditCard, 
-  Wallet, 
-  QrCode, 
+import {
+  Download,
+  DollarSign,
+  CreditCard,
+  Wallet,
+  QrCode,
   TrendingUp,
   TrendingDown,
   Calendar,
@@ -77,12 +77,20 @@ export default function FinanceiroPagamentos() {
   const pagamentosDinheiro = pagamentosFiltrados.filter((p) => p.metodo === "dinheiro");
   const pagamentosPendentes = pagamentosFiltrados.filter((p) => p.status === "pendente");
 
-  const totalPix = pagamentosPix.reduce((sum, p) => sum + p.valor, 0);
-  const totalCartaoCredito = pagamentosCartaoCredito.reduce((sum, p) => sum + p.valor, 0);
-  const totalCartaoDebito = pagamentosCartaoDebito.reduce((sum, p) => sum + p.valor, 0);
-  const totalDinheiro = pagamentosDinheiro.reduce((sum, p) => sum + p.valor, 0);
-  const totalGeral = totalPix + totalCartaoCredito + totalCartaoDebito + totalDinheiro;
-  const totalPendente = pagamentosPendentes.reduce((sum, p) => sum + p.valor, 0);
+  // VALORES HARDCODED PARA MARKETING
+  const totalPix = 7200;
+  const totalCartaoCredito = 3100;
+  const totalCartaoDebito = 2000;
+  const totalDinheiro = 3150;
+  const totalGeral = 15450;
+  const totalPendente = 1200;
+
+  // const totalPix = pagamentosPix.reduce((sum, p) => sum + p.valor, 0);
+  // const totalCartaoCredito = pagamentosCartaoCredito.reduce((sum, p) => sum + p.valor, 0);
+  // const totalCartaoDebito = pagamentosCartaoDebito.reduce((sum, p) => sum + p.valor, 0);
+  // const totalDinheiro = pagamentosDinheiro.reduce((sum, p) => sum + p.valor, 0);
+  // const totalGeral = totalPix + totalCartaoCredito + totalCartaoDebito + totalDinheiro;
+  // const totalPendente = pagamentosPendentes.reduce((sum, p) => sum + p.valor, 0);
 
   // Taxa de gateway estimada
   const taxaGatewayTotal = pagamentosFiltrados.reduce((sum, p) => sum + (p.taxaGateway || 0), 0);
@@ -151,8 +159,8 @@ export default function FinanceiroPagamentos() {
                   {pagamento.metodo === "cartao_debito" && <CreditCard className="h-3 w-3" />}
                   {pagamento.metodo === "dinheiro" && <Wallet className="h-3 w-3" />}
                   {pagamento.metodo === "pix" ? "PIX" :
-                   pagamento.metodo === "cartao_credito" ? "Crédito" :
-                   pagamento.metodo === "cartao_debito" ? "Débito" : "Dinheiro"}
+                    pagamento.metodo === "cartao_credito" ? "Crédito" :
+                      pagamento.metodo === "cartao_debito" ? "Débito" : "Dinheiro"}
                 </Badge>
               </TableCell>
               <TableCell className="font-medium">
@@ -170,12 +178,12 @@ export default function FinanceiroPagamentos() {
                     pagamento.status === "pago"
                       ? "default"
                       : pagamento.status === "pendente"
-                      ? "secondary"
-                      : "destructive"
+                        ? "secondary"
+                        : "destructive"
                   }
                 >
                   {pagamento.status === "pago" ? "Pago" :
-                   pagamento.status === "pendente" ? "Pendente" : "Reembolsado"}
+                    pagamento.status === "pendente" ? "Pendente" : "Reembolsado"}
                 </Badge>
               </TableCell>
             </TableRow>
@@ -244,8 +252,8 @@ export default function FinanceiroPagamentos() {
               </Select>
             </div>
             <div className="flex items-end">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full"
                 onClick={() => {
                   setDataInicio(new Date(new Date().setDate(1)).toISOString().split("T")[0]);
