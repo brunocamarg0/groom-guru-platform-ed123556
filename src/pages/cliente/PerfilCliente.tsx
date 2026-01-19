@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { User, Mail, Phone, Calendar, Scissors } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { TipoServico } from "@/types/cliente";
+type TipoServicoLocal = "corte" | "barba" | "combo";
 
 export default function PerfilCliente() {
   const { cliente, atualizarPerfil } = useCliente();
@@ -150,7 +150,7 @@ export default function PerfilCliente() {
                 <Scissors className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Select
                   value={formData.servicoPreferido || ""}
-                  onValueChange={(value: TipoServico) =>
+                  onValueChange={(value: TipoServicoLocal) =>
                     setFormData({ ...formData, servicoPreferido: value })
                   }
                 >

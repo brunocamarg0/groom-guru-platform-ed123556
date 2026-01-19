@@ -39,8 +39,9 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Edit, Power, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { TipoServico } from "@/types/cliente";
 import { NovoServicoBarbearia, ServicoBarbearia } from "@/types/barbearia";
+
+type TipoServico = "corte" | "barba" | "combo" | "hidratacao" | "alisamento" | "progressiva" | "luzes" | "coloring" | "manicure" | "pedicure" | "sobrancelha" | "bigode" | "outro";
 
 const tiposServico: { value: TipoServico; label: string }[] = [
   { value: "corte", label: "Corte" },

@@ -145,7 +145,7 @@ export default function ComissoesBarbeiros() {
     }
 
     try {
-      const resultado = await apiPost('/dono/comissoes/marcar-todas-pagas', {
+      const resultado = await apiPost<{ total: number }>('/dono/comissoes/marcar-todas-pagas', {
         profissionalId,
         mes,
         ano,

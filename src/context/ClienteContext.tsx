@@ -43,12 +43,12 @@ interface ClienteContextType {
     };
     progressoProximoNivel: number;
   };
-  notificacoes: Array<{ id: string; titulo: string; mensagem: string; lida: boolean; data: string }>;
+  notificacoes: Array<{ id: string; titulo: string; mensagem: string; lida: boolean; data: string; tipo?: string; canal?: string }>;
   barbearias: any[];
   buscarBarbearias: (busca?: string, cidade?: string, bairro?: string) => Promise<void>;
   buscarBarbeariaPorId: (id: string) => Promise<any>;
   criarAvaliacao?: (dados: any) => Promise<void>;
-  realizarPagamento?: (agendamentoId: string, dados: any) => Promise<void>;
+  realizarPagamento?: (agendamentoId: string, dados: any) => Promise<Pagamento>;
   marcarNotificacaoLida?: (id: string) => Promise<void>;
 }
 
@@ -482,12 +482,12 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
     return agendamentos.filter((a) => a.status === status);
   };
 
-  const realizarPagamento = async (agendamentoId: string, dados: any) => {
+  const realizarPagamento = async (agendamentoId: string, dados: any): Promise<Pagamento> => {
     try {
       console.log('💳 [CLIENTE] Realizando pagamento:', { agendamentoId, dados });
       
       // Criar pagamento via API
-      const pagamento = await apiPost('/cliente/pagamentos', {
+      const pagamentoResponse = await apiPost<Pagamento>('/cliente/pagamentos', {
         agendamentoId,
         valor: dados.valor,
         metodo: dados.metodo,
@@ -496,8 +496,19 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
         cashbackGerado: dados.cashbackGerado || 0,
       });
 
+      const novoPagamento: Pagamento = {
+        id: pagamentoResponse.id || Date.now().toString(),
+        agendamentoId,
+        valor: dados.valor,
+        metodo: dados.metodo,
+        status: dados.status || 'aprovado',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        ...pagamentoResponse,
+      };
+
       // Atualizar estado local
-      setPagamentos([...pagamentos, pagamento]);
+      setPagamentos([...pagamentos, novoPagamento]);
       
       // Atualizar status do agendamento
       setAgendamentos(
@@ -506,7 +517,6 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
             ? { 
                 ...a, 
                 status: dados.status === 'pago' ? 'confirmado' as StatusAgendamento : a.status,
-                pagamento,
                 updatedAt: new Date().toISOString() 
               }
             : a
@@ -517,7 +527,7 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
       await carregarDados();
 
       toast.success('Pagamento realizado com sucesso!');
-      return pagamento;
+      return novoPagamento;
     } catch (error: any) {
       console.error('❌ [CLIENTE] Erro ao realizar pagamento:', error);
       toast.error(error.message || 'Erro ao realizar pagamento');

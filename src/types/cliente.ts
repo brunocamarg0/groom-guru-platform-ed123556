@@ -77,5 +77,27 @@ export interface NovoAgendamento {
   data: string;
   hora: string;
   observacoes?: string;
+  profissionalId?: string;
+}
+
+// Tipos de serviço disponíveis
+export type TipoServico =
+  | "corte"
+  | "barba"
+  | "combo"
+  | "hidratacao"
+  | "alisamento"
+  | "progressiva"
+  | "luzes"
+  | "coloring"
+  | "manicure"
+  | "pedicure"
+  | "sobrancelha"
+  | "bigode"
+  | "outro";
+
+// Interface de Agendamento com pagamento opcional
+export interface AgendamentoComPagamento extends Agendamento {
+  pagamento?: Pagamento;
 }
 
