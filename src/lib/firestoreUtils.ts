@@ -6,6 +6,7 @@ import {
     updateDoc,
     deleteDoc,
     setDoc,
+    getDoc,
     serverTimestamp,
     writeBatch
 } from 'firebase/firestore';
@@ -13,7 +14,7 @@ import { db } from '@/lib/firebase';
 
 // Profissionais
 export async function addProfissional(barbeariaId: string, data: any) {
-    const ref = collection(db, `barbearias/${barbeariaId}/profissionais`);
+    const ref = collection(db, `barbearias / ${barbeariaId}/profissionais`);
     const docRef = await addDoc(ref, {
         ...data,
         createdAt: serverTimestamp(),
@@ -218,6 +219,12 @@ export async function setBarbeariaConfig(barbeariaId: string, data: any) {
         updatedAt: serverTimestamp()
     }, { merge: true });
     console.log('✅ [Firestore] Configuração da barbearia atualizada');
+}
+
+export async function getMigrationStatus(barbeariaId: string) {
+    const ref = doc(db, `barbearias/${barbeariaId}`);
+    const snap = await getDoc(ref);
+    return snap.exists() ? snap.data().migracaoconcluida : false;
 }
 
 // Migrar dados do PostgreSQL para Firestore (em lote)

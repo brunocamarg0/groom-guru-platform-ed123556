@@ -274,6 +274,7 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   const [configuracao, setConfiguracao] = useState<ConfiguracaoBarbearia>(configuracaoInicial);
   const [loading, setLoading] = useState(true);
   const [ultimoCarregamento, setUltimoCarregamento] = useState<number>(0);
+  const [migracaoConcluida, setMigracaoConcluida] = useState<boolean>(false);
 
   // Hook do Firestore para dados em tempo real
   const { data: fsProfissionais, loading: loadingProfissionais } = useFirestoreProfissionais(barbeariaId);
@@ -402,8 +403,17 @@ export function DonoProvider({ children }: { children: ReactNode }) {
 
     if (isDonoRoute) {
       if (barbeariaId) {
-        console.log('🔄 [INIT] Carregando dados para barbeariaId:', barbeariaId);
-        carregarDados(true);
+        console.log('🔄 [INIT] Iniciando barbeariaId:', barbeariaId);
+
+        // Verificar status da migração
+        firestoreUtils.getMigrationStatus(barbeariaId).then(concluida => {
+          setMigracaoConcluida(!!concluida);
+          console.log(`📡 [INIT] Migração concluída: ${concluida}`);
+
+          // Se migração concluída, carregar dados em background
+          // Se não, carregar dados bloqueando UI
+          carregarDados(!concluida);
+        });
       } else {
         const recId = getBarbeariaIdFromStorage();
         if (recId) {
@@ -436,7 +446,12 @@ export function DonoProvider({ children }: { children: ReactNode }) {
     console.log('📥 [CARREGAR DADOS] barbeariaId:', barbeariaId);
     console.log('📥 [CARREGAR DADOS] Token:', localStorage.getItem('token') ? 'Presente' : 'Ausente');
     console.log('📥 [CARREGAR DADOS] Forçar:', forcar);
-    setLoading(true);
+
+    // Só mostramos o loading global se for forçado (primeira vez ou mudança crítica)
+    // Se o Firebase já tem dados, o sync do Firebase cuida da UI sem travar
+    if (forcar) {
+      setLoading(true);
+    }
 
     // Timeout de segurança: após 15 segundos, forçar loading = false
     const timeoutId = setTimeout(() => {
@@ -744,8 +759,8 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       console.log('✅ [CARREGAR DADOS] ==========================================');
       console.log('✅ [CARREGAR DADOS] Todos os dados foram carregados do banco de dados com sucesso!');
 
-      // Sincronizar com Firestore se o Firestore estiver vazio
-      if (barbeariaId && fsProfissionais.length === 0 && profissionaisTransformados.length > 0) {
+      // Sincronizar com Firestore se o Firestore estiver vazio OU migração não marcada
+      if (barbeariaId && (!migracaoConcluida || fsProfissionais.length === 0) && profissionaisTransformados.length > 0) {
         console.log('🔄 [FIREBASE] Sincronizando dados iniciais para o Firestore...');
         firestoreUtils.migrateBarbeariaData(barbeariaId, {
           profissionais: profissionaisTransformados,
@@ -757,6 +772,8 @@ export function DonoProvider({ children }: { children: ReactNode }) {
           notificacoes: notificacoesData
         }).then(() => {
           console.log('✅ [FIREBASE] Migração inicial concluída com sucesso');
+          setMigracaoConcluida(true);
+          firestoreUtils.setBarbeariaConfig(barbeariaId, { migracaoconcluida: true });
         }).catch(err => {
           console.error('❌ [FIREBASE] Falha na migração inicial:', err);
         });
