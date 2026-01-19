@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useState } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { useCliente } from "@/context/ClienteContext";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -11,12 +11,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Star } from "lucide-react";
+import { Star, Calendar, User, Scissors, ArrowLeft, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
+import { apiPost } from "@/services/api";
+import { Link } from "react-router-dom";
 
 export default function Avaliacoes() {
-  const { agendamentos, criarAvaliacao } = useCliente();
+  const { agendamentos, carregarDados } = useCliente();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -34,8 +35,10 @@ export default function Avaliacoes() {
     ambiente: 0,
   });
   const [comentario, setComentario] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [enviado, setEnviado] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!agendamento || !agendamentoId) {
       toast({
         title: "Erro",
@@ -54,23 +57,43 @@ export default function Avaliacoes() {
       return;
     }
 
-    // TODO: Implementar criarAvaliacao no ClienteContext
-    // Por enquanto, apenas mostrar toast
-    console.log('Avaliação:', {
-      agendamentoId,
-      profissionalId: (agendamento as any)?.profissionalId,
-      notaProfissional: notas.profissional,
-      notaAtendimento: notas.atendimento,
-      notaAmbiente: notas.ambiente,
-      comentario: comentario || undefined,
-    });
+    setEnviando(true);
+    try {
+      // Enviar avaliação para o backend
+      await apiPost('/cliente/avaliacoes', {
+        agendamentoId,
+        notaProfissional: notas.profissional,
+        notaAtendimento: notas.atendimento,
+        notaAmbiente: notas.ambiente,
+        comentario: comentario || undefined,
+      });
 
-    toast({
-      title: "Avaliação enviada!",
-      description: "Obrigado pelo seu feedback.",
-    });
+      toast({
+        title: "Avaliação enviada!",
+        description: "Obrigado pelo seu feedback. Você ganhou 10 pontos de fidelidade!",
+      });
 
-    navigate("/cliente/historico");
+      setEnviado(true);
+
+      // Recarregar dados
+      if (carregarDados) {
+        await carregarDados();
+      }
+
+      // Redirecionar após 2 segundos
+      setTimeout(() => {
+        navigate("/cliente/historico");
+      }, 2000);
+    } catch (error: any) {
+      console.error('Erro ao enviar avaliação:', error);
+      toast({
+        title: "Erro",
+        description: error.message || "Não foi possível enviar a avaliação. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setEnviando(false);
+    }
   };
 
   const renderStars = (tipo: "profissional" | "atendimento" | "ambiente") => {
@@ -79,10 +102,10 @@ export default function Avaliacoes() {
         {[1, 2, 3, 4, 5].map((star) => (
           <Star
             key={star}
-            className={`h-6 w-6 cursor-pointer transition-colors ${
+            className={`h-8 w-8 cursor-pointer transition-all ${
               notas[tipo] >= star
-                ? "fill-yellow-400 text-yellow-400"
-                : "text-muted-foreground"
+                ? "fill-yellow-400 text-yellow-400 scale-110"
+                : "text-muted-foreground hover:text-yellow-300"
             }`}
             onClick={() => setNotas({ ...notas, [tipo]: star })}
           />
@@ -91,26 +114,114 @@ export default function Avaliacoes() {
     );
   };
 
-  if (!agendamento) {
+  const calcularMediaNota = () => {
+    const soma = notas.profissional + notas.atendimento + notas.ambiente;
+    if (soma === 0) return 0;
+    return (soma / 3).toFixed(1);
+  };
+
+  if (enviado) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <p className="text-muted-foreground">Agendamento não encontrado</p>
-          <Button onClick={() => navigate("/cliente/historico")} className="mt-4">
-            Voltar ao Histórico
-          </Button>
-        </div>
+        <Card className="max-w-md">
+          <CardContent className="pt-6 text-center">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="h-8 w-8 text-green-600" />
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Obrigado!</h2>
+            <p className="text-muted-foreground mb-4">
+              Sua avaliação foi enviada com sucesso. Você ganhou 10 pontos de fidelidade!
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Redirecionando...
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
+  if (!agendamento) {
+    return (
+      <div className="space-y-6 max-w-2xl mx-auto">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" asChild>
+            <Link to="/cliente/historico">
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          </Button>
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight">Avaliar Atendimento</h2>
+            <p className="text-muted-foreground">
+              Selecione um agendamento para avaliar
+            </p>
+          </div>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Agendamentos Disponíveis para Avaliação</CardTitle>
+            <CardDescription>
+              Clique em um agendamento concluído para avaliá-lo
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {agendamentosArray.filter(a => a.status === 'concluido').length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">
+                Você ainda não tem agendamentos concluídos para avaliar.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {agendamentosArray
+                  .filter(a => a.status === 'concluido')
+                  .slice(0, 10)
+                  .map((ag) => (
+                    <div
+                      key={ag.id}
+                      className="p-4 border rounded-lg cursor-pointer hover:bg-accent transition-colors"
+                      onClick={() => navigate(`/cliente/avaliacoes?agendamento=${ag.id}`)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Scissors className="h-5 w-5 text-primary" />
+                          <div>
+                            <p className="font-medium">{ag.servico?.nome || 'Serviço'}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {new Date(ag.data).toLocaleDateString('pt-BR')} às {ag.hora || ag.horario}
+                            </p>
+                          </div>
+                        </div>
+                        <Button variant="outline" size="sm">
+                          <Star className="h-4 w-4 mr-2" />
+                          Avaliar
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const horario = agendamento.hora || agendamento.horario || '';
+
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Avaliar Atendimento</h2>
-        <p className="text-muted-foreground">
-          Compartilhe sua experiência conosco
-        </p>
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" asChild>
+          <Link to="/cliente/historico">
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+        </Button>
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Avaliar Atendimento</h2>
+          <p className="text-muted-foreground">
+            Compartilhe sua experiência conosco
+          </p>
+        </div>
       </div>
 
       <Card>
@@ -118,43 +229,82 @@ export default function Avaliacoes() {
           <CardTitle>Detalhes do Agendamento</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            <p>
-              <span className="font-medium">Serviço:</span> {agendamento.servico?.nome || "N/A"}
-            </p>
-            <p>
-              <span className="font-medium">Profissional:</span> {"N/A"}
-            </p>
-            <p>
-              <span className="font-medium">Data:</span>{" "}
-              {agendamento.data ? new Date(agendamento.data).toLocaleDateString("pt-BR") : "N/A"}
-            </p>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex items-center gap-2">
+              <Scissors className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <p className="text-sm text-muted-foreground">Serviço</p>
+                <p className="font-medium">{agendamento.servico?.nome || "N/A"}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <User className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <p className="text-sm text-muted-foreground">Profissional</p>
+                <p className="font-medium">{agendamento.profissionalNome || "A definir"}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <p className="text-sm text-muted-foreground">Data</p>
+                <p className="font-medium">
+                  {agendamento.data ? new Date(agendamento.data).toLocaleDateString("pt-BR") : "N/A"}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <p className="text-sm text-muted-foreground">Horário</p>
+                <p className="font-medium">{horario || "N/A"}</p>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Avaliação</CardTitle>
+          <CardTitle>Sua Avaliação</CardTitle>
           <CardDescription>
-            Avalie sua experiência em cada aspecto
+            Avalie sua experiência em cada aspecto (1 a 5 estrelas)
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="space-y-2">
-            <Label>Profissional</Label>
+          <div className="space-y-3">
+            <Label className="text-base">Profissional</Label>
+            <p className="text-sm text-muted-foreground">
+              Avalie a qualidade do serviço prestado
+            </p>
             {renderStars("profissional")}
           </div>
 
-          <div className="space-y-2">
-            <Label>Atendimento</Label>
+          <div className="space-y-3">
+            <Label className="text-base">Atendimento</Label>
+            <p className="text-sm text-muted-foreground">
+              Avalie a cordialidade e agilidade
+            </p>
             {renderStars("atendimento")}
           </div>
 
-          <div className="space-y-2">
-            <Label>Ambiente</Label>
+          <div className="space-y-3">
+            <Label className="text-base">Ambiente</Label>
+            <p className="text-sm text-muted-foreground">
+              Avalie a limpeza e conforto do local
+            </p>
             {renderStars("ambiente")}
           </div>
+
+          {(notas.profissional > 0 || notas.atendimento > 0 || notas.ambiente > 0) && (
+            <div className="p-4 bg-primary/10 rounded-lg">
+              <p className="text-center">
+                <span className="text-sm text-muted-foreground">Nota média: </span>
+                <span className="text-2xl font-bold text-primary">{calcularMediaNota()}</span>
+                <span className="text-muted-foreground">/5</span>
+              </p>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="comentario">Comentário (opcional)</Label>
@@ -162,23 +312,30 @@ export default function Avaliacoes() {
               id="comentario"
               value={comentario}
               onChange={(e) => setComentario(e.target.value)}
-              placeholder="Deixe seu comentário sobre o atendimento..."
+              placeholder="Deixe seu comentário sobre o atendimento... O que você gostou? O que pode melhorar?"
               rows={4}
             />
+            <p className="text-xs text-muted-foreground">
+              Seu comentário ajuda a barbearia a melhorar os serviços
+            </p>
           </div>
 
-          <Button className="w-full" onClick={handleSubmit}>
-            Enviar Avaliação
+          <Button 
+            className="w-full" 
+            onClick={handleSubmit}
+            disabled={enviando || notas.profissional === 0 || notas.atendimento === 0 || notas.ambiente === 0}
+          >
+            {enviando ? (
+              <>Enviando...</>
+            ) : (
+              <>
+                <Star className="h-4 w-4 mr-2" />
+                Enviar Avaliação
+              </>
+            )}
           </Button>
         </CardContent>
       </Card>
     </div>
   );
 }
-
-
-
-
-
-
-

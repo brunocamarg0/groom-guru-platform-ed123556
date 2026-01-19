@@ -35,9 +35,14 @@ export interface Agendamento {
   clienteId: string;
   barbeariaId: string;
   servicoId: string;
-  servico: Servico;
+  servico?: Servico;
+  servicoNome?: string;
+  profissionalId?: string;
+  profissionalNome?: string;
   data: string; // ISO date string
   hora: string; // HH:mm format
+  horario?: string; // Alternative field for time
+  valor?: number;
   status: StatusAgendamento;
   observacoes?: string;
   createdAt: string;
