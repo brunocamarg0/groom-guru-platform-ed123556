@@ -20,8 +20,8 @@ export async function calcularComissoesProfissional(req: AuthRequest, res: Respo
     }
 
     const mesReferencia = `${ano}-${String(mes).padStart(2, '0')}`;
-    const dataInicio = new Date(Number(ano), Number(mes) - 1, 1);
-    const dataFim = new Date(Number(ano), Number(mes), 0, 23, 59, 59);
+    const dataInicio = new Date(`${ano}-${String(mes).padStart(2, '0')}-01T00:00:00-03:00`);
+    const dataFim = new Date(Number(ano), Number(mes), 0, 23, 59, 59, 999);
 
     // Buscar agendamentos do profissional no mês
     const agendamentosRaw = await prisma.agendamento.findMany({
@@ -96,17 +96,27 @@ export async function calcularComissoesProfissional(req: AuthRequest, res: Respo
         };
       });
 
-    // Verificar quais já foram pagos
-    const comissoesPagas = await prisma.comissaoPaga.findMany({
-      where: {
-        profissionalId: String(profissionalId),
-        mesReferencia,
-        pago: true,
-      },
-      select: {
-        agendamentoId: true,
-      },
-    });
+    // Verificar quais já foram pagos (com fallback se tabela não existir)
+    let comissoesPagas: any[] = [];
+    try {
+      comissoesPagas = await prisma.comissaoPaga.findMany({
+        where: {
+          profissionalId: String(profissionalId),
+          mesReferencia,
+          pago: true,
+        },
+        select: {
+          agendamentoId: true,
+        },
+      });
+    } catch (error: any) {
+      if (error?.code === 'P2021' || error?.message?.includes('does not exist')) {
+        console.warn(`⚠️ Tabela ComissaoPaga não encontrada em calcularComissoesProfissional.`);
+        comissoesPagas = [];
+      } else {
+        throw error;
+      }
+    }
 
     const idsPagos = new Set(comissoesPagas.map((c) => c.agendamentoId));
 
@@ -172,8 +182,8 @@ export async function listarResumoComissoes(req: AuthRequest, res: Response) {
     console.log('   anoAtual:', anoAtual);
     console.log('   mesReferencia:', mesReferencia);
 
-    const dataInicio = new Date(anoAtual, mesAtual - 1, 1);
-    const dataFim = new Date(anoAtual, mesAtual, 0, 23, 59, 59);
+    const dataInicio = new Date(`${anoAtual}-${String(mesAtual).padStart(2, '0')}-01T00:00:00-03:00`);
+    const dataFim = new Date(anoAtual, mesAtual, 0, 23, 59, 59, 999);
 
     console.log('   dataInicio:', dataInicio);
     console.log('   dataFim:', dataFim);
