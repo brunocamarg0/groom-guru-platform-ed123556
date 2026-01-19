@@ -13,7 +13,7 @@ type ModoConfirmacao = 'automatico' | 'manual' | 'hibrido';
 /**
  * Verificar disponibilidade de um profissional em um horário específico
  */
-async function verificarDisponibilidadeProfissional(
+export async function verificarDisponibilidadeProfissional(
   profissionalId: string,
   data: string | Date,
   horario: string,
@@ -55,11 +55,7 @@ async function verificarDisponibilidadeProfissional(
 
     // Verificar conflitos
     for (const agendamento of agendamentos) {
-      const dataAgend = new Date(agendamento.data);
-      const [horaAgend, minutoAgend] = agendamento.horario.split(':').map(Number);
-      dataAgend.setHours(horaAgend, minutoAgend, 0, 0);
-
-      const inicioExistente = dataAgend.getTime();
+      const inicioExistente = new Date(agendamento.data).getTime();
       const fimExistente = inicioExistente + agendamento.servico.duracao * 60 * 1000;
 
       // Verificar sobreposição
@@ -154,7 +150,7 @@ export async function listarAgendamentos(req: Request, res: Response) {
       // Usar timezone de Brasília para garantir busca correta
       const dataInicio = new Date(`${data}T00:00:00-03:00`);
       const dataFim = new Date(`${data}T23:59:59.999-03:00`);
-      
+
       where.data = {
         gte: dataInicio,
         lte: dataFim,
@@ -383,7 +379,7 @@ export async function recusarAgendamento(req: Request, res: Response) {
       where: { id },
       data: {
         status: 'recusado',
-        observacao: motivo 
+        observacao: motivo
           ? `${agendamento.observacao || ''}\n[Recusado] ${motivo}`.trim()
           : agendamento.observacao,
       },
@@ -452,7 +448,7 @@ export async function cancelarAgendamento(req: Request, res: Response) {
       where: { id },
       data: {
         status: 'cancelado',
-        observacao: motivo 
+        observacao: motivo
           ? `${agendamento.observacao || ''}\n[Cancelado] ${motivo}`.trim()
           : agendamento.observacao,
       },
@@ -563,7 +559,7 @@ export async function criarAgendamento(req: Request, res: Response) {
     }
 
     const modoConfirmacao = (barbearia.modoConfirmacao || 'hibrido') as ModoConfirmacao;
-    
+
     // Combinar data e horário usando timezone de Brasília (-03:00)
     const dataAgendamento = new Date(`${data}T${horario}:00-03:00`);
 
