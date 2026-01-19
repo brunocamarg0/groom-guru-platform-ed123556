@@ -17,5 +17,12 @@ router.get('/:id', (req, res, next) => {
   next();
 }, barbeariasPublicasController.buscarBarbeariaPublica);
 
+// Rota para buscar horários ocupados de uma barbearia em uma data
+router.get('/:id/horarios-ocupados', (req, res, next) => {
+  console.log('🔧 [BARBEARIAS] GET /:id/horarios-ocupados chamado, id:', req.params.id, 'data:', req.query.data);
+  next();
+}, barbeariasPublicasController.buscarHorariosOcupados);
+
 export default router;
+
 

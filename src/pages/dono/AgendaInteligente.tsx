@@ -698,30 +698,6 @@ export default function AgendaInteligente() {
                               {agendamento.status}
                             </Badge>
                             <span className="font-medium">{formatarMoeda(agendamento.valor)}</span>
-                            {agendamento.status === "pendente" && (
-                              <div className="flex gap-1 ml-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 px-2"
-                                  onClick={() => handleConfirmar(agendamento.id)}
-                                  disabled={isLoading}
-                                >
-                                  <CheckCircle className="h-3 w-3 mr-1" />
-                                  Confirmar
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 px-2 text-red-600 hover:text-red-700"
-                                  onClick={() => setAgendamentoParaRecusar({ id: agendamento.id, clienteNome: agendamento.clienteNome })}
-                                  disabled={isLoading}
-                                >
-                                  <XCircle className="h-3 w-3 mr-1" />
-                                  Recusar
-                                </Button>
-                              </div>
-                            )}
                           </div>
                         </div>
                         <div className="mt-2 text-sm text-muted-foreground">
@@ -783,30 +759,6 @@ export default function AgendaInteligente() {
                           {agendamento.status}
                         </Badge>
                         <span className="font-medium">{formatarMoeda(agendamento.valor)}</span>
-                        {agendamento.status === "pendente" && (
-                          <div className="flex gap-1 ml-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 px-2"
-                              onClick={() => handleConfirmar(agendamento.id)}
-                              disabled={isLoading}
-                            >
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                              Confirmar
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 px-2 text-red-600 hover:text-red-700"
-                              onClick={() => setAgendamentoParaRecusar({ id: agendamento.id, clienteNome: agendamento.clienteNome })}
-                              disabled={isLoading}
-                            >
-                              <XCircle className="h-3 w-3 mr-1" />
-                              Recusar
-                            </Button>
-                          </div>
-                        )}
                       </div>
                     </div>
                   ))}

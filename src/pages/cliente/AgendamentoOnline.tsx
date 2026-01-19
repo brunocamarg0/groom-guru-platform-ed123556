@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useCliente } from "@/context/ClienteContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,17 +18,33 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Scissors, User, Clock, CheckCircle, ArrowLeft, MapPin, Phone } from "lucide-react";
+import { Scissors, User, Clock, CheckCircle, ArrowLeft, MapPin, Phone, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { NovoAgendamento } from "@/types/cliente";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Link } from "react-router-dom";
 
-const horariosDisponiveis = [
-  "08:00", "08:30", "09:00", "09:30", "10:00", "10:30",
-  "11:00", "11:30", "14:00", "14:30", "15:00", "15:30",
-  "16:00", "16:30", "17:00", "17:30", "18:00", "18:30",
-];
+// Gerar horários de 40 em 40 minutos (08:00 às 19:00)
+const gerarTodosHorarios = (): string[] => {
+  const horarios: string[] = [];
+  let hora = 8;
+  let minuto = 0;
+  
+  while (hora < 19 || (hora === 19 && minuto === 0)) {
+    const horarioFormatado = `${hora.toString().padStart(2, "0")}:${minuto.toString().padStart(2, "0")}`;
+    horarios.push(horarioFormatado);
+    
+    minuto += 40;
+    if (minuto >= 60) {
+      hora += 1;
+      minuto = minuto % 60;
+    }
+  }
+  
+  return horarios;
+};
+
+const todosHorarios = gerarTodosHorarios();
 
 export default function AgendamentoOnline() {
   const { criarAgendamento, buscarBarbeariaPorId } = useCliente();
@@ -38,6 +54,8 @@ export default function AgendamentoOnline() {
   const [step, setStep] = useState(1);
   const [barbearia, setBarbearia] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [horariosOcupados, setHorariosOcupados] = useState<string[]>([]);
+  const [loadingHorarios, setLoadingHorarios] = useState(false);
   const [formData, setFormData] = useState<Partial<NovoAgendamento>>({
     barbeariaId: searchParams.get("barbearia") || "",
     servicoId: "",
@@ -72,6 +90,48 @@ export default function AgendamentoOnline() {
 
     loadBarbearia();
   }, [formData.barbeariaId]);
+
+  // Carregar horários ocupados quando data mudar
+  useEffect(() => {
+    const carregarHorariosOcupados = async () => {
+      if (!formData.barbeariaId || !formData.data) {
+        setHorariosOcupados([]);
+        return;
+      }
+
+      setLoadingHorarios(true);
+      try {
+        const API_URL = import.meta.env.VITE_API_URL || 'https://groom-guru-platform-production.up.railway.app/api';
+        const response = await fetch(
+          `${API_URL}/barbearias/${formData.barbeariaId}/horarios-ocupados?data=${formData.data}`,
+          {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          setHorariosOcupados(data.horariosOcupados || []);
+        } else {
+          // Se não encontrar endpoint, usar array vazio (compatibilidade)
+          setHorariosOcupados([]);
+        }
+      } catch (error) {
+        console.warn('Não foi possível carregar horários ocupados:', error);
+        setHorariosOcupados([]);
+      } finally {
+        setLoadingHorarios(false);
+      }
+    };
+
+    carregarHorariosOcupados();
+  }, [formData.barbeariaId, formData.data]);
+
+  // Calcular horários disponíveis
+  const horariosDisponiveis = useMemo(() => {
+    return todosHorarios.filter(horario => !horariosOcupados.includes(horario));
+  }, [horariosOcupados]);
 
   const servicosDisponiveis = barbearia?.servicos || [];
   const profissionaisDisponiveis = barbearia?.profissionais || [];
@@ -364,25 +424,55 @@ export default function AgendamentoOnline() {
               <Input
                 type="date"
                 value={formData.data}
-                onChange={(e) => setFormData({ ...formData, data: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, data: e.target.value, hora: "" });
+                }}
                 min={new Date().toISOString().split("T")[0]}
               />
             </div>
             <div className="space-y-2">
               <Label>Horário</Label>
-              <div className="grid grid-cols-4 gap-2">
-                {horariosDisponiveis.map((horario) => (
-                  <Button
-                    key={horario}
-                    type="button"
-                    variant={formData.hora === horario ? "default" : "outline"}
-                    onClick={() => setFormData({ ...formData, hora: horario })}
-                  >
-                    <Clock className="h-4 w-4 mr-1" />
-                    {horario}
-                  </Button>
-                ))}
-              </div>
+              {loadingHorarios ? (
+                <p className="text-sm text-muted-foreground">Carregando horários disponíveis...</p>
+              ) : !formData.data ? (
+                <p className="text-sm text-muted-foreground">Selecione uma data primeiro</p>
+              ) : horariosDisponiveis.length === 0 ? (
+                <div className="p-4 border border-yellow-300 bg-yellow-50 rounded-lg">
+                  <div className="flex items-center gap-2 text-yellow-800">
+                    <AlertCircle className="h-4 w-4" />
+                    <span className="font-medium">Nenhum horário disponível nesta data</span>
+                  </div>
+                  <p className="text-sm text-yellow-700 mt-1">
+                    Todos os horários já foram preenchidos. Por favor, escolha outra data.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-4 gap-2">
+                    {todosHorarios.map((horario) => {
+                      const isOcupado = horariosOcupados.includes(horario);
+                      return (
+                        <Button
+                          key={horario}
+                          type="button"
+                          variant={formData.hora === horario ? "default" : isOcupado ? "ghost" : "outline"}
+                          onClick={() => !isOcupado && setFormData({ ...formData, hora: horario })}
+                          disabled={isOcupado}
+                          className={isOcupado ? "opacity-50 cursor-not-allowed line-through" : ""}
+                        >
+                          <Clock className="h-4 w-4 mr-1" />
+                          {horario}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  {horariosOcupados.length > 0 && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Horários riscados já estão ocupados e não podem ser selecionados.
+                    </p>
+                  )}
+                </>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Observações (Opcional)</Label>
