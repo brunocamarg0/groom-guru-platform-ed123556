@@ -16,6 +16,7 @@ import {
   TrendingUp,
   AlertCircle,
   CreditCard,
+  Loader2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,7 @@ import { Link } from "react-router-dom";
 import { apiGet } from "@/services/api";
 
 export default function DonoDashboard() {
-  const { kpi, agendamentos, notificacoes } = useDono();
+  const { loading, kpi, agendamentos, notificacoes } = useDono();
   const [resumoComissoes, setResumoComissoes] = useState<any>(null);
 
   const formatarMoeda = (valor: number) => {
@@ -60,6 +61,17 @@ export default function DonoDashboard() {
       ? [{ tipo: "info", mensagem: `${notificacoes.filter((n) => !n.lida).length} notificações não lidas` }]
       : []),
   ];
+
+  // Mostrar loading enquanto carrega dados
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="text-muted-foreground">Carregando dados do painel...</p>
+        <p className="text-xs text-muted-foreground">Isso pode levar alguns segundos na primeira vez</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -284,8 +296,8 @@ export default function DonoDashboard() {
                         agendamento.status === "confirmado"
                           ? "default"
                           : agendamento.status === "pendente"
-                          ? "secondary"
-                          : "destructive"
+                            ? "secondary"
+                            : "destructive"
                       }
                     >
                       {agendamento.status}

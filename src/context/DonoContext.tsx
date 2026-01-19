@@ -31,6 +31,9 @@ function obterBarbeariaIdDoToken(): string | null {
 }
 
 interface DonoContextType {
+  // Estado
+  loading: boolean;
+
   // Dados
   kpi: KPI;
   agendamentos: AgendamentoDono[];
@@ -1223,6 +1226,7 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   return (
     <DonoContext.Provider
       value={{
+        loading,
         kpi,
         agendamentos,
         profissionais,
