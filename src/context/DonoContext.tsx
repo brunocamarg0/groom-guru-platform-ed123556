@@ -286,37 +286,71 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   const { data: fsConfiguracao, loading: loadingConfig } = useFirestoreConfiguracao(barbeariaId);
 
   // Sincronizar dados do Firestore com o estado local
+  // Só sincroniza se o Firestore tiver dados OU se o carregamento do Firestore terminou
   useEffect(() => {
-    if (fsProfissionais.length > 0) setProfissionais(fsProfissionais);
-  }, [fsProfissionais]);
+    if (!loadingProfissionais) {
+      console.log(`📡 [Firestore Sync] Profissionais: ${fsProfissionais.length} itens`);
+      if (fsProfissionais.length > 0) {
+        setProfissionais(fsProfissionais);
+        // Se temos dados no Firestore, podemos liberar o loading global mais cedo
+        setLoading(false);
+      }
+    }
+  }, [fsProfissionais, loadingProfissionais]);
 
   useEffect(() => {
-    if (fsClientes.length > 0) setClientes(fsClientes);
-  }, [fsClientes]);
+    if (!loadingClientes) {
+      console.log(`📡 [Firestore Sync] Clientes: ${fsClientes.length} itens`);
+      if (fsClientes.length > 0) {
+        setClientes(fsClientes);
+        setLoading(false);
+      }
+    }
+  }, [fsClientes, loadingClientes]);
 
   useEffect(() => {
-    if (fsServicos.length > 0) setServicos(fsServicos);
-  }, [fsServicos]);
+    if (!loadingAgendamentos) {
+      console.log(`📡 [Firestore Sync] Agendamentos: ${fsAgendamentos.length} itens`);
+      if (fsAgendamentos.length > 0) {
+        setAgendamentos(fsAgendamentos as any);
+        setLoading(false);
+      }
+    }
+  }, [fsAgendamentos, loadingAgendamentos]);
 
   useEffect(() => {
-    if (fsAgendamentos.length > 0) setAgendamentos(fsAgendamentos as any);
-  }, [fsAgendamentos]);
+    if (!loadingServicos) {
+      console.log(`📡 [Firestore Sync] Serviços: ${fsServicos.length} itens`);
+      if (fsServicos.length > 0) {
+        setServicos(fsServicos);
+        setLoading(false);
+      }
+    }
+  }, [fsServicos, loadingServicos]);
 
   useEffect(() => {
-    if (fsProdutos.length > 0) setProdutos(fsProdutos);
-  }, [fsProdutos]);
+    if (!loadingProdutos) {
+      if (fsProdutos.length > 0) setProdutos(fsProdutos);
+    }
+  }, [fsProdutos, loadingProdutos]);
 
   useEffect(() => {
-    if (fsPromocoes.length > 0) setPromocoes(fsPromocoes);
-  }, [fsPromocoes]);
+    if (!loadingPromocoes) {
+      if (fsPromocoes.length > 0) setPromocoes(fsPromocoes);
+    }
+  }, [fsPromocoes, loadingPromocoes]);
 
   useEffect(() => {
-    if (fsNotificacoes.length > 0) setNotificacoes(fsNotificacoes);
-  }, [fsNotificacoes]);
+    if (!loadingNotificacoes) {
+      if (fsNotificacoes.length > 0) setNotificacoes(fsNotificacoes);
+    }
+  }, [fsNotificacoes, loadingNotificacoes]);
 
   useEffect(() => {
-    if (fsConfiguracao) setConfiguracao(fsConfiguracao as any);
-  }, [fsConfiguracao]);
+    if (!loadingConfig && fsConfiguracao) {
+      setConfiguracao(fsConfiguracao as any);
+    }
+  }, [fsConfiguracao, loadingConfig]);
 
   // Atualizar barbeariaId quando localStorage mudar
   useEffect(() => {
@@ -361,55 +395,25 @@ export function DonoProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(refreshInterval);
   }, [barbeariaId, loading]);
 
-  // Carregar dados da API quando o componente montar ou barbeariaId mudar
-  // Mas só se estiver em uma rota do dono (não na página inicial)
+  // ÚNICO Listener para carregar dados iniciais
   useEffect(() => {
     const currentPath = window.location.pathname;
     const isDonoRoute = currentPath.startsWith('/dono');
 
-    if (barbeariaId && isDonoRoute) {
-      console.log('🔄 Carregando dados do banco para barbeariaId:', barbeariaId);
-      console.log('🔄 Rota atual:', currentPath);
-      console.log('🔄 Token disponível:', !!localStorage.getItem('token'));
-      // Forçar carregamento imediato ao entrar no painel
-      carregarDados(true);
-    } else if (isDonoRoute && !barbeariaId) {
-      console.warn('⚠️ BarbeariaId não encontrado. Verifique se está logado como dono.');
-      console.warn('⚠️ localStorage.user:', localStorage.getItem('user'));
-      console.warn('⚠️ localStorage.barbearia:', localStorage.getItem('barbearia'));
-      setLoading(false);
-    }
-  }, [barbeariaId]);
-
-  // Listener para recarregar quando navegar para /dono
-  useEffect(() => {
-    if (!barbeariaId) return;
-
-    const checkRoute = () => {
-      const currentPath = window.location.pathname;
-      const isDonoRoute = currentPath.startsWith('/dono');
-
-      if (isDonoRoute) {
-        console.log('🔄 Detectada navegação para /dono, recarregando dados...');
-        // Forçar carregamento ao navegar para o painel
+    if (isDonoRoute) {
+      if (barbeariaId) {
+        console.log('🔄 [INIT] Carregando dados para barbeariaId:', barbeariaId);
         carregarDados(true);
+      } else {
+        const recId = getBarbeariaIdFromStorage();
+        if (recId) {
+          setBarbeariaId(recId);
+        } else {
+          setLoading(false);
+        }
       }
-    };
-
-    // Verificar imediatamente
-    checkRoute();
-
-    // Escutar mudanças de rota
-    const handlePopState = () => {
-      setTimeout(checkRoute, 100);
-    };
-
-    window.addEventListener('popstate', handlePopState);
-
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, [barbeariaId]);
+    }
+  }, [barbeariaId, window.location.pathname]);
 
   const carregarDados = async (forcar: boolean = false) => {
     if (!barbeariaId) {
@@ -434,11 +438,11 @@ export function DonoProvider({ children }: { children: ReactNode }) {
     console.log('📥 [CARREGAR DADOS] Forçar:', forcar);
     setLoading(true);
 
-    // Timeout de segurança: após 30 segundos, forçar loading = false
+    // Timeout de segurança: após 15 segundos, forçar loading = false
     const timeoutId = setTimeout(() => {
-      console.warn('⚠️ [CARREGAR DADOS] Timeout de 30s atingido, forçando fim do loading');
+      console.warn('⚠️ [CARREGAR DADOS] Timeout de 15s atingido, forçando fim do loading');
       setLoading(false);
-    }, 30000);
+    }, 15000);
 
     try {
       // Carregar dados em paralelo do BANCO DE DADOS
@@ -751,6 +755,10 @@ export function DonoProvider({ children }: { children: ReactNode }) {
           produtos: produtosData,
           promocoes: promocoesData,
           notificacoes: notificacoesData
+        }).then(() => {
+          console.log('✅ [FIREBASE] Migração inicial concluída com sucesso');
+        }).catch(err => {
+          console.error('❌ [FIREBASE] Falha na migração inicial:', err);
         });
       }
 
