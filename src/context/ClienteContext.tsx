@@ -220,27 +220,34 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
       }
 
       // Transformar agendamentos do banco para o formato do frontend
-      const agendamentosFormatados: Agendamento[] = agendamentosData.map((a: any) => ({
-        id: a.id,
-        clienteId: a.clienteId,
-        barbeariaId: a.barbeariaId,
-        servicoId: a.servicoId,
-        servico: {
-          id: a.servico.id,
-          nome: a.servico.nome,
-          descricao: a.servico.descricao || undefined,
-          duracao: a.servico.duracao,
-          preco: a.servico.preco,
-          barbeariaId: a.servico.barbeariaId,
-          ativo: a.servico.ativo,
-        },
-        data: a.data ? new Date(a.data).toISOString().split('T')[0] : '',
-        hora: a.horario || a.hora || '',
-        status: a.status as StatusAgendamento,
-        observacoes: a.observacao || a.observacoes || undefined,
-        createdAt: a.createdAt || new Date().toISOString(),
-        updatedAt: a.updatedAt || new Date().toISOString(),
-      }));
+      const agendamentosFormatados: Agendamento[] = agendamentosData.map((a: any) => {
+        // Converter data UTC para horário de Brasília antes de extrair a data
+        const dataUTC = new Date(a.data);
+        const dataBrasilia = new Date(dataUTC.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+        const dataFormatada = dataBrasilia.toISOString().split('T')[0];
+        
+        return {
+          id: a.id,
+          clienteId: a.clienteId,
+          barbeariaId: a.barbeariaId,
+          servicoId: a.servicoId,
+          servico: {
+            id: a.servico.id,
+            nome: a.servico.nome,
+            descricao: a.servico.descricao || undefined,
+            duracao: a.servico.duracao,
+            preco: a.servico.preco,
+            barbeariaId: a.servico.barbeariaId,
+            ativo: a.servico.ativo,
+          },
+          data: dataFormatada,
+          hora: a.horario || a.hora || '',
+          status: a.status as StatusAgendamento,
+          observacoes: a.observacao || a.observacoes || undefined,
+          createdAt: a.createdAt || new Date().toISOString(),
+          updatedAt: a.updatedAt || new Date().toISOString(),
+        };
+      });
 
       setAgendamentos(agendamentosFormatados);
 
@@ -355,6 +362,11 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
         observacoes: novoAgendamento.observacoes,
       });
 
+      // Converter data UTC para horário de Brasília
+      const dataUTC = agendamentoData.data ? new Date(agendamentoData.data) : new Date();
+      const dataBrasilia = new Date(dataUTC.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+      const dataFormatada = dataBrasilia.toISOString().split('T')[0];
+
       // Transformar resposta para o formato do frontend
       const agendamento: Agendamento = {
         id: agendamentoData.id,
@@ -370,7 +382,7 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
           barbeariaId: agendamentoData.servico.barbeariaId,
           ativo: agendamentoData.servico.ativo,
         },
-        data: agendamentoData.data ? new Date(agendamentoData.data).toISOString().split('T')[0] : '',
+        data: dataFormatada,
         hora: agendamentoData.horario || agendamentoData.hora || '',
         status: agendamentoData.status as StatusAgendamento,
         observacoes: agendamentoData.observacao || agendamentoData.observacoes || undefined,

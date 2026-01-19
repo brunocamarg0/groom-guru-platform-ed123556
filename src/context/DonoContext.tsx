@@ -467,23 +467,30 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       }
 
       // Transformar agendamentos da API para o formato do frontend
-      const agendamentosTransformados: AgendamentoDono[] = agendamentosData.map((ag: any) => ({
-        id: ag.id,
-        clienteId: ag.clienteId || '',
-        clienteNome: ag.clienteRel?.nome || ag.cliente || 'Cliente não cadastrado',
-        clienteTelefone: ag.clienteRel?.telefone || ag.telefone,
-        profissionalId: ag.profissionais?.[0]?.profissionalId || '',
-        profissionalNome: ag.profissionais?.[0]?.profissional?.nome || 'Não atribuído',
-        servicoId: ag.servicoId,
-        servicoNome: ag.servico?.nome || '',
-        data: ag.data.split('T')[0],
-        horario: ag.horario || new Date(ag.data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-        duracao: ag.servico?.duracao || 40,
-        valor: ag.servico?.preco || 0,
-        status: ag.status,
-        observacoes: ag.observacao,
-        dataCriacao: ag.createdAt,
-      }));
+      const agendamentosTransformados: AgendamentoDono[] = agendamentosData.map((ag: any) => {
+        // Converter data UTC para horário de Brasília antes de extrair a data
+        const dataUTC = new Date(ag.data);
+        const dataBrasilia = new Date(dataUTC.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+        const dataFormatada = dataBrasilia.toISOString().split('T')[0];
+        
+        return {
+          id: ag.id,
+          clienteId: ag.clienteId || '',
+          clienteNome: ag.clienteRel?.nome || ag.cliente || 'Cliente não cadastrado',
+          clienteTelefone: ag.clienteRel?.telefone || ag.telefone,
+          profissionalId: ag.profissionais?.[0]?.profissionalId || '',
+          profissionalNome: ag.profissionais?.[0]?.profissional?.nome || 'Não atribuído',
+          servicoId: ag.servicoId,
+          servicoNome: ag.servico?.nome || '',
+          data: dataFormatada,
+          horario: ag.horario || dataBrasilia.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+          duracao: ag.servico?.duracao || 40,
+          valor: ag.servico?.preco || 0,
+          status: ag.status,
+          observacoes: ag.observacao,
+          dataCriacao: ag.createdAt,
+        };
+      });
 
       setAgendamentos(agendamentosTransformados);
 

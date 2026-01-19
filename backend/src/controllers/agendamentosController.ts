@@ -21,18 +21,16 @@ async function verificarDisponibilidadeProfissional(
   barbeariaId: string
 ): Promise<boolean> {
   try {
-    const dataAgendamento = new Date(data);
-    const [hora, minuto] = horario.split(':').map(Number);
-    dataAgendamento.setHours(hora, minuto, 0, 0);
+    // Garantir conversão correta da data usando timezone de Brasília
+    const dataString = typeof data === 'string' ? data : data.toISOString().split('T')[0];
+    const dataAgendamento = new Date(`${dataString}T${horario}:00-03:00`);
 
     const inicioAgendamento = dataAgendamento.getTime();
     const fimAgendamento = inicioAgendamento + duracaoServico * 60 * 1000;
 
-    // Buscar agendamentos do profissional na mesma data
-    const inicioDia = new Date(dataAgendamento);
-    inicioDia.setHours(0, 0, 0, 0);
-    const fimDia = new Date(dataAgendamento);
-    fimDia.setHours(23, 59, 59, 999);
+    // Buscar agendamentos do profissional na mesma data usando timezone correto
+    const inicioDia = new Date(`${dataString}T00:00:00-03:00`);
+    const fimDia = new Date(`${dataString}T23:59:59.999-03:00`);
 
     const agendamentos = await prisma.agendamento.findMany({
       where: {
@@ -153,10 +151,9 @@ export async function listarAgendamentos(req: Request, res: Response) {
     }
 
     if (data && typeof data === 'string') {
-      const dataInicio = new Date(data);
-      dataInicio.setHours(0, 0, 0, 0);
-      const dataFim = new Date(data);
-      dataFim.setHours(23, 59, 59, 999);
+      // Usar timezone de Brasília para garantir busca correta
+      const dataInicio = new Date(`${data}T00:00:00-03:00`);
+      const dataFim = new Date(`${data}T23:59:59.999-03:00`);
       
       where.data = {
         gte: dataInicio,
@@ -567,10 +564,8 @@ export async function criarAgendamento(req: Request, res: Response) {
 
     const modoConfirmacao = (barbearia.modoConfirmacao || 'hibrido') as ModoConfirmacao;
     
-    // Combinar data e horário
-    const dataAgendamento = new Date(data);
-    const [hora, minuto] = horario.split(':').map(Number);
-    dataAgendamento.setHours(hora, minuto, 0, 0);
+    // Combinar data e horário usando timezone de Brasília (-03:00)
+    const dataAgendamento = new Date(`${data}T${horario}:00-03:00`);
 
     // Determinar status inicial baseado no modo
     let statusInicial = 'pendente';

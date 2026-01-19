@@ -233,8 +233,9 @@ export async function criarMeuAgendamento(req: AuthRequestCliente, res: Response
       return res.status(404).json({ error: 'Cliente não encontrado' });
     }
 
-    // Combinar data e horário
-    const dataHora = new Date(`${data}T${horario}`);
+    // Combinar data e horário - usar horário local (Brasil) sem conversão UTC
+    // Formato: YYYY-MM-DDTHH:MM:SS-03:00 (horário de Brasília)
+    const dataHora = new Date(`${data}T${horario}:00-03:00`);
 
     // Criar agendamento
     const agendamento = await prisma.agendamento.create({
