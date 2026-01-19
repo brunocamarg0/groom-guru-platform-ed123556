@@ -14,6 +14,17 @@ import {
 } from "@/types/dono";
 import { apiGet, apiPost, apiPut, apiDelete } from "@/services/api";
 import { toast } from "sonner";
+import {
+  useProfissionais as useFirestoreProfissionais,
+  useClientes as useFirestoreClientes,
+  useServicos as useFirestoreServicos,
+  useAgendamentos as useFirestoreAgendamentos,
+  useProdutos as useFirestoreProdutos,
+  usePromocoes as useFirestorePromocoes,
+  useNotificacoes as useFirestoreNotificacoes,
+  useConfiguracaoBarbearia as useFirestoreConfiguracao
+} from "@/hooks/useFirestoreData";
+import * as firestoreUtils from "@/lib/firestoreUtils";
 
 // Função para decodificar JWT e obter barbeariaId
 function obterBarbeariaIdDoToken(): string | null {
@@ -263,6 +274,49 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   const [configuracao, setConfiguracao] = useState<ConfiguracaoBarbearia>(configuracaoInicial);
   const [loading, setLoading] = useState(true);
   const [ultimoCarregamento, setUltimoCarregamento] = useState<number>(0);
+
+  // Hook do Firestore para dados em tempo real
+  const { data: fsProfissionais, loading: loadingProfissionais } = useFirestoreProfissionais(barbeariaId);
+  const { data: fsClientes, loading: loadingClientes } = useFirestoreClientes(barbeariaId);
+  const { data: fsServicos, loading: loadingServicos } = useFirestoreServicos(barbeariaId);
+  const { data: fsAgendamentos, loading: loadingAgendamentos } = useFirestoreAgendamentos(barbeariaId);
+  const { data: fsProdutos, loading: loadingProdutos } = useFirestoreProdutos(barbeariaId);
+  const { data: fsPromocoes, loading: loadingPromocoes } = useFirestorePromocoes(barbeariaId);
+  const { data: fsNotificacoes, loading: loadingNotificacoes } = useFirestoreNotificacoes(barbeariaId);
+  const { data: fsConfiguracao, loading: loadingConfig } = useFirestoreConfiguracao(barbeariaId);
+
+  // Sincronizar dados do Firestore com o estado local
+  useEffect(() => {
+    if (fsProfissionais.length > 0) setProfissionais(fsProfissionais);
+  }, [fsProfissionais]);
+
+  useEffect(() => {
+    if (fsClientes.length > 0) setClientes(fsClientes);
+  }, [fsClientes]);
+
+  useEffect(() => {
+    if (fsServicos.length > 0) setServicos(fsServicos);
+  }, [fsServicos]);
+
+  useEffect(() => {
+    if (fsAgendamentos.length > 0) setAgendamentos(fsAgendamentos as any);
+  }, [fsAgendamentos]);
+
+  useEffect(() => {
+    if (fsProdutos.length > 0) setProdutos(fsProdutos);
+  }, [fsProdutos]);
+
+  useEffect(() => {
+    if (fsPromocoes.length > 0) setPromocoes(fsPromocoes);
+  }, [fsPromocoes]);
+
+  useEffect(() => {
+    if (fsNotificacoes.length > 0) setNotificacoes(fsNotificacoes);
+  }, [fsNotificacoes]);
+
+  useEffect(() => {
+    if (fsConfiguracao) setConfiguracao(fsConfiguracao as any);
+  }, [fsConfiguracao]);
 
   // Atualizar barbeariaId quando localStorage mudar
   useEffect(() => {
@@ -685,6 +739,21 @@ export function DonoProvider({ children }: { children: ReactNode }) {
 
       console.log('✅ [CARREGAR DADOS] ==========================================');
       console.log('✅ [CARREGAR DADOS] Todos os dados foram carregados do banco de dados com sucesso!');
+
+      // Sincronizar com Firestore se o Firestore estiver vazio
+      if (barbeariaId && fsProfissionais.length === 0 && profissionaisTransformados.length > 0) {
+        console.log('🔄 [FIREBASE] Sincronizando dados iniciais para o Firestore...');
+        firestoreUtils.migrateBarbeariaData(barbeariaId, {
+          profissionais: profissionaisTransformados,
+          clientes: clientesTransformados,
+          servicos: servicosData,
+          agendamentos: agendamentosTransformados,
+          produtos: produtosData,
+          promocoes: promocoesData,
+          notificacoes: notificacoesData
+        });
+      }
+
       console.log('✅ [CARREGAR DADOS] Resumo final:');
       console.log(`   - Profissionais: ${totalProfissionais}`);
       console.log(`   - Clientes: ${totalClientes}`);
@@ -756,6 +825,13 @@ export function DonoProvider({ children }: { children: ReactNode }) {
         };
 
         setAgendamentos(prev => [...prev, agendamentoTransformado]);
+
+        // Salvar no Firestore para atualização em tempo real
+        if (barbeariaId) {
+          firestoreUtils.addAgendamento(barbeariaId, agendamentoTransformado).catch(err =>
+            console.error('❌ Erro ao salvar agendamento no Firestore:', err)
+          );
+        }
       } else {
         // Fallback: recarregar apenas agendamentos se formato não for o esperado
         const agendamentosData = await apiGet<any[]>(`/agendamentos/barbearia/${barbeariaId}`).catch(() => []);
@@ -800,7 +876,15 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   const cancelarAgendamento = async (id: string) => {
     try {
       await apiPut(`/agendamentos/${id}/cancelar`, {});
-      await carregarDados();
+      await carregarDados(true);
+
+      // Atualizar no Firestore
+      if (barbeariaId) {
+        firestoreUtils.updateAgendamento(barbeariaId, id, { status: 'cancelado' }).catch(err =>
+          console.error('❌ Erro ao cancelar agendamento no Firestore:', err)
+        );
+      }
+
       toast.success('Agendamento cancelado');
     } catch (error: any) {
       console.error('Erro ao cancelar agendamento:', error);
@@ -811,7 +895,15 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   const confirmarAgendamento = async (id: string) => {
     try {
       await apiPut(`/agendamentos/${id}/confirmar`, {});
-      await carregarDados();
+      await carregarDados(true);
+
+      // Atualizar no Firestore
+      if (barbeariaId) {
+        firestoreUtils.updateAgendamento(barbeariaId, id, { status: 'confirmado' }).catch(err =>
+          console.error('❌ Erro ao confirmar agendamento no Firestore:', err)
+        );
+      }
+
       toast.success('Agendamento confirmado!');
     } catch (error: any) {
       console.error('Erro ao confirmar agendamento:', error);
@@ -851,6 +943,13 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       // Atualizar estado local
       setProfissionais(prev => [...prev, novoProfissional]);
 
+      // Salvar no Firestore
+      if (barbeariaId) {
+        firestoreUtils.addProfissional(barbeariaId, novoProfissional).catch(err =>
+          console.error('❌ Erro ao salvar profissional no Firestore:', err)
+        );
+      }
+
       toast.success('Profissional adicionado com sucesso!');
     } catch (error: any) {
       console.error('❌ Erro ao adicionar profissional:', error);
@@ -877,6 +976,14 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       await apiPut(`/dono/profissionais/${id}`, updateData);
       console.log('✅ Profissional atualizado no banco, recarregando dados...');
       await carregarDados(true);
+
+      // Atualizar no Firestore
+      if (barbeariaId) {
+        firestoreUtils.updateProfissional(barbeariaId, id, updateData).catch(err =>
+          console.error('❌ Erro ao atualizar profissional no Firestore:', err)
+        );
+      }
+
       toast.success('Profissional atualizado!');
     } catch (error: any) {
       console.error('❌ Erro ao atualizar profissional:', error);
@@ -890,6 +997,14 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       await apiDelete(`/dono/profissionais/${id}`);
       console.log('✅ Profissional removido do banco, recarregando dados...');
       await carregarDados(true);
+
+      // Remover do Firestore
+      if (barbeariaId) {
+        firestoreUtils.deleteProfissional(barbeariaId, id).catch(err =>
+          console.error('❌ Erro ao remover profissional no Firestore:', err)
+        );
+      }
+
       toast.success('Profissional removido');
     } catch (error: any) {
       console.error('❌ Erro ao remover profissional:', error);
@@ -933,6 +1048,13 @@ export function DonoProvider({ children }: { children: ReactNode }) {
           return [...prev, novoCliente];
         });
 
+        // Salvar no Firestore
+        if (barbeariaId) {
+          firestoreUtils.addCliente(barbeariaId, novoCliente).catch(err =>
+            console.error('❌ Erro ao salvar cliente no Firestore:', err)
+          );
+        }
+
         console.log('✅ [ADICIONAR CLIENTE] Cliente adicionado à lista local');
       }
 
@@ -957,6 +1079,14 @@ export function DonoProvider({ children }: { children: ReactNode }) {
 
       await apiPut(`/dono/clientes/${id}`, updateData);
       await carregarDados(true);
+
+      // Atualizar no Firestore
+      if (barbeariaId) {
+        firestoreUtils.updateCliente(barbeariaId, id, updateData).catch(err =>
+          console.error('❌ Erro ao atualizar cliente no Firestore:', err)
+        );
+      }
+
       toast.success('Cliente atualizado!');
     } catch (error: any) {
       console.error('Erro ao atualizar cliente:', error);
@@ -982,6 +1112,14 @@ export function DonoProvider({ children }: { children: ReactNode }) {
 
       // Recarregar dados do banco para garantir sincronização
       await carregarDados(true);
+
+      // Remover do Firestore
+      if (barbeariaId) {
+        firestoreUtils.deleteCliente(barbeariaId, id).catch(err =>
+          console.error('❌ Erro ao remover cliente no Firestore:', err)
+        );
+      }
+
       toast.success('Cliente removido com sucesso!');
     } catch (error: any) {
       console.error('❌ [REMOVER CLIENTE] Erro completo:', error);
@@ -1023,6 +1161,13 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       // Atualizar estado local
       setServicos(prev => [...prev, novoServico]);
 
+      // Salvar no Firestore
+      if (barbeariaId) {
+        firestoreUtils.addServico(barbeariaId, novoServico).catch(err =>
+          console.error('❌ Erro ao salvar serviço no Firestore:', err)
+        );
+      }
+
       toast.success('Serviço adicionado com sucesso!');
     } catch (error: any) {
       console.error('❌ Erro ao adicionar serviço:', error);
@@ -1037,6 +1182,14 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       await apiPut(`/dono/servicos/${id}`, dados);
       console.log('✅ Serviço atualizado no banco, recarregando dados...');
       await carregarDados(true);
+
+      // Atualizar no Firestore
+      if (barbeariaId) {
+        firestoreUtils.updateServico(barbeariaId, id, dados).catch(err =>
+          console.error('❌ Erro ao atualizar serviço no Firestore:', err)
+        );
+      }
+
       toast.success('Serviço atualizado!');
     } catch (error: any) {
       console.error('❌ Erro ao atualizar serviço:', error);
@@ -1050,6 +1203,14 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       await apiDelete(`/dono/servicos/${id}`);
       console.log('✅ Serviço removido do banco, recarregando dados...');
       await carregarDados(true);
+
+      // Remover do Firestore
+      if (barbeariaId) {
+        firestoreUtils.deleteServico(barbeariaId, id).catch(err =>
+          console.error('❌ Erro ao remover serviço no Firestore:', err)
+        );
+      }
+
       toast.success('Serviço removido');
     } catch (error: any) {
       console.error('❌ Erro ao remover serviço:', error);
@@ -1063,6 +1224,17 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       await apiPut(`/dono/servicos/${id}/toggle`, {});
       console.log('✅ Status do serviço alterado, recarregando dados...');
       await carregarDados(true);
+
+      // Atualizar no Firestore (precisa saber o novo status, mas o toggle do backend não retorna)
+      // O hook do Firestore vai pegar a mudança se o backend atualizar o Firestore, 
+      // mas aqui estamos fazendo do frontend para garantir.
+      const servico = servicos.find(s => s.id === id);
+      if (barbeariaId && servico) {
+        firestoreUtils.updateServico(barbeariaId, id, { ativo: !servico.ativo }).catch(err =>
+          console.error('❌ Erro ao alterar status do serviço no Firestore:', err)
+        );
+      }
+
       toast.success('Status do serviço alterado');
     } catch (error: any) {
       console.error('❌ Erro ao alterar status do serviço:', error);
@@ -1097,6 +1269,14 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       });
       console.log('✅ Promoção criada no banco, recarregando dados...');
       await carregarDados(true);
+
+      // Salvar no Firestore
+      if (barbeariaId) {
+        firestoreUtils.addPromocao(barbeariaId, promocao).catch(err =>
+          console.error('❌ Erro ao salvar promoção no Firestore:', err)
+        );
+      }
+
       toast.success('Promoção criada com sucesso!');
     } catch (error: any) {
       console.error('❌ Erro ao criar promoção:', error);
@@ -1111,6 +1291,14 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       await apiPut(`/dono/promocoes/${id}`, dados);
       console.log('✅ Promoção atualizada no banco, recarregando dados...');
       await carregarDados(true);
+
+      // Atualizar no Firestore
+      if (barbeariaId) {
+        firestoreUtils.updatePromocao(barbeariaId, id, dados).catch(err =>
+          console.error('❌ Erro ao atualizar promoção no Firestore:', err)
+        );
+      }
+
       toast.success('Promoção atualizada!');
     } catch (error: any) {
       console.error('❌ Erro ao atualizar promoção:', error);
@@ -1152,6 +1340,13 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       // Atualizar estado localmente sem recarregar tudo
       setProdutos((prev) => [...prev, novoProduto]);
 
+      // Salvar no Firestore
+      if (barbeariaId) {
+        firestoreUtils.addProduto(barbeariaId, novoProduto).catch(err =>
+          console.error('❌ Erro ao salvar produto no Firestore:', err)
+        );
+      }
+
       toast.success('Produto adicionado com sucesso!');
     } catch (error: any) {
       console.error('❌ Erro ao adicionar produto:', error);
@@ -1166,6 +1361,14 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       await apiPut(`/dono/produtos/${id}`, dados);
       console.log('✅ Produto atualizado no banco, recarregando dados...');
       await carregarDados(true);
+
+      // Atualizar no Firestore
+      if (barbeariaId) {
+        firestoreUtils.updateProduto(barbeariaId, id, dados).catch(err =>
+          console.error('❌ Erro ao atualizar produto no Firestore:', err)
+        );
+      }
+
       toast.success('Produto atualizado!');
     } catch (error: any) {
       console.error('❌ Erro ao atualizar produto:', error);
@@ -1179,6 +1382,14 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       await apiPut(`/dono/produtos/${id}/estoque`, { quantidade });
       console.log('✅ Estoque atualizado no banco, recarregando dados...');
       await carregarDados(true);
+
+      // Atualizar no Firestore
+      if (barbeariaId) {
+        firestoreUtils.updateProduto(barbeariaId, id, { estoque: quantidade }).catch(err =>
+          console.error('❌ Erro ao atualizar estoque no Firestore:', err)
+        );
+      }
+
       toast.success('Estoque atualizado!');
     } catch (error: any) {
       console.error('❌ Erro ao atualizar estoque:', error);
@@ -1202,6 +1413,13 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   // Funções de configuração
   const atualizarConfiguracao = (dados: Partial<ConfiguracaoBarbearia>) => {
     setConfiguracao({ ...configuracao, ...dados });
+
+    // Atualizar no Firestore
+    if (barbeariaId) {
+      firestoreUtils.setBarbeariaConfig(barbeariaId, dados).catch(err =>
+        console.error('❌ Erro ao atualizar configuração no Firestore:', err)
+      );
+    }
   };
 
   // Funções de relatório
