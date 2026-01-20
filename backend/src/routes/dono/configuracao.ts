@@ -20,29 +20,67 @@ router.get('/', async (req: AuthRequest, res) => {
       return res.status(401).json({ error: 'Barbearia não identificada' });
     }
 
-    const barbearia = await prisma.barbearia.findUnique({
-      where: { id: barbeariaId },
-      select: {
-        id: true,
-        nome: true,
-        cnpjCpf: true,
-        responsavel: true,
-        plano: true,
-        status: true,
-        email: true,
-        telefone: true,
-        endereco: true,
-        cidade: true,
-        bairro: true,
-        cep: true,
-        modoConfirmacao: true,
-        foto: true,
-        dataCriacao: true,
-        dataVencimento: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+    // Tentar buscar com foto primeiro, se falhar, buscar sem foto
+    let barbearia;
+    try {
+      barbearia = await prisma.barbearia.findUnique({
+        where: { id: barbeariaId },
+        select: {
+          id: true,
+          nome: true,
+          cnpjCpf: true,
+          responsavel: true,
+          plano: true,
+          status: true,
+          email: true,
+          telefone: true,
+          endereco: true,
+          cidade: true,
+          bairro: true,
+          cep: true,
+          modoConfirmacao: true,
+          foto: true,
+          dataCriacao: true,
+          dataVencimento: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+    } catch (error: any) {
+      // Se coluna foto não existir, buscar sem foto
+      if (error?.code === 'P2022' || error?.message?.includes('does not exist')) {
+        console.warn('⚠️ [CONFIG BACKEND] Coluna foto não existe, buscando sem foto');
+        barbearia = await prisma.barbearia.findUnique({
+          where: { id: barbeariaId },
+          select: {
+            id: true,
+            nome: true,
+            cnpjCpf: true,
+            responsavel: true,
+            plano: true,
+            status: true,
+            email: true,
+            telefone: true,
+            endereco: true,
+            cidade: true,
+            bairro: true,
+            cep: true,
+            modoConfirmacao: true,
+            // foto removida
+            dataCriacao: true,
+            dataVencimento: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
+        // Adicionar foto como null se não existir
+        if (barbearia) {
+          (barbearia as any).foto = null;
+        }
+      } else {
+        throw error;
+      }
+    }
 
     if (!barbearia) {
       return res.status(404).json({ error: 'Barbearia não encontrada' });
