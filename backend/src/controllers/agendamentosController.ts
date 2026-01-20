@@ -1,5 +1,27 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
+
+// Select para barbearia sem a coluna foto (até migration ser executada)
+const barbeariaSelect = {
+  id: true,
+  nome: true,
+  cnpjCpf: true,
+  responsavel: true,
+  plano: true,
+  status: true,
+  dataCriacao: true,
+  dataVencimento: true,
+  email: true,
+  telefone: true,
+  endereco: true,
+  cidade: true,
+  bairro: true,
+  cep: true,
+  modoConfirmacao: true,
+  // foto removida temporariamente até migration ser executada
+  createdAt: true,
+  updatedAt: true,
+};
 import {
   notificarConfirmacaoAgendamento,
   notificarRecusaAgendamento,
@@ -217,7 +239,28 @@ export async function buscarAgendamento(req: Request, res: Response) {
       include: {
         clienteRel: true,
         servico: true,
-        barbearia: true,
+        barbearia: {
+          select: {
+            id: true,
+            nome: true,
+            cnpjCpf: true,
+            responsavel: true,
+            plano: true,
+            status: true,
+            dataCriacao: true,
+            dataVencimento: true,
+            email: true,
+            telefone: true,
+            endereco: true,
+            cidade: true,
+            bairro: true,
+            cep: true,
+            modoConfirmacao: true,
+            // foto removida temporariamente até migration ser executada
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
         profissionais: {
           include: {
             profissional: {
@@ -270,7 +313,9 @@ export async function confirmarAgendamento(req: Request, res: Response) {
       include: {
         clienteRel: true,
         servico: true,
-        barbearia: true,
+        barbearia: {
+          select: barbeariaSelect,
+        },
       },
     });
 
@@ -367,7 +412,9 @@ export async function recusarAgendamento(req: Request, res: Response) {
       include: {
         clienteRel: true,
         servico: true,
-        barbearia: true,
+        barbearia: {
+          select: barbeariaSelect,
+        },
       },
     });
 
@@ -386,7 +433,9 @@ export async function recusarAgendamento(req: Request, res: Response) {
       include: {
         clienteRel: true,
         servico: true,
-        barbearia: true,
+        barbearia: {
+          select: barbeariaSelect,
+        },
       },
     });
 
@@ -455,7 +504,9 @@ export async function cancelarAgendamento(req: Request, res: Response) {
       include: {
         clienteRel: true,
         servico: true,
-        barbearia: true,
+        barbearia: {
+          select: barbeariaSelect,
+        },
       },
     });
 
@@ -497,7 +548,9 @@ export async function concluirAgendamento(req: Request, res: Response) {
       include: {
         clienteRel: true,
         servico: true,
-        barbearia: true,
+        barbearia: {
+          select: barbeariaSelect,
+        },
       },
     });
 
