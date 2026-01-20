@@ -74,10 +74,21 @@ export async function autenticarDono(
     
     console.log('🔐 autenticarDono: Buscando dono no banco com ID:', userId);
     // Buscar usuário dono
-    const dono = await prisma.usuarioDono.findUnique({
-      where: { id: userId },
-      include: { barbearia: true },
-    });
+    let dono;
+    try {
+      dono = await prisma.usuarioDono.findUnique({
+        where: { id: userId },
+        include: { barbearia: true },
+      });
+    } catch (prismaError: any) {
+      console.error('❌ autenticarDono: Erro ao buscar dono no Prisma:');
+      console.error('   Erro tipo:', prismaError.name);
+      console.error('   Erro código:', prismaError.code);
+      console.error('   Erro mensagem:', prismaError.message);
+      console.error('   Erro meta:', JSON.stringify(prismaError.meta, null, 2));
+      console.error('   Erro stack:', prismaError.stack);
+      throw prismaError; // Re-throw para ser capturado pelo catch externo
+    }
 
     if (!dono) {
       console.error('❌ autenticarDono: Dono não encontrado no banco');
