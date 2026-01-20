@@ -442,18 +442,31 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   });
 
   // Hook para buscar Serviços
-  const { data: qServicos, isLoading: loadingSrvs } = useQuery({
+  const { data: qServicos, isLoading: loadingSrvs, error: errorServicos } = useQuery({
     queryKey: ['servicos', barbeariaId],
-    queryFn: () => apiGet<any[]>('/dono/servicos'),
+    queryFn: () => {
+      console.log('✂️ [QUERY] Buscando serviços para barbeariaId:', barbeariaId);
+      return apiGet<any[]>('/dono/servicos');
+    },
     enabled: !!barbeariaId && hasToken,
     staleTime: 1000 * 60 * 30,
     retry: (failureCount, error: any) => {
       if (error?.status === 401 || error?.message?.includes('401')) {
+        console.error('❌ [QUERY SERVIÇOS] Erro 401, não tentando novamente');
         return false;
       }
       return failureCount < 2;
     },
   });
+  
+  useEffect(() => {
+    if (errorServicos) {
+      console.error('❌ [QUERY SERVIÇOS] Erro ao buscar serviços:', errorServicos);
+    }
+    if (qServicos) {
+      console.log('✅ [QUERY SERVIÇOS] Serviços carregados:', qServicos.length);
+    }
+  }, [qServicos, errorServicos]);
 
   // Hook para buscar Produtos
   const { data: qProdutos, error: errorProdutos } = useQuery({
@@ -633,7 +646,13 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   }, [qAgendamentos]);
 
   useEffect(() => {
-    if (qServicos) setServicos(qServicos);
+    if (qServicos) {
+      console.log('🔄 [SYNC] Sincronizando serviços:', qServicos.length);
+      setServicos(qServicos);
+      console.log('✅ [SYNC] Serviços sincronizados:', qServicos.length);
+    } else {
+      console.log('⚠️ [SYNC] qServicos está undefined/null');
+    }
   }, [qServicos]);
 
   useEffect(() => {
