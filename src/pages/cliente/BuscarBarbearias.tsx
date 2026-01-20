@@ -73,9 +73,9 @@ export default function BuscarBarbearias() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto p-4">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">Agendar Serviço</h2>
+        <h2 className="text-3xl font-bold tracking-tight">Buscar Barbearias</h2>
         <p className="text-muted-foreground">
-          Escolha uma barbearia e agende seu serviço
+          Encontre a barbearia ideal e agende seu serviço
         </p>
       </div>
 

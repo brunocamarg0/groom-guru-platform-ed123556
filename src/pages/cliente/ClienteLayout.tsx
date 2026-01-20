@@ -92,7 +92,7 @@ export default function ClienteLayout() {
       icon: Home,
     },
     {
-      title: "Agendar",
+      title: "Buscar Barbearias",
       url: "/cliente/barbearias",
       icon: Calendar,
     },
