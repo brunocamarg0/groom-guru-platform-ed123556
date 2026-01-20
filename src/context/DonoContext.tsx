@@ -349,6 +349,15 @@ export function DonoProvider({ children }: { children: ReactNode }) {
     enabled: !!barbeariaId,
   });
 
+  // Hook para buscar Pagamentos
+  const { data: qPagamentos, isLoading: loadingPags } = useQuery({
+    queryKey: ['pagamentos', barbeariaId],
+    queryFn: () => apiGet<any[]>('/dono/financeiro/pagamentos'),
+    enabled: !!barbeariaId,
+    staleTime: 1000 * 30, // 30 segundos de cache (atualiza mais frequentemente)
+    refetchInterval: 1000 * 30, // Refetch a cada 30 segundos quando na página
+  });
+
   // --- SINCRONIZAÇÃO DOS DADOS DO REACT QUERY COM O ESTADO DO CONTEXTO ---
 
   useEffect(() => {
@@ -473,10 +482,37 @@ export function DonoProvider({ children }: { children: ReactNode }) {
     }
   }, [qConfiguracao]);
 
+  useEffect(() => {
+    if (qPagamentos) {
+      const transformados: PagamentoDono[] = qPagamentos.map((pag: any) => ({
+        id: pag.id,
+        agendamentoId: pag.agendamentoId,
+        valor: pag.valor,
+        metodo: pag.metodo as 'pix' | 'cartao_credito' | 'cartao_debito' | 'dinheiro',
+        status: pag.status as 'pago' | 'pendente' | 'reembolsado',
+        taxaGateway: pag.taxaGateway || 0,
+        dataPagamento: pag.dataPagamento 
+          ? (typeof pag.dataPagamento === 'string' 
+              ? pag.dataPagamento 
+              : new Date(pag.dataPagamento).toISOString())
+          : undefined,
+        dataVencimento: pag.dataVencimento 
+          ? (typeof pag.dataVencimento === 'string'
+              ? pag.dataVencimento
+              : new Date(pag.dataVencimento).toISOString())
+          : undefined,
+      }));
+      setPagamentos(transformados);
+    } else if (qPagamentos === null || qPagamentos === undefined) {
+      // Se não houver pagamentos, definir array vazio
+      setPagamentos([]);
+    }
+  }, [qPagamentos]);
+
   // Manter loading global sincronizado com queries principais
   useEffect(() => {
-    setLoading(loadingProfs || loadingClis || loadingAgends || loadingSrvs || loadingKpi);
-  }, [loadingProfs, loadingClis, loadingAgends, loadingSrvs, loadingKpi]);
+    setLoading(loadingProfs || loadingClis || loadingAgends || loadingSrvs || loadingKpi || loadingPags);
+  }, [loadingProfs, loadingClis, loadingAgends, loadingSrvs, loadingKpi, loadingPags]);
 
   // Atualizar barbeariaId quando localStorage mudar
   useEffect(() => {
@@ -1113,13 +1149,42 @@ export function DonoProvider({ children }: { children: ReactNode }) {
         observacao,
       });
 
-      if (response.success) {
-        // Invalidar queries para atualizar dados
+      if (response.success && response.pagamento) {
+        // Adicionar pagamento imediatamente ao estado (otimista)
+        const novoPagamento: PagamentoDono = {
+          id: response.pagamento.id,
+          agendamentoId: response.pagamento.agendamentoId,
+          valor: response.pagamento.valor,
+          metodo: response.pagamento.metodo,
+          status: response.pagamento.status || 'pago',
+          taxaGateway: response.pagamento.taxaGateway || 0,
+          dataPagamento: response.pagamento.dataPagamento 
+            ? (typeof response.pagamento.dataPagamento === 'string' 
+                ? response.pagamento.dataPagamento 
+                : new Date(response.pagamento.dataPagamento).toISOString())
+            : new Date().toISOString(),
+          dataVencimento: response.pagamento.dataVencimento 
+            ? (typeof response.pagamento.dataVencimento === 'string'
+                ? response.pagamento.dataVencimento
+                : new Date(response.pagamento.dataVencimento).toISOString())
+            : undefined,
+        };
+        
+        // Adicionar ao início da lista para aparecer imediatamente
+        setPagamentos(prev => {
+          // Verificar se já existe para evitar duplicatas
+          const existe = prev.find(p => p.id === novoPagamento.id);
+          if (existe) return prev;
+          return [novoPagamento, ...prev];
+        });
+        
+        // Invalidar queries para garantir sincronização completa
         queryClient.invalidateQueries({ queryKey: ['agendamentos', barbeariaId] });
         queryClient.invalidateQueries({ queryKey: ['pagamentos', barbeariaId] });
+        queryClient.invalidateQueries({ queryKey: ['kpis', barbeariaId] });
         
-        // Recarregar dados para atualizar a lista
-        await carregarDados(true);
+        // Forçar refetch imediato da query de pagamentos
+        queryClient.refetchQueries({ queryKey: ['pagamentos', barbeariaId] });
         
         toast.success('Pagamento registrado com sucesso!');
       } else {
