@@ -1486,6 +1486,15 @@ export function DonoProvider({ children }: { children: ReactNode }) {
         throw new Error('Foto muito grande. Por favor, use uma imagem menor.');
       }
 
+      // Verificar token antes de fazer requisição
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Token não encontrado. Faça login novamente.');
+      }
+      
+      console.log('💾 [CONFIG] Enviando requisição PUT para /dono/configuracao');
+      console.log('💾 [CONFIG] Token presente:', !!token);
+      
       const response = await apiPut('/dono/configuracao', dados);
       console.log('✅ [CONFIG] Configuração atualizada com sucesso');
       
@@ -1506,8 +1515,16 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       console.error('❌ [CONFIG] Detalhes do erro:', {
         message: error?.message,
         status: error?.status,
+        endpoint: error?.endpoint,
         stack: error?.stack
       });
+      
+      // Se for erro 401, mensagem mais específica
+      if (error?.status === 401) {
+        const errorMessage = error?.message || 'Token inválido ou expirado. Faça login novamente.';
+        toast.error(errorMessage);
+        throw error;
+      }
       
       const errorMessage = error?.message || error?.error || 'Erro ao salvar configurações';
       toast.error(errorMessage);

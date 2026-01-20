@@ -144,6 +144,35 @@ export default function ConfiguracoesBarbearia() {
 
   const handleSubmit = async () => {
     try {
+      // Verificar token antes de tentar salvar
+      const token = localStorage.getItem('token');
+      const userType = localStorage.getItem('userType');
+      
+      if (!token) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Token não encontrado. Por favor, faça login novamente.",
+          variant: "destructive",
+        });
+        // Redirecionar para login após 2 segundos
+        setTimeout(() => {
+          window.location.href = '/login?tab=owner';
+        }, 2000);
+        return;
+      }
+
+      if (userType !== 'dono') {
+        toast({
+          title: "Erro de autenticação",
+          description: "Tipo de usuário incorreto. Por favor, faça login novamente.",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = '/login?tab=owner';
+        }, 2000);
+        return;
+      }
+
       // Preparar dados para envio (sem campos que não devem ser enviados)
       const dadosParaEnvio: Partial<ConfiguracaoBarbearia> = {
         nome: formData.nome,
@@ -170,25 +199,37 @@ export default function ConfiguracoesBarbearia() {
 
       console.log('💾 [CONFIG PÁGINA] Salvando configurações...', {
         temFoto: !!dadosParaEnvio.foto,
-        tamanhoFoto: dadosParaEnvio.foto ? dadosParaEnvio.foto.length : 0
+        tamanhoFoto: dadosParaEnvio.foto ? dadosParaEnvio.foto.length : 0,
+        tokenPresente: !!token,
+        userType: userType
       });
 
       // Atualizar configuração no backend (aguardar a promise)
       await atualizarConfiguracao(dadosParaEnvio);
       
       // Toast de sucesso já é mostrado pela função atualizarConfiguracao
-      // Não precisa mostrar outro toast aqui
     } catch (error: any) {
       console.error('❌ [CONFIG PÁGINA] Erro ao salvar configurações:', error);
-      // O erro já foi tratado e o toast já foi mostrado pela função atualizarConfiguracao
-      // Mas podemos adicionar um toast adicional se necessário
-      if (!error?.handled) {
+      
+      // Se for erro 401, redirecionar para login
+      if (error?.status === 401) {
         toast({
-          title: "Erro ao salvar",
-          description: error?.message || "Não foi possível salvar as configurações. Verifique os dados e tente novamente.",
+          title: "Sessão expirada",
+          description: "Sua sessão expirou. Por favor, faça login novamente.",
           variant: "destructive",
         });
+        setTimeout(() => {
+          window.location.href = '/login?tab=owner';
+        }, 2000);
+        return;
       }
+      
+      // Outros erros
+      toast({
+        title: "Erro ao salvar",
+        description: error?.message || "Não foi possível salvar as configurações. Verifique os dados e tente novamente.",
+        variant: "destructive",
+      });
     }
   };
 

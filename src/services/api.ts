@@ -22,6 +22,14 @@ export async function apiRequest<T>(
     console.log('🌐 [API REQUEST] Token presente:', !!token);
   }
   
+  // Log detalhado para requisições PUT (especialmente para configuracao)
+  if (options.method === 'PUT' && endpoint.includes('configuracao')) {
+    console.log('💾 [API REQUEST] PUT Configuração:', urlCompleta);
+    console.log('💾 [API REQUEST] Token presente:', !!token);
+    console.log('💾 [API REQUEST] Token (primeiros 20 chars):', token ? token.substring(0, 20) + '...' : 'N/A');
+    console.log('💾 [API REQUEST] Body size:', options.body ? (options.body as string).length : 0);
+  }
+  
   const response = await fetch(urlCompleta, {
     ...options,
     headers: {
@@ -43,26 +51,26 @@ export async function apiRequest<T>(
     console.error('   Status Text:', response.statusText);
     console.error('   Error:', error);
     
-    // Se erro de autenticação, verificar se realmente é um problema de token
-    // Não redirecionar imediatamente - pode ser um erro temporário ou de outra natureza
+    // Se erro de autenticação, criar erro descritivo
     if (response.status === 401) {
       const currentPath = window.location.pathname;
-      const isPublicRoute = currentPath === '/' || currentPath === '/login' || currentPath === '/cadastro' || currentPath.startsWith('/funcionalidades');
-      
-      // Verificar se o token existe antes de remover
-      const token = localStorage.getItem('token');
+      const tokenAtual = localStorage.getItem('token');
       const userType = localStorage.getItem('userType');
       
-      console.warn('⚠️ [API REQUEST] Erro 401 detectado');
-      console.warn('   Path:', currentPath);
-      console.warn('   Token presente:', !!token);
-      console.warn('   UserType:', userType);
-      console.warn('   Endpoint:', endpoint);
-      console.warn('   Error message:', error.error || error.message);
+      console.error('❌ [API REQUEST] Erro 401 - Token inválido');
+      console.error('   Path:', currentPath);
+      console.error('   Endpoint:', endpoint);
+      console.error('   Method:', options.method);
+      console.error('   Token presente:', !!tokenAtual);
+      console.error('   Token (primeiros 20 chars):', tokenAtual ? tokenAtual.substring(0, 20) + '...' : 'N/A');
+      console.error('   UserType:', userType);
+      console.error('   Error message:', error.error || error.message);
       
-      // Apenas lançar o erro - não fazer nada mais
-      // O componente que chamou a API deve tratar o erro
-      // Isso evita redirecionamentos prematuros e loops
+      // Criar erro mais descritivo e lançar
+      const erroCompleto = new Error(error.error || error.message || 'Token inválido');
+      (erroCompleto as any).status = 401;
+      (erroCompleto as any).endpoint = endpoint;
+      throw erroCompleto;
     }
     
     // Para erros 404, incluir mais informações
