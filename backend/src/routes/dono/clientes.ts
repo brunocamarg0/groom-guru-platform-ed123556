@@ -4,6 +4,16 @@ import { autenticarDono } from '../../middleware/auth';
 
 const router = Router();
 
+// Middleware de log para debug (antes da autenticação para ver todas as requisições)
+router.use((req, res, next) => {
+  console.log('🔍 [ROTA CLIENTES] Requisição recebida:');
+  console.log('   Method:', req.method);
+  console.log('   Path:', req.path);
+  console.log('   Original URL:', req.originalUrl);
+  console.log('   Base URL:', req.baseUrl);
+  next();
+});
+
 // Aplicar autenticação do dono
 router.use(autenticarDono);
 

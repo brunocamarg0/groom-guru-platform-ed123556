@@ -14,10 +14,12 @@
     "start:prod": "npm run build && node dist/app.js",
     "prisma:generate": "npx prisma generate",
     "prisma:migrate": "npx prisma migrate dev",
-    "prisma:push": "npx prisma db push",
+    "prisma:push": "npx prisma db push --accept-data-loss",
     "prisma:studio": "npx prisma studio",
     "postinstall": "npx prisma generate",
     "criar-usuario-teste": "tsx scripts/criar-usuario-teste.ts",
+    "criar-cliente-teste": "tsx scripts/criar-cliente-teste.ts",
+    "listar-barbearias": "tsx scripts/listar-barbearias.ts",
     "testar-emailjs": "tsx scripts/testar-emailjs.ts"
   },
   "keywords": [],

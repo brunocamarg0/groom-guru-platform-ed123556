@@ -13,8 +13,16 @@ export async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const token = localStorage.getItem('token');
+  const urlCompleta = `${API_URL}${endpoint}`;
   
-  const response = await fetch(`${API_URL}${endpoint}`, {
+  // Log detalhado para requisições DELETE (debug)
+  if (options.method === 'DELETE') {
+    console.log('🌐 [API REQUEST] DELETE:', urlCompleta);
+    console.log('🌐 [API REQUEST] Method:', options.method);
+    console.log('🌐 [API REQUEST] Token presente:', !!token);
+  }
+  
+  const response = await fetch(urlCompleta, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -27,6 +35,13 @@ export async function apiRequest<T>(
     const error: ApiError = await response.json().catch(() => ({
       error: 'Erro na requisição',
     }));
+    
+    // Log detalhado de erros
+    console.error('❌ [API REQUEST] Erro na requisição:');
+    console.error('   URL:', urlCompleta);
+    console.error('   Status:', response.status);
+    console.error('   Status Text:', response.statusText);
+    console.error('   Error:', error);
     
     // Se erro de autenticação, limpar token e redirecionar para login
     // Mas só redirecionar se estiver em uma rota protegida (não na página inicial)
@@ -43,6 +58,15 @@ export async function apiRequest<T>(
       if (!isPublicRoute && !currentPath.includes('/login')) {
         window.location.href = '/login';
       }
+    }
+    
+    // Para erros 404, incluir mais informações
+    if (response.status === 404) {
+      const mensagemErro = error.error || error.message || 'Rota não encontrada';
+      const erroCompleto = new Error(mensagemErro);
+      (erroCompleto as any).status = 404;
+      (erroCompleto as any).url = urlCompleta;
+      throw erroCompleto;
     }
     
     throw new Error(error.error || error.message || 'Erro na requisição');

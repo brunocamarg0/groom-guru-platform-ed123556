@@ -50,6 +50,7 @@ model Barbearia {
   produtos          Produto[]
   promocoes         Promocao[]
   notificacoes      Notificacao[]
+  comissoes         ComissaoPaga[]
   
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
@@ -183,6 +184,7 @@ model Agendamento {
   profissionais AgendamentoProfissional[]
   avaliacao     Avaliacao?
   pagamento     Pagamento?
+  comissoes     ComissaoPaga[]
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -205,6 +207,7 @@ model Profissional {
   barbearia     Barbearia     @relation(fields: [barbeariaId], references: [id], onDelete: Cascade)
   barbeariaId   String
   agendamentos  AgendamentoProfissional[]
+  comissoes     ComissaoPaga[]
   
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
@@ -314,4 +317,30 @@ model Pagamento {
   
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+}
+
+// Comissão paga ao profissional
+model ComissaoPaga {
+  id            String      @id @default(uuid())
+  profissional  Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+  profissionalId String
+  agendamento   Agendamento @relation(fields: [agendamentoId], references: [id], onDelete: Cascade)
+  agendamentoId String
+  valorComissao Float       // Valor da comissão calculada
+  valorTotal    Float       // Valor total do agendamento
+  porcentagem   Float       // Porcentagem aplicada
+  pago          Boolean     @default(false) // Se a comissão foi paga
+  dataPagamento DateTime?   // Data em que foi pago
+  mesReferencia String       // Mês/ano de referência (ex: "2024-01")
+  observacao    String?      // Observações sobre o pagamento
+  
+  barbearia     Barbearia   @relation(fields: [barbeariaId], references: [id], onDelete: Cascade)
+  barbeariaId   String
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  @@unique([agendamentoId, profissionalId])
+  @@index([profissionalId, mesReferencia])
+  @@index([barbeariaId, mesReferencia])
 }

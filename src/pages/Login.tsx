@@ -14,7 +14,7 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  
+
   // Obter tab da URL ou usar 'owner' como padrão
   const tabFromUrl = searchParams.get('tab');
   const getInitialTab = () => {
@@ -22,9 +22,9 @@ const Login = () => {
     if (tabFromUrl === 'admin') return 'admin';
     return 'owner';
   };
-  
+
   const [activeTab, setActiveTab] = useState(getInitialTab());
-  
+
   // Estados para formulários
   const [formData, setFormData] = useState({
     owner: { email: "", senha: "" },
@@ -69,17 +69,17 @@ const Login = () => {
       if (data.token) {
         localStorage.setItem('token', data.token);
         localStorage.setItem('userType', activeTab === 'owner' ? 'dono' : activeTab === 'client' ? 'cliente' : 'admin');
-        
+
         if (data.usuario) {
           localStorage.setItem('user', JSON.stringify(data.usuario));
         }
-        
+
         if (data.barbearia) {
           localStorage.setItem('barbearia', JSON.stringify(data.barbearia));
         }
 
         toast.success('Login realizado com sucesso!');
-        
+
         // Pequeno delay para garantir que os dados sejam salvos no localStorage
         setTimeout(() => {
           try {
@@ -109,7 +109,7 @@ const Login = () => {
             <div className="bg-primary p-3">
               <Scissors className="h-8 w-8 text-primary-foreground" />
             </div>
-            <span className="text-3xl font-black text-foreground uppercase tracking-tight">BarberPro</span>
+            <span className="text-3xl font-black text-foreground uppercase tracking-tight">Barber Maestro</span>
           </Link>
         </div>
 
@@ -251,7 +251,7 @@ const Login = () => {
                     <Input
                       id="admin-email"
                       type="email"
-                      placeholder="admin@barberpro.com"
+                      placeholder="admin@barbermaster.com"
                       value={formData.admin.email}
                       onChange={(e) => setFormData({ ...formData, admin: { ...formData.admin, email: e.target.value } })}
                       required

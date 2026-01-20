@@ -1,7 +1,24 @@
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import { Strategy as FacebookStrategy } from 'passport-facebook';
-import AppleStrategy from 'passport-apple';
+
+// Imports opcionais para Facebook e Apple (podem não estar instalados)
+let FacebookStrategy: any;
+let AppleStrategy: any;
+
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const facebookModule = require('passport-facebook');
+  FacebookStrategy = facebookModule.Strategy;
+} catch (error) {
+  console.log('⚠️  passport-facebook não instalado');
+}
+
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  AppleStrategy = require('passport-apple');
+} catch (error) {
+  console.log('⚠️  passport-apple não instalado');
+}
 
 // Só configurar Google OAuth se as credenciais estiverem disponíveis
 const googleClientID = process.env.GOOGLE_CLIENT_ID;
@@ -17,7 +34,7 @@ if (googleClientID && googleClientSecret) {
         clientSecret: googleClientSecret,
         callbackURL: process.env.GOOGLE_CALLBACK_URL_CLIENTE || 'http://localhost:3001/api/auth/google/cliente/callback',
       },
-      async (accessToken, refreshToken, profile, done) => {
+      async (accessToken: string, refreshToken: string, profile: any, done: (error: any, user?: any) => void) => {
         try {
           const { id: googleId, displayName: nome, emails, photos } = profile;
           const email = emails?.[0]?.value;
@@ -49,7 +66,7 @@ if (googleClientID && googleClientSecret) {
         clientSecret: googleClientSecret,
         callbackURL: process.env.GOOGLE_CALLBACK_URL_DONO || 'http://localhost:3001/api/auth/google/dono/callback',
       },
-      async (accessToken, refreshToken, profile, done) => {
+      async (accessToken: string, refreshToken: string, profile: any, done: (error: any, user?: any) => void) => {
         try {
           const { id: googleId, displayName: nome, emails, photos } = profile;
           const email = emails?.[0]?.value;
@@ -82,7 +99,7 @@ if (googleClientID && googleClientSecret) {
 const facebookAppID = process.env.FACEBOOK_APP_ID;
 const facebookAppSecret = process.env.FACEBOOK_APP_SECRET;
 
-if (facebookAppID && facebookAppSecret) {
+if (facebookAppID && facebookAppSecret && FacebookStrategy) {
   // Estratégia para Cliente
   passport.use(
     'facebook-cliente',
@@ -93,7 +110,7 @@ if (facebookAppID && facebookAppSecret) {
         callbackURL: process.env.FACEBOOK_CALLBACK_URL_CLIENTE || 'http://localhost:3001/api/auth/facebook/cliente/callback',
         profileFields: ['id', 'displayName', 'emails', 'photos'],
       },
-      async (accessToken, refreshToken, profile, done) => {
+      async (accessToken: string, refreshToken: string, profile: any, done: (error: any, user?: any) => void) => {
         try {
           const { id: facebookId, displayName: nome, emails, photos } = profile;
           const email = emails?.[0]?.value;
@@ -126,7 +143,7 @@ if (facebookAppID && facebookAppSecret) {
         callbackURL: process.env.FACEBOOK_CALLBACK_URL_DONO || 'http://localhost:3001/api/auth/facebook/dono/callback',
         profileFields: ['id', 'displayName', 'emails', 'photos'],
       },
-      async (accessToken, refreshToken, profile, done) => {
+      async (accessToken: string, refreshToken: string, profile: any, done: (error: any, user?: any) => void) => {
         try {
           const { id: facebookId, displayName: nome, emails, photos } = profile;
           const email = emails?.[0]?.value;
@@ -161,7 +178,7 @@ const appleTeamID = process.env.APPLE_TEAM_ID;
 const appleKeyID = process.env.APPLE_KEY_ID;
 const applePrivateKey = process.env.APPLE_PRIVATE_KEY;
 
-if (appleClientID && appleTeamID && appleKeyID && applePrivateKey) {
+if (appleClientID && appleTeamID && appleKeyID && applePrivateKey && AppleStrategy) {
   // Estratégia para Cliente
   passport.use(
     'apple-cliente',
@@ -174,7 +191,7 @@ if (appleClientID && appleTeamID && appleKeyID && applePrivateKey) {
         callbackURL: process.env.APPLE_CALLBACK_URL_CLIENTE || 'http://localhost:3001/api/auth/apple/cliente/callback',
         scope: ['name', 'email'],
       },
-      async (accessToken, refreshToken, idToken, profile, done) => {
+      async (accessToken: string, refreshToken: string, idToken: string, profile: any, done: (error: any, user?: any) => void) => {
         try {
           // Apple retorna informações diferentes
           const { sub: appleId, email } = profile;
@@ -211,7 +228,7 @@ if (appleClientID && appleTeamID && appleKeyID && applePrivateKey) {
         callbackURL: process.env.APPLE_CALLBACK_URL_DONO || 'http://localhost:3001/api/auth/apple/dono/callback',
         scope: ['name', 'email'],
       },
-      async (accessToken, refreshToken, idToken, profile, done) => {
+      async (accessToken: string, refreshToken: string, idToken: string, profile: any, done: (error: any, user?: any) => void) => {
         try {
           const { sub: appleId, email } = profile;
           const nome = profile.name?.firstName && profile.name?.lastName

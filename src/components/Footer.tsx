@@ -11,7 +11,7 @@ const Footer = () => {
               <div className="bg-primary p-2">
                 <Scissors className="h-6 w-6 text-primary-foreground" />
               </div>
-              <span className="text-2xl font-black text-foreground uppercase tracking-tight">BarberPro</span>
+              <span className="text-2xl font-black text-foreground uppercase tracking-tight">Barber Maestro</span>
             </div>
             <p className="text-muted-foreground font-medium">
               Sistema de gestão pro para barbearias.
@@ -68,7 +68,7 @@ const Footer = () => {
         </div>
 
         <div className="border-t border-border pt-8 text-center text-muted-foreground">
-          <p>&copy; 2024 BarberPro. Todos os direitos reservados.</p>
+          <p>&copy; 2024 Barber Maestro. Todos os direitos reservados.</p>
         </div>
       </div>
     </footer>

@@ -161,7 +161,7 @@ export default function GestaoProfissionais() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Gestão de Profissionais</h2>
+          <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Gestão de Profissionais</h2>
           <p className="text-muted-foreground">
             Gerencie os profissionais da sua barbearia
           </p>

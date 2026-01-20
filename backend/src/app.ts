@@ -25,6 +25,7 @@ import donoProdutosRoutes from './routes/dono/produtos';
 import donoNotificacoesRoutes from './routes/dono/notificacoes';
 import donoRelatoriosRoutes from './routes/dono/relatorios';
 import donoConfiguracaoRoutes from './routes/dono/configuracao';
+import donoComissoesRoutes from './routes/dono/comissoes';
 import clientePanelRoutes from './routes/cliente/panel';
 import barbeariasPublicasRoutes from './routes/barbeariasPublicas';
 import emergencyRoutes from './routes/emergency';
@@ -208,6 +209,7 @@ app.use('/api/dono/produtos', donoProdutosRoutes);
 app.use('/api/dono/notificacoes', donoNotificacoesRoutes);
 app.use('/api/dono/relatorios', donoRelatoriosRoutes);
 app.use('/api/dono/configuracao', donoConfiguracaoRoutes);
+app.use('/api/dono/comissoes', donoComissoesRoutes);
 
 // Rotas do cliente (requerem autenticação)
 app.use('/api/cliente', clientePanelRoutes);
@@ -229,9 +231,21 @@ app.use('/api/admin/barbearias', adminBarbeariasRoutes); // /api/admin/barbearia
 app.use((req, res, next) => {
   // Só retornar 404 se for uma rota da API
   if (req.path.startsWith('/api')) {
-    console.log('❌ Rota não encontrada:', req.method, req.originalUrl);
-    console.log('❌ Path:', req.path);
-    console.log('❌ Rotas registradas: /api/auth, /api/dono, /api/admin');
+    console.log('❌ [404] Rota não encontrada:');
+    console.log('   Method:', req.method);
+    console.log('   Original URL:', req.originalUrl);
+    console.log('   Path:', req.path);
+    console.log('   Base URL:', req.baseUrl);
+    console.log('   Headers:', JSON.stringify(req.headers, null, 2));
+    console.log('   Rotas registradas: /api/auth, /api/dono, /api/admin');
+    
+    // Log específico para rotas de clientes
+    if (req.path.includes('/clientes')) {
+      console.log('⚠️ [404] Requisição para rota de clientes não encontrada!');
+      console.log('⚠️ [404] Verifique se a rota DELETE /api/dono/clientes/:id está registrada');
+      console.log('⚠️ [404] Verifique se o middleware de autenticação está permitindo a requisição');
+    }
+    
     return res.status(404).json({ 
       error: 'Rota não encontrada',
       path: req.originalUrl,

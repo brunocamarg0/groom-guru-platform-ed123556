@@ -24,7 +24,7 @@ export default function ComunicacaoNotificacoes() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">Comunicação & Notificações</h2>
+        <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Comunicação & Notificações</h2>
         <p className="text-muted-foreground">
           Gerencie mensagens automáticas e notificações
         </p>

@@ -80,6 +80,7 @@ export default function GestaoClientes() {
         nome: formCliente.nome.trim(),
         email: formCliente.email.trim(),
         telefone: formCliente.telefone.trim(),
+        vip: false,
       });
 
       // Limpar formulário e fechar modal
@@ -178,7 +179,7 @@ export default function GestaoClientes() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Gestão de Clientes</h2>
+          <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Gestão de Clientes</h2>
           <p className="text-muted-foreground">
             CRM simples e poderoso para gerenciar seus clientes
           </p>

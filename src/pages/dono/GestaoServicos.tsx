@@ -39,8 +39,9 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Edit, Power, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { TipoServico } from "@/types/cliente";
 import { NovoServicoBarbearia, ServicoBarbearia } from "@/types/barbearia";
+
+type TipoServico = "corte" | "barba" | "combo" | "hidratacao" | "alisamento" | "progressiva" | "luzes" | "coloring" | "manicure" | "pedicure" | "sobrancelha" | "bigode" | "outro";
 
 const tiposServico: { value: TipoServico; label: string }[] = [
   { value: "corte", label: "Corte" },
@@ -173,7 +174,7 @@ export default function GestaoServicos() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Gestão de Serviços</h2>
+          <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Gestão de Serviços</h2>
           <p className="text-muted-foreground">
             Gerencie os serviços oferecidos pela sua barbearia
           </p>

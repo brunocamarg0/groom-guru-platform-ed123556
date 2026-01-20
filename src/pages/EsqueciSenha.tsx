@@ -22,7 +22,7 @@ const EsqueciSenha = () => {
     setIsLoading(true);
 
     try {
-      const endpoint = tipo === 'dono' 
+      const endpoint = tipo === 'dono'
         ? '/auth/dono/esqueci-senha'
         : '/auth/cliente/esqueci-senha';
 
@@ -30,11 +30,11 @@ const EsqueciSenha = () => {
       console.log('📧 [ESQUECI SENHA] Enviando solicitação para:', fullUrl);
       console.log('📧 [ESQUECI SENHA] Tipo:', tipo);
       console.log('📧 [ESQUECI SENHA] Email:', email);
-      
+
       // Adicionar timeout de 30 segundos
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);
-      
+
       try {
         const response = await fetch(fullUrl, {
           method: 'POST',
@@ -44,7 +44,7 @@ const EsqueciSenha = () => {
           body: JSON.stringify({ email }),
           signal: controller.signal,
         });
-        
+
         clearTimeout(timeoutId);
 
         console.log('📧 [ESQUECI SENHA] Resposta recebida:', response.status, response.statusText);
@@ -53,7 +53,7 @@ const EsqueciSenha = () => {
         // Verificar se a resposta é JSON antes de fazer parse
         const contentType = response.headers.get('content-type');
         let data;
-        
+
         if (contentType && contentType.includes('application/json')) {
           data = await response.json();
           console.log('📧 [ESQUECI SENHA] Dados recebidos:', data);
@@ -97,7 +97,7 @@ const EsqueciSenha = () => {
               <div className="bg-primary p-3">
                 <Scissors className="h-8 w-8 text-primary-foreground" />
               </div>
-              <span className="text-3xl font-black text-foreground uppercase tracking-tight">BarberPro</span>
+              <span className="text-3xl font-black text-foreground uppercase tracking-tight">Barber Maestro</span>
             </Link>
           </div>
 
@@ -141,7 +141,7 @@ const EsqueciSenha = () => {
             <div className="bg-primary p-3">
               <Scissors className="h-8 w-8 text-primary-foreground" />
             </div>
-            <span className="text-3xl font-black text-foreground uppercase tracking-tight">BarberPro</span>
+            <span className="text-3xl font-black text-foreground uppercase tracking-tight">Barber Maestro</span>
           </Link>
         </div>
 
@@ -151,7 +151,7 @@ const EsqueciSenha = () => {
               Esqueci Minha Senha
             </CardTitle>
             <CardDescription className="text-muted-foreground font-medium">
-              {tipo === 'dono' 
+              {tipo === 'dono'
                 ? 'Digite seu email para receber uma nova senha'
                 : 'Digite seu email para receber uma nova senha'}
             </CardDescription>
@@ -179,8 +179,8 @@ const EsqueciSenha = () => {
               </Button>
               <p className="text-center text-sm text-muted-foreground">
                 Lembrou sua senha?{" "}
-                <Link 
-                  to={`/login?tab=${tipo === 'dono' ? 'owner' : 'client'}`} 
+                <Link
+                  to={`/login?tab=${tipo === 'dono' ? 'owner' : 'client'}`}
                   className="text-primary hover:underline"
                 >
                   Fazer login

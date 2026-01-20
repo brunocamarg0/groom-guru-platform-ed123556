@@ -35,7 +35,7 @@ export default async function handler(req, res) {
 
     const paymentData = {
       transaction_amount: valorFinal,
-      description: `Agendamento #${agendamentoId} - BarberPro`,
+      description: `Agendamento #${agendamentoId} - Barber Master`,
       payment_method_id: 'pix',
       payer: {
         email: customerData.email,

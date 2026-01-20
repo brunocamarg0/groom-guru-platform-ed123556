@@ -17,11 +17,21 @@ export async function listarClientes(req: AuthRequest, res: Response) {
 
     // Buscar APENAS clientes que têm agendamentos nesta barbearia específica
     // IMPORTANTE: Cada barbearia só deve ver seus próprios clientes
+    // Incluir TODOS os status (incluindo 'cadastro') para garantir que clientes criados pelo dono apareçam
     const agendamentos = await prisma.agendamento.findMany({
       where: { 
         barbeariaId, // Filtrar apenas agendamentos desta barbearia
+        clienteId: { not: null }, // Apenas agendamentos com cliente associado
+        // Incluir TODOS os status, incluindo 'cadastro', 'confirmado', 'concluido', etc
+        // Excluir apenas cancelados
+        status: {
+          not: 'cancelado',
+        },
       },
-      select: { clienteId: true },
+      select: { 
+        clienteId: true,
+        status: true,
+      },
       distinct: ['clienteId'],
     });
 
@@ -30,7 +40,10 @@ export async function listarClientes(req: AuthRequest, res: Response) {
       .filter((id): id is string => id !== null);
 
     console.log('📋 [LISTAR CLIENTES] Barbearia ID:', barbeariaId);
-    console.log('📋 [LISTAR CLIENTES] Clientes com agendamentos nesta barbearia:', clienteIdsComAgendamento.length);
+    console.log('📋 [LISTAR CLIENTES] Total de agendamentos encontrados:', agendamentos.length);
+    console.log('📋 [LISTAR CLIENTES] Clientes únicos com agendamentos nesta barbearia:', clienteIdsComAgendamento.length);
+    console.log('📋 [LISTAR CLIENTES] IDs dos clientes:', clienteIdsComAgendamento);
+    console.log('📋 [LISTAR CLIENTES] Status dos agendamentos:', agendamentos.map(a => a.status));
 
     // Construir query: buscar APENAS clientes que têm agendamentos nesta barbearia
     const where: any = {
@@ -38,17 +51,14 @@ export async function listarClientes(req: AuthRequest, res: Response) {
     };
 
     // IMPORTANTE: Só buscar clientes que têm agendamentos nesta barbearia específica
-    // Se não houver clientes com agendamentos, retornar array vazio
+    // Isso garante que cada barbearia vê apenas seus próprios clientes
     if (clienteIdsComAgendamento.length > 0) {
       where.id = { in: clienteIdsComAgendamento };
     } else {
       // Se não houver clientes com agendamentos, retornar array vazio
       // Não buscar todos os clientes do sistema
-      return res.json({
-        sucesso: true,
-        clientes: [],
-        total: 0,
-      });
+      console.log('📋 [LISTAR CLIENTES] Nenhum cliente encontrado para esta barbearia, retornando array vazio');
+      return res.json([]);
     }
 
     if (busca && typeof busca === 'string') {
@@ -115,9 +125,11 @@ export async function listarClientes(req: AuthRequest, res: Response) {
       };
     });
 
+    console.log('✅ [LISTAR CLIENTES] Clientes encontrados e retornados:', clientesComEstatisticas.length);
+    
     res.json(clientesComEstatisticas);
   } catch (error) {
-    console.error('Erro ao listar clientes:', error);
+    console.error('❌ [LISTAR CLIENTES] Erro ao listar clientes:', error);
     res.status(500).json({ error: 'Erro ao listar clientes' });
   }
 }
@@ -301,13 +313,14 @@ export async function criarCliente(req: AuthRequest, res: Response) {
 
       // Criar agendamento "cadastro" para associar cliente à barbearia
       // Este agendamento é apenas para vincular o cliente à barbearia
-      await tx.agendamento.create({
+      // IMPORTANTE: Garantir que o barbeariaId está correto
+      const agendamentoCadastro = await tx.agendamento.create({
         data: {
           cliente: cliente.nome,
           telefone: cliente.telefone || '',
           clienteId: cliente.id,
           servicoId: primeiroServico.id,
-          barbeariaId: barbeariaId,
+          barbeariaId: barbeariaId, // Garantir que está usando o barbeariaId correto
           data: new Date(),
           horario: '00:00',
           status: 'cadastro', // Status especial para agendamentos de cadastro
@@ -316,6 +329,8 @@ export async function criarCliente(req: AuthRequest, res: Response) {
       });
 
       console.log('✅ Cliente criado e associado à barbearia:', cliente.id);
+      console.log('✅ Agendamento de cadastro criado:', agendamentoCadastro.id);
+      console.log('✅ Barbearia ID do agendamento:', agendamentoCadastro.barbeariaId);
       return cliente;
     });
 
@@ -406,6 +421,7 @@ export async function atualizarCliente(req: AuthRequest, res: Response) {
 
 /**
  * Deletar cliente (soft delete - marcar como inativo)
+ * IMPORTANTE: Só pode deletar clientes que pertencem à barbearia do dono
  */
 export async function deletarCliente(req: AuthRequest, res: Response) {
   try {
@@ -420,9 +436,28 @@ export async function deletarCliente(req: AuthRequest, res: Response) {
     console.log('═══════════════════════════════════════════════════════');
     
     const { id } = req.params;
+    const { barbeariaId } = req;
 
     if (!id) {
       return res.status(400).json({ error: 'ID do cliente é obrigatório' });
+    }
+
+    if (!barbeariaId) {
+      return res.status(401).json({ error: 'Barbearia não identificada' });
+    }
+
+    // Verificar se o cliente tem agendamentos nesta barbearia
+    const temAgendamento = await prisma.agendamento.findFirst({
+      where: {
+        clienteId: id,
+        barbeariaId,
+      },
+    });
+
+    if (!temAgendamento) {
+      return res.status(404).json({ 
+        error: 'Cliente não encontrado ou não pertence a esta barbearia' 
+      });
     }
 
     const cliente = await prisma.cliente.findUnique({
@@ -442,13 +477,19 @@ export async function deletarCliente(req: AuthRequest, res: Response) {
       },
     });
 
+    console.log('✅ [DELETE CLIENTE] Cliente desativado com sucesso:', id);
+
     res.json({ 
       sucesso: true,
       mensagem: 'Cliente removido com sucesso',
       cliente: clienteDesativado 
     });
-  } catch (error) {
-    console.error('Erro ao deletar cliente:', error);
-    res.status(500).json({ error: 'Erro ao deletar cliente' });
+  } catch (error: any) {
+    console.error('❌ [DELETE CLIENTE] Erro ao deletar cliente:', error);
+    console.error('❌ [DELETE CLIENTE] Stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Erro ao deletar cliente',
+      detalhes: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 }

@@ -106,9 +106,8 @@ function CheckoutForm({ agendamentoId, valor }: { agendamentoId: string; valor: 
         }
 
         // Criar registro de pagamento local
-        const pagamento = criarPagamento(agendamentoId, valor, "pix");
-        pagamento.pixQrCode = pixResponse.qrCode;
-        pagamento.pixExpiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 minutos
+        const pagamento = await criarPagamento(agendamentoId, valor, "pix");
+        // Atualizar qrCode - o pagamento retornado já tem os campos preenchidos
 
         setPixQrCode(pixResponse.qrCode);
         setPixBase64(pixResponse.qrCodeBase64 || null);

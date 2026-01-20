@@ -1,8 +1,9 @@
 import { useState } from "react";
+import { useCliente } from "@/context/ClienteContext";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
@@ -10,37 +11,93 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { MessageCircle, MessageSquare, HelpCircle, Send } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { MessageCircle, MessageSquare, HelpCircle, Send, Phone, Mail, Clock, CheckCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { apiPost } from "@/services/api";
 
 const faqs = [
   {
     pergunta: "Como cancelar um agendamento?",
     resposta:
-      "Você pode cancelar um agendamento até 2 horas antes do horário marcado. Acesse o agendamento e clique em 'Cancelar'.",
+      "Você pode cancelar um agendamento até 2 horas antes do horário marcado. Acesse seu histórico de agendamentos, clique no agendamento que deseja cancelar e selecione 'Cancelar'. Se precisar cancelar com menos de 2 horas de antecedência, entre em contato diretamente com a barbearia.",
   },
   {
     pergunta: "Posso reagendar um serviço?",
     resposta:
-      "Sim! Você pode reagendar a qualquer momento através do botão 'Reagendar' no seu agendamento.",
+      "Sim! Você pode reagendar a qualquer momento através do botão 'Reagendar' no seu agendamento. O reagendamento está sujeito à disponibilidade de horários.",
   },
   {
     pergunta: "Como funciona o programa de fidelidade?",
     resposta:
-      "A cada corte realizado e avaliado, você ganha pontos. A cada 5 cortes, você ganha descontos exclusivos!",
+      "A cada corte realizado e avaliado, você ganha pontos. A cada 5 cortes, você ganha descontos exclusivos! Os pontos nunca expiram e você pode acompanhar seu saldo na aba 'Fidelidade'.",
   },
   {
     pergunta: "Quais formas de pagamento são aceitas?",
     resposta:
-      "Aceitamos PIX, cartão de crédito e você também pode usar seus créditos acumulados.",
+      "Aceitamos PIX (pagamento instantâneo), cartão de crédito, cartão de débito e dinheiro. Você também pode usar seus créditos acumulados como desconto no pagamento.",
+  },
+  {
+    pergunta: "Como usar meus créditos?",
+    resposta:
+      "Seus créditos são aplicados automaticamente no momento do pagamento. Você pode escolher usar todo o saldo ou apenas parte dele. Os créditos podem ser obtidos através de promoções ou reembolsos.",
+  },
+  {
+    pergunta: "Posso avaliar um serviço?",
+    resposta:
+      "Sim! Após a conclusão de cada serviço, você pode avaliar o atendimento. Sua avaliação ajuda outras pessoas e ainda rende pontos de fidelidade para você!",
+  },
+  {
+    pergunta: "O que acontece se eu chegar atrasado?",
+    resposta:
+      "Se você chegar atrasado, o tempo de serviço pode ser reduzido para não afetar os próximos clientes. Em atrasos maiores que 15 minutos, o agendamento pode ser cancelado. Recomendamos chegar 5 minutos antes do horário marcado.",
+  },
+  {
+    pergunta: "Como alterar meus dados cadastrais?",
+    resposta:
+      "Acesse a aba 'Perfil' no menu para atualizar seus dados como nome, telefone e email. Para alterar a senha, vá em 'Configurações' e clique em 'Alterar Senha'.",
   },
 ];
 
-export default function SuporteCliente() {
-  const { toast } = useToast();
-  const [mensagem, setMensagem] = useState("");
+const categoriasSuporte = [
+  { value: "agendamento", label: "Problemas com agendamento" },
+  { value: "pagamento", label: "Dúvidas sobre pagamento" },
+  { value: "fidelidade", label: "Programa de fidelidade" },
+  { value: "conta", label: "Minha conta" },
+  { value: "outro", label: "Outro assunto" },
+];
 
-  const handleEnviarMensagem = () => {
+export default function SuporteCliente() {
+  const { cliente } = useCliente();
+  const { toast } = useToast();
+  const [assunto, setAssunto] = useState("");
+  const [categoria, setCategoria] = useState("");
+  const [mensagem, setMensagem] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [enviado, setEnviado] = useState(false);
+
+  const handleEnviarMensagem = async () => {
+    if (!categoria) {
+      toast({
+        title: "Erro",
+        description: "Selecione uma categoria.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!mensagem.trim()) {
       toast({
         title: "Erro",
@@ -50,11 +107,46 @@ export default function SuporteCliente() {
       return;
     }
 
-    toast({
-      title: "Mensagem enviada",
-      description: "Nossa equipe entrará em contato em breve.",
-    });
-    setMensagem("");
+    setEnviando(true);
+    try {
+      await apiPost('/cliente/suporte', {
+        categoria,
+        assunto: assunto || categoriasSuporte.find(c => c.value === categoria)?.label,
+        mensagem,
+        clienteNome: cliente?.nome,
+        clienteEmail: cliente?.email,
+      });
+
+      toast({
+        title: "Mensagem enviada!",
+        description: "Nossa equipe entrará em contato em até 24 horas.",
+      });
+
+      setEnviado(true);
+      setCategoria("");
+      setAssunto("");
+      setMensagem("");
+
+      // Reset após 5 segundos
+      setTimeout(() => {
+        setEnviado(false);
+      }, 5000);
+    } catch (error: any) {
+      console.error('Erro ao enviar mensagem:', error);
+      toast({
+        title: "Erro",
+        description: error.message || "Não foi possível enviar a mensagem. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const handleWhatsApp = () => {
+    const numero = "5511999999999"; // Substituir pelo número real
+    const texto = encodeURIComponent("Olá! Preciso de ajuda com o aplicativo de agendamento.");
+    window.open(`https://wa.me/${numero}?text=${texto}`, "_blank");
   };
 
   return (
@@ -67,18 +159,22 @@ export default function SuporteCliente() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="cursor-pointer hover:bg-accent transition-colors">
+        <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={handleWhatsApp}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <MessageSquare className="h-5 w-5" />
+              <MessageSquare className="h-5 w-5 text-green-500" />
               WhatsApp
             </CardTitle>
+            <CardDescription>
+              Atendimento rápido pelo WhatsApp
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
-              Fale conosco diretamente pelo WhatsApp
-            </p>
-            <Button className="w-full">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+              <Clock className="h-4 w-4" />
+              <span>Seg-Sex: 9h às 18h | Sáb: 9h às 13h</span>
+            </div>
+            <Button className="w-full bg-green-600 hover:bg-green-700">
               <MessageSquare className="h-4 w-4 mr-2" />
               Abrir WhatsApp
             </Button>
@@ -88,27 +184,98 @@ export default function SuporteCliente() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <MessageCircle className="h-5 w-5" />
-              Chat
+              <Mail className="h-5 w-5" />
+              Contato
             </CardTitle>
+            <CardDescription>
+              Outras formas de entrar em contato
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Envie sua mensagem</Label>
-              <Textarea
-                value={mensagem}
-                onChange={(e) => setMensagem(e.target.value)}
-                placeholder="Digite sua dúvida ou problema..."
-                rows={3}
-              />
+          <CardContent className="space-y-3">
+            <div className="flex items-center gap-2 text-sm">
+              <Mail className="h-4 w-4 text-muted-foreground" />
+              <span>suporte@barbearia.com</span>
             </div>
-            <Button className="w-full" onClick={handleEnviarMensagem}>
-              <Send className="h-4 w-4 mr-2" />
-              Enviar Mensagem
-            </Button>
+            <div className="flex items-center gap-2 text-sm">
+              <Phone className="h-4 w-4 text-muted-foreground" />
+              <span>(11) 9999-9999</span>
+            </div>
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MessageCircle className="h-5 w-5" />
+            Enviar Mensagem
+          </CardTitle>
+          <CardDescription>
+            Descreva seu problema ou dúvida
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {enviado ? (
+            <div className="text-center py-8">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="h-8 w-8 text-green-600" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Mensagem Enviada!</h3>
+              <p className="text-muted-foreground">
+                Nossa equipe entrará em contato em breve.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Categoria</Label>
+                <Select value={categoria} onValueChange={setCategoria}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categoriasSuporte.map((cat) => (
+                      <SelectItem key={cat.value} value={cat.value}>
+                        {cat.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Assunto (opcional)</Label>
+                <Input
+                  value={assunto}
+                  onChange={(e) => setAssunto(e.target.value)}
+                  placeholder="Resumo do seu problema"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Mensagem</Label>
+                <Textarea
+                  value={mensagem}
+                  onChange={(e) => setMensagem(e.target.value)}
+                  placeholder="Descreva sua dúvida ou problema com o máximo de detalhes possível..."
+                  rows={4}
+                />
+              </div>
+              <Button className="w-full" onClick={handleEnviarMensagem} disabled={enviando}>
+                {enviando ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Enviando...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4 mr-2" />
+                    Enviar Mensagem
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -121,23 +288,20 @@ export default function SuporteCliente() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <Accordion type="single" collapsible className="w-full">
             {faqs.map((faq, index) => (
-              <div key={index} className="p-4 border rounded-lg">
-                <h4 className="font-medium mb-2">{faq.pergunta}</h4>
-                <p className="text-sm text-muted-foreground">{faq.resposta}</p>
-              </div>
+              <AccordionItem key={index} value={`item-${index}`}>
+                <AccordionTrigger className="text-left">
+                  {faq.pergunta}
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground">
+                  {faq.resposta}
+                </AccordionContent>
+              </AccordionItem>
             ))}
-          </div>
+          </Accordion>
         </CardContent>
       </Card>
     </div>
   );
 }
-
-
-
-
-
-
-

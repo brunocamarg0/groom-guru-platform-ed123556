@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useDono } from "@/context/DonoContext";
 import {
   Card,
@@ -14,11 +16,16 @@ import {
   Star,
   TrendingUp,
   AlertCircle,
+  CreditCard,
+  Loader2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
+import { apiGet } from "@/services/api";
 
 export default function DonoDashboard() {
-  const { kpi, agendamentos, notificacoes } = useDono();
+  const { barbeariaId, kpi, agendamentos, notificacoes, loading } = useDono();
 
   const formatarMoeda = (valor: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -27,9 +34,23 @@ export default function DonoDashboard() {
     }).format(valor);
   };
 
-  const agendamentosHoje = agendamentos.filter(
+  const agendamentosHoje = (agendamentos || []).filter(
     (a) => a.data === new Date().toISOString().split("T")[0]
   );
+
+  // Carregar resumo de comissões usando React Query para cache
+  const { data: comissoesData } = useQuery({
+    queryKey: ['comissoes-resumo', barbeariaId],
+    queryFn: () => {
+      const mes = new Date().getMonth() + 1;
+      const ano = new Date().getFullYear();
+      return apiGet<any>(`/dono/comissoes/resumo?mes=${mes}&ano=${ano}`);
+    },
+    enabled: !!barbeariaId,
+    staleTime: 1000 * 60 * 15, // 15 minutos de cache
+  });
+
+  const resumoComissoes = comissoesData?.resumoGeral || null;
 
   const alertas = [
     ...(agendamentosHoje.length < 5
@@ -40,10 +61,21 @@ export default function DonoDashboard() {
       : []),
   ];
 
+  // Mostrar loading enquanto carrega dados
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="text-muted-foreground">Carregando dados do painel...</p>
+        <p className="text-xs text-muted-foreground">Isso pode levar alguns segundos na primeira vez</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight text-foreground">Dashboard Geral</h2>
+        <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Dashboard Geral</h2>
         <p className="text-muted-foreground">
           Visão completa do seu negócio
         </p>
@@ -191,6 +223,46 @@ export default function DonoDashboard() {
         </Card>
       </div>
 
+      {/* Resumo de Comissões do Mês */}
+      {resumoComissoes && resumoComissoes.totalPendente > 0 && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5 text-orange-600" />
+                  Comissões Pendentes - {new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                </CardTitle>
+                <CardDescription>
+                  Total a pagar aos barbeiros este mês
+                </CardDescription>
+              </div>
+              <Button asChild variant="default">
+                <Link to="/dono/comissoes">
+                  Ver Detalhes
+                </Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Total de Comissões</p>
+                <p className="text-2xl font-bold">{formatarMoeda(resumoComissoes.totalComissao)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Já Pago</p>
+                <p className="text-2xl font-bold text-green-600">{formatarMoeda(resumoComissoes.totalPago)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Pendente</p>
+                <p className="text-2xl font-bold text-orange-600">{formatarMoeda(resumoComissoes.totalPendente)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Agendamentos de Hoje */}
       <Card>
         <CardHeader>
@@ -223,8 +295,8 @@ export default function DonoDashboard() {
                         agendamento.status === "confirmado"
                           ? "default"
                           : agendamento.status === "pendente"
-                          ? "secondary"
-                          : "destructive"
+                            ? "secondary"
+                            : "destructive"
                       }
                     >
                       {agendamento.status}

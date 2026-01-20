@@ -226,7 +226,7 @@ export default function ConfiguracoesBarbearia() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">Configurações da Barbearia</h2>
+        <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Configurações da Barbearia</h2>
         <p className="text-muted-foreground">
           Gerencie as configurações da sua barbearia
         </p>

@@ -56,7 +56,7 @@ export default function PagamentoIntegrado() {
   const agendamentosPendentes = agendamentoIdParam
     ? agendamentosArray.filter((a) => a.id === agendamentoIdParam)
     : agendamentosArray.filter(
-        (a) => a.status === "aguardando_pagamento" || (!a.pagamento && a.status !== "cancelado")
+        (a) => a.status === "pendente" || a.status === "pagamento_pendente"
       );
 
   const formatarMoeda = (valor: number) => {
@@ -78,7 +78,7 @@ export default function PagamentoIntegrado() {
 
     // Aplicar créditos se houver
     const creditos = (cliente as any).creditos || 0;
-    if (creditos > 0 && metodoSelecionado === "creditos") {
+    if (creditos > 0 && metodoSelecionado === "dinheiro") {
       valorFinal = Math.max(0, valorFinal - creditos);
     }
 
@@ -214,10 +214,9 @@ export default function PagamentoIntegrado() {
         <CardContent>
           <div className="space-y-3">
             {agendamentosArray
-              .filter((a) => a.pagamento && a.pagamento.status === "aprovado")
+              .filter((a) => a.status === "pago" || a.status === "concluido")
               .map((agendamento) => {
                 const servicoNome = agendamento.servico?.nome || "Serviço";
-                const pagamento = agendamento.pagamento;
                 return (
                   <div
                     key={agendamento.id}
@@ -230,9 +229,9 @@ export default function PagamentoIntegrado() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-medium">{formatarMoeda(pagamento?.valor || 0)}</p>
+                      <p className="font-medium">{formatarMoeda(agendamento.servico?.preco || 0)}</p>
                       <Badge variant="default" className="text-xs">
-                        {pagamento?.status || "pago"}
+                        pago
                       </Badge>
                     </div>
                   </div>

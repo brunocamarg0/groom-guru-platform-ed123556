@@ -121,7 +121,7 @@ export default async function handler(req, res) {
       auto_return: 'approved',
       external_reference: agendamentoId,
       notification_url: `${baseUrl}/api/pagamentos/webhook`,
-      statement_descriptor: 'BARBERPRO',
+      statement_descriptor: 'BARBERMASTER',
       expires: true,
       expiration_date_to: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
       payment_methods: {

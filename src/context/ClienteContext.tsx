@@ -43,12 +43,12 @@ interface ClienteContextType {
     };
     progressoProximoNivel: number;
   };
-  notificacoes: Array<{ id: string; titulo: string; mensagem: string; lida: boolean; data: string }>;
+  notificacoes: Array<{ id: string; titulo: string; mensagem: string; lida: boolean; data: string; tipo?: string; canal?: string }>;
   barbearias: any[];
   buscarBarbearias: (busca?: string, cidade?: string, bairro?: string) => Promise<void>;
   buscarBarbeariaPorId: (id: string) => Promise<any>;
   criarAvaliacao?: (dados: any) => Promise<void>;
-  realizarPagamento?: (agendamentoId: string, dados: any) => Promise<void>;
+  realizarPagamento?: (agendamentoId: string, dados: any) => Promise<Pagamento>;
   marcarNotificacaoLida?: (id: string) => Promise<void>;
 }
 
@@ -77,7 +77,7 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const userStr = localStorage.getItem('user');
     const userType = localStorage.getItem('userType');
-    
+
     if (userStr && userType === 'cliente') {
       try {
         const userData = JSON.parse(userStr);
@@ -101,17 +101,44 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
     const isClienteRoute = currentPath.startsWith('/cliente');
     const token = localStorage.getItem('token');
     const userType = localStorage.getItem('userType');
-    
+
     if (isClienteRoute && token && userType === 'cliente') {
       console.log('🔄 Carregando dados do cliente do banco...');
-      carregarDados();
+      console.log('🔄 Token presente:', !!token);
+      console.log('🔄 UserType:', userType);
+
+      // Se já tem cliente no localStorage, usar temporariamente enquanto carrega
+      const userStr = localStorage.getItem('user');
+      if (userStr && !cliente) {
+        try {
+          const userData = JSON.parse(userStr);
+          if (userData && userData.nome) {
+            setCliente({
+              id: userData.id,
+              nome: userData.nome,
+              email: userData.email,
+              telefone: userData.telefone || undefined,
+              dataNascimento: userData.dataNascimento || undefined,
+              createdAt: userData.createdAt || new Date().toISOString(),
+            });
+          }
+        } catch (error) {
+          console.error('Erro ao parsear dados do localStorage:', error);
+        }
+      }
+
+      carregarDados().catch((err) => {
+        console.error('❌ Erro ao carregar dados do cliente:', err);
+        setLoading(false);
+      });
+
       // Carregar todas as barbearias ativas automaticamente ao fazer login
       buscarBarbearias().catch((err) => {
         console.warn('⚠️ Erro ao carregar barbearias iniciais:', err);
       });
     } else if (isClienteRoute && !token) {
       console.warn('⚠️ Token não encontrado. Redirecionando para login...');
-      window.location.href = '/login';
+      window.location.href = '/login?tab=client';
     }
   }, []);
 
@@ -119,46 +146,108 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       console.log('📥 [CLIENTE] Carregando dados do banco...');
+      console.log('📥 [CLIENTE] Token presente:', !!localStorage.getItem('token'));
+      console.log('📥 [CLIENTE] UserType:', localStorage.getItem('userType'));
 
-      // Carregar perfil do cliente
-      const perfil = await apiGet<Cliente>('/cliente/perfil').catch((err) => {
-        console.warn('⚠️ Erro ao carregar perfil:', err);
-        return null;
-      });
+      // Timeout de 10 segundos para cada requisição
+      const timeout = (ms: number) => new Promise((_, reject) =>
+        setTimeout(() => reject(new Error(`Timeout após ${ms}ms`)), ms)
+      );
+
+      // Carregar perfil do cliente com timeout
+      let perfil: Cliente | null = null;
+      try {
+        perfil = await Promise.race([
+          apiGet<Cliente>('/cliente/perfil'),
+          timeout(10000)
+        ]) as Cliente;
+        console.log('✅ [CLIENTE] Perfil carregado:', perfil?.nome);
+      } catch (err: any) {
+        console.error('❌ [CLIENTE] Erro ao carregar perfil:', err);
+        console.error('❌ [CLIENTE] Erro detalhado:', {
+          message: err?.message,
+          status: err?.status,
+          stack: err?.stack
+        });
+        // Se erro 401, token inválido
+        if (err?.status === 401 || err?.message?.includes('401')) {
+          console.error('❌ [CLIENTE] Token inválido ou expirado');
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          localStorage.removeItem('userType');
+          window.location.href = '/login?tab=client';
+          return;
+        }
+      }
 
       if (perfil) {
         setCliente(perfil);
         localStorage.setItem('user', JSON.stringify(perfil));
+      } else {
+        // Se não conseguiu carregar perfil, usar dados do localStorage
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+          try {
+            const userData = JSON.parse(userStr);
+            if (userData && userData.nome) {
+              console.log('⚠️ [CLIENTE] Usando dados do localStorage como fallback');
+              setCliente({
+                id: userData.id,
+                nome: userData.nome,
+                email: userData.email,
+                telefone: userData.telefone || undefined,
+                dataNascimento: userData.dataNascimento || undefined,
+                createdAt: userData.createdAt || new Date().toISOString(),
+              });
+            }
+          } catch (parseError) {
+            console.error('❌ [CLIENTE] Erro ao parsear localStorage:', parseError);
+          }
+        }
       }
 
-      // Carregar agendamentos
-      const agendamentosData = await apiGet<any[]>('/cliente/agendamentos').catch((err) => {
-        console.warn('⚠️ Erro ao carregar agendamentos:', err);
-        return [];
-      });
+      // Carregar agendamentos com timeout
+      let agendamentosData: any[] = [];
+      try {
+        agendamentosData = await Promise.race([
+          apiGet<any[]>('/cliente/agendamentos'),
+          timeout(10000)
+        ]) as any[];
+        console.log('✅ [CLIENTE] Agendamentos carregados:', agendamentosData.length);
+      } catch (err: any) {
+        console.error('❌ [CLIENTE] Erro ao carregar agendamentos:', err);
+        agendamentosData = [];
+      }
 
       // Transformar agendamentos do banco para o formato do frontend
-      const agendamentosFormatados: Agendamento[] = agendamentosData.map((a: any) => ({
-        id: a.id,
-        clienteId: a.clienteId,
-        barbeariaId: a.barbeariaId,
-        servicoId: a.servicoId,
-        servico: {
-          id: a.servico.id,
-          nome: a.servico.nome,
-          descricao: a.servico.descricao || undefined,
-          duracao: a.servico.duracao,
-          preco: a.servico.preco,
-          barbeariaId: a.servico.barbeariaId,
-          ativo: a.servico.ativo,
-        },
-        data: a.data ? new Date(a.data).toISOString().split('T')[0] : '',
-        hora: a.horario || a.hora || '',
-        status: a.status as StatusAgendamento,
-        observacoes: a.observacao || a.observacoes || undefined,
-        createdAt: a.createdAt || new Date().toISOString(),
-        updatedAt: a.updatedAt || new Date().toISOString(),
-      }));
+      const agendamentosFormatados: Agendamento[] = agendamentosData.map((a: any) => {
+        // Converter data UTC para horário de Brasília antes de extrair a data
+        const dataUTC = new Date(a.data);
+        const dataBrasilia = new Date(dataUTC.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+        const dataFormatada = dataBrasilia.toISOString().split('T')[0];
+
+        return {
+          id: a.id,
+          clienteId: a.clienteId,
+          barbeariaId: a.barbeariaId,
+          servicoId: a.servicoId,
+          servico: {
+            id: a.servico.id,
+            nome: a.servico.nome,
+            descricao: a.servico.descricao || undefined,
+            duracao: a.servico.duracao,
+            preco: a.servico.preco,
+            barbeariaId: a.servico.barbeariaId,
+            ativo: a.servico.ativo,
+          },
+          data: dataFormatada,
+          hora: a.horario || a.hora || '',
+          status: a.status as StatusAgendamento,
+          observacoes: a.observacao || a.observacoes || undefined,
+          createdAt: a.createdAt || new Date().toISOString(),
+          updatedAt: a.updatedAt || new Date().toISOString(),
+        };
+      });
 
       setAgendamentos(agendamentosFormatados);
 
@@ -181,12 +270,12 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
       const agendamentosConcluidos = agendamentosFormatados.filter(
         (a) => a.status === 'concluido'
       ).length;
-      
+
       const pontos = agendamentosConcluidos * 10;
       const nivel = agendamentosConcluidos >= 10 ? 'Ouro' : agendamentosConcluidos >= 5 ? 'Prata' : 'Bronze';
       const proximoCorte = agendamentosConcluidos % 5;
       const cortesNecessarios = 5 - proximoCorte;
-      
+
       setFidelidade({
         pontos,
         nivel,
@@ -209,9 +298,41 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
         },
       });
     } catch (error: any) {
-      console.error('❌ [CLIENTE] Erro ao carregar dados:', error);
-      toast.error('Erro ao carregar dados do cliente');
+      console.error('❌ [CLIENTE] Erro geral ao carregar dados:', error);
+      console.error('❌ [CLIENTE] Erro completo:', {
+        message: error?.message,
+        stack: error?.stack,
+        name: error?.name,
+      });
+
+      // Tentar usar dados do localStorage como último recurso
+      const userStr = localStorage.getItem('user');
+      if (userStr && !cliente) {
+        try {
+          const userData = JSON.parse(userStr);
+          if (userData && userData.nome) {
+            console.log('⚠️ [CLIENTE] Usando dados do localStorage após erro');
+            setCliente({
+              id: userData.id,
+              nome: userData.nome,
+              email: userData.email,
+              telefone: userData.telefone || undefined,
+              dataNascimento: userData.dataNascimento || undefined,
+              createdAt: userData.createdAt || new Date().toISOString(),
+            });
+          }
+        } catch (parseError) {
+          console.error('❌ [CLIENTE] Erro ao parsear localStorage:', parseError);
+        }
+      }
+
+      // Não mostrar toast de erro se conseguiu usar dados do localStorage
+      if (!cliente) {
+        toast.error('Erro ao carregar dados do cliente. Tente fazer login novamente.');
+      }
     } finally {
+      // SEMPRE setar loading como false, mesmo em caso de erro
+      console.log('✅ [CLIENTE] Finalizando carregamento (loading = false)');
       setLoading(false);
     }
   };
@@ -232,14 +353,20 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
   const criarAgendamento = async (novoAgendamento: NovoAgendamento): Promise<Agendamento> => {
     try {
       console.log('➕ [CLIENTE] Criando agendamento:', novoAgendamento);
-      
+
       const agendamentoData = await apiPost<any>('/cliente/agendamentos', {
         barbeariaId: novoAgendamento.barbeariaId,
         servicoId: novoAgendamento.servicoId,
+        profissionalId: novoAgendamento.profissionalId,
         data: novoAgendamento.data,
         horario: novoAgendamento.hora,
         observacoes: novoAgendamento.observacoes,
       });
+
+      // Converter data UTC para horário de Brasília
+      const dataUTC = agendamentoData.data ? new Date(agendamentoData.data) : new Date();
+      const dataBrasilia = new Date(dataUTC.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+      const dataFormatada = dataBrasilia.toISOString().split('T')[0];
 
       // Transformar resposta para o formato do frontend
       const agendamento: Agendamento = {
@@ -256,7 +383,7 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
           barbeariaId: agendamentoData.servico.barbeariaId,
           ativo: agendamentoData.servico.ativo,
         },
-        data: agendamentoData.data ? new Date(agendamentoData.data).toISOString().split('T')[0] : '',
+        data: dataFormatada,
         hora: agendamentoData.horario || agendamentoData.hora || '',
         status: agendamentoData.status as StatusAgendamento,
         observacoes: agendamentoData.observacao || agendamentoData.observacoes || undefined,
@@ -266,7 +393,7 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
 
       setAgendamentos([...agendamentos, agendamento]);
       toast.success('Agendamento criado com sucesso!');
-      
+
       return agendamento;
     } catch (error: any) {
       console.error('Erro ao criar agendamento:', error);
@@ -278,13 +405,13 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
   const cancelarAgendamento = async (id: string) => {
     try {
       await apiPut(`/cliente/agendamentos/${id}/cancelar`, {});
-      
+
       setAgendamentos(
         agendamentos.map((a) =>
           a.id === id ? { ...a, status: 'cancelado' as StatusAgendamento, updatedAt: new Date().toISOString() } : a
         )
       );
-      
+
       toast.success('Agendamento cancelado com sucesso!');
     } catch (error: any) {
       console.error('Erro ao cancelar agendamento:', error);
@@ -368,12 +495,12 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
     return agendamentos.filter((a) => a.status === status);
   };
 
-  const realizarPagamento = async (agendamentoId: string, dados: any) => {
+  const realizarPagamento = async (agendamentoId: string, dados: any): Promise<Pagamento> => {
     try {
       console.log('💳 [CLIENTE] Realizando pagamento:', { agendamentoId, dados });
-      
+
       // Criar pagamento via API
-      const pagamento = await apiPost('/cliente/pagamentos', {
+      const pagamentoResponse = await apiPost<Pagamento>('/cliente/pagamentos', {
         agendamentoId,
         valor: dados.valor,
         metodo: dados.metodo,
@@ -382,19 +509,29 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
         cashbackGerado: dados.cashbackGerado || 0,
       });
 
+      const novoPagamento: Pagamento = {
+        id: pagamentoResponse.id || Date.now().toString(),
+        agendamentoId,
+        valor: dados.valor,
+        metodo: dados.metodo,
+        status: dados.status || 'aprovado',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        ...pagamentoResponse,
+      };
+
       // Atualizar estado local
-      setPagamentos([...pagamentos, pagamento]);
-      
+      setPagamentos([...pagamentos, novoPagamento]);
+
       // Atualizar status do agendamento
       setAgendamentos(
         agendamentos.map((a) =>
           a.id === agendamentoId
-            ? { 
-                ...a, 
-                status: dados.status === 'pago' ? 'confirmado' as StatusAgendamento : a.status,
-                pagamento,
-                updatedAt: new Date().toISOString() 
-              }
+            ? {
+              ...a,
+              status: dados.status === 'pago' ? 'confirmado' as StatusAgendamento : a.status,
+              updatedAt: new Date().toISOString()
+            }
             : a
         )
       );
@@ -403,7 +540,7 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
       await carregarDados();
 
       toast.success('Pagamento realizado com sucesso!');
-      return pagamento;
+      return novoPagamento;
     } catch (error: any) {
       console.error('❌ [CLIENTE] Erro ao realizar pagamento:', error);
       toast.error(error.message || 'Erro ao realizar pagamento');
@@ -414,17 +551,17 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
   const buscarBarbearias = async (busca?: string, cidade?: string, bairro?: string) => {
     try {
       console.log('🔍 [CLIENTE] Buscando barbearias...', { busca, cidade, bairro });
-      
+
       const params = new URLSearchParams();
       if (busca) params.append('busca', busca);
       if (cidade) params.append('cidade', cidade);
       if (bairro) params.append('bairro', bairro);
-      
+
       const queryString = params.toString();
       const endpoint = `/barbearias${queryString ? `?${queryString}` : ''}`;
-      
+
       console.log('🔍 [CLIENTE] Endpoint:', endpoint);
-      
+
       // Fazer requisição sem token (rota pública)
       const API_URL = import.meta.env.VITE_API_URL || 'https://groom-guru-platform-production.up.railway.app/api';
       const response = await fetch(`${API_URL}${endpoint}`, {
@@ -441,7 +578,7 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
       }
 
       const barbeariasData = await response.json();
-      
+
       if (Array.isArray(barbeariasData)) {
         setBarbearias(barbeariasData);
         console.log('✅ [CLIENTE] Barbearias encontradas:', barbeariasData.length);
@@ -464,7 +601,7 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
   const buscarBarbeariaPorId = async (id: string) => {
     try {
       console.log('🔍 [CLIENTE] Buscando barbearia por ID:', id);
-      
+
       // Fazer requisição sem token (rota pública)
       const API_URL = import.meta.env.VITE_API_URL || 'https://groom-guru-platform-production.up.railway.app/api';
       const response = await fetch(`${API_URL}/barbearias/${id}`, {

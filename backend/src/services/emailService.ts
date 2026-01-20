@@ -49,7 +49,7 @@ const createTransporter = async (): Promise<nodemailer.Transporter> => {
     console.log('📧 [EMAIL] Host:', process.env.SMTP_HOST);
     console.log('📧 [EMAIL] Port:', process.env.SMTP_PORT || '587');
     console.log('📧 [EMAIL] Secure:', process.env.SMTP_SECURE === 'true');
-    
+
     const smtpConfig: any = {
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT || '587'),
@@ -58,10 +58,10 @@ const createTransporter = async (): Promise<nodemailer.Transporter> => {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
-      // Configurações adicionais para evitar timeout
-      connectionTimeout: 10000, // 10 segundos (reduzido para falhar mais rápido)
-      greetingTimeout: 5000, // 5 segundos
-      socketTimeout: 10000, // 10 segundos
+      // Configurações adicionais para evitar timeout - OTIMIZADO PARA VELOCIDADE
+      connectionTimeout: 5000, // 5 segundos (reduzido para falhar mais rápido)
+      greetingTimeout: 3000, // 3 segundos
+      socketTimeout: 5000, // 5 segundos
       // Para Outlook/Hotmail, configurações específicas
       requireTLS: false, // Não forçar TLS inicialmente
       tls: {
@@ -75,7 +75,7 @@ const createTransporter = async (): Promise<nodemailer.Transporter> => {
       maxConnections: 1,
       maxMessages: 3
     };
-    
+
     // Configurações específicas para Outlook
     if (process.env.SMTP_HOST.includes('outlook') || process.env.SMTP_HOST.includes('hotmail')) {
       smtpConfig.requireTLS = true;
@@ -84,9 +84,9 @@ const createTransporter = async (): Promise<nodemailer.Transporter> => {
         minVersion: 'TLSv1.2'
       };
     }
-    
+
     transporterCache = nodemailer.createTransport(smtpConfig);
-    
+
     // Testar conexão
     try {
       await transporterCache.verify();
@@ -95,7 +95,7 @@ const createTransporter = async (): Promise<nodemailer.Transporter> => {
       console.error('⚠️ [EMAIL] Erro ao verificar conexão SMTP:', verifyError);
       console.warn('⚠️ [EMAIL] Continuando mesmo assim - tentará enviar quando necessário');
     }
-    
+
     return transporterCache;
   }
 
@@ -190,7 +190,7 @@ export async function enviarEmailConvite(params: EnviarConviteParams) {
     <body>
       <div class="container">
         <div class="header">
-          <h1>🎉 Bem-vindo ao Groom Guru!</h1>
+          <h1>🎉 Bem-vindo ao Barber Maestro!</h1>
         </div>
         <div class="content">
           <p>Olá <strong>${nomeResponsavel}</strong>,</p>
@@ -208,19 +208,19 @@ export async function enviarEmailConvite(params: EnviarConviteParams) {
             ${linkAtivacao}
           </p>
           
-          <p><strong>⚠️ Importante:</strong> Este link expira em ${expiraEm.toLocaleDateString('pt-BR', { 
-            day: '2-digit', 
-            month: 'long', 
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-          })}.</p>
+          <p><strong>⚠️ Importante:</strong> Este link expira em ${expiraEm.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })}.</p>
           
           <p>Se você não solicitou este cadastro, pode ignorar este email.</p>
         </div>
         <div class="footer">
           <p>Este é um email automático, por favor não responda.</p>
-          <p>© ${new Date().getFullYear()} Groom Guru Platform</p>
+          <p>© ${new Date().getFullYear()} Barber Maestro</p>
         </div>
       </div>
     </body>
@@ -228,7 +228,7 @@ export async function enviarEmailConvite(params: EnviarConviteParams) {
   `;
 
   const textTemplate = `
-    Bem-vindo ao Groom Guru!
+    Bem-vindo ao Barber Maestro!
     
     Olá ${nomeResponsavel},
     
@@ -242,13 +242,13 @@ export async function enviarEmailConvite(params: EnviarConviteParams) {
     
     Se você não solicitou este cadastro, pode ignorar este email.
     
-    © ${new Date().getFullYear()} Groom Guru Platform
+    © ${new Date().getFullYear()} Barber Maestro
   `;
 
   try {
     const transporter = await createTransporter();
     const info = await transporter.sendMail({
-      from: process.env.EMAIL_FROM || '"Groom Guru" <noreply@groomguru.com>',
+      from: process.env.EMAIL_FROM || '"Barber Maestro" <noreply@barbermaster.com>',
       to: email,
       subject: `Ative sua conta - ${nomeBarbearia}`,
       text: textTemplate,
@@ -256,7 +256,7 @@ export async function enviarEmailConvite(params: EnviarConviteParams) {
     });
 
     console.log('✅ Email enviado:', info.messageId);
-    
+
     // Se usar Ethereal, mostra o link de preview
     if (info.messageId) {
       const previewUrl = nodemailer.getTestMessageUrl(info);
@@ -389,7 +389,7 @@ export async function enviarEmailSenha(params: EnviarSenhaParams) {
         </div>
         <div class="footer">
           <p>Este é um email automático, por favor não responda.</p>
-          <p>© ${new Date().getFullYear()} Groom Guru Platform</p>
+          <p>© ${new Date().getFullYear()} Barber Maestro</p>
         </div>
       </div>
     </body>
@@ -414,12 +414,12 @@ export async function enviarEmailSenha(params: EnviarSenhaParams) {
     
     Se você não solicitou este cadastro, entre em contato conosco imediatamente.
     
-    © ${new Date().getFullYear()} Groom Guru Platform
+    © ${new Date().getFullYear()} Barber Maestro
   `;
 
   try {
     const info = await transporter.sendMail({
-      from: process.env.EMAIL_FROM || '"Groom Guru" <noreply@groomguru.com>',
+      from: process.env.EMAIL_FROM || '"Barber Maestro" <noreply@barbermaster.com>',
       to: email,
       subject: `Acesso aprovado - ${nomeBarbearia}`,
       text: textTemplate,
@@ -427,7 +427,7 @@ export async function enviarEmailSenha(params: EnviarSenhaParams) {
     });
 
     console.log('✅ Email com senha enviado:', info.messageId);
-    
+
     if (info.messageId) {
       const previewUrl = nodemailer.getTestMessageUrl(info);
       if (previewUrl) {
@@ -465,18 +465,19 @@ async function enviarEmailViaResend(params: EnviarRecuperacaoSenhaParams): Promi
     return false;
   }
 
+  // Extrair email antes do try para garantir que esteja no escopo do catch
+  const { email, nome, senhaNova, tipo, nomeBarbearia } = params;
+
   try {
     console.log('📧 [EMAIL] Tentando enviar via Resend...');
-    
-    const { email, nome, senhaNova, tipo, nomeBarbearia } = params;
-    
+
     console.log('📧 [EMAIL] Enviando para:', email);
     console.log('📧 [EMAIL] Nome:', nome);
     console.log('📧 [EMAIL] Tipo:', tipo);
-    
-    const titulo = tipo === 'dono' 
-      ? `Recuperação de Senha - ${nomeBarbearia || 'Groom Guru'}`
-      : 'Recuperação de Senha - Groom Guru';
+
+    const titulo = tipo === 'dono'
+      ? `Recuperação de Senha - ${nomeBarbearia || 'Barber Master'}`
+      : 'Recuperação de Senha - Barber Maestro';
 
     // HTML do email
     const htmlContent = `
@@ -568,7 +569,7 @@ async function enviarEmailViaResend(params: EnviarRecuperacaoSenhaParams): Promi
           </div>
           <div class="footer">
             <p>Este é um email automático, por favor não responda.</p>
-            <p>© ${new Date().getFullYear()} Groom Guru Platform</p>
+            <p>© ${new Date().getFullYear()} Barber Maestro</p>
           </div>
         </div>
       </body>
@@ -591,71 +592,150 @@ Acesse: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/${tipo === 'dono'
 
 ⚠️ Importante: Se você não solicitou esta recuperação de senha, entre em contato conosco imediatamente.
 
-© ${new Date().getFullYear()} Groom Guru Platform
+© ${new Date().getFullYear()} Barber Master
     `;
 
-        // Enviar via Resend
-        // IMPORTANTE: Resend requer domínio verificado. Use o domínio padrão do Resend para emails de teste
-        // Para produção, você precisa verificar seu domínio em https://resend.com/domains
-        // IMPORTANTE: No plano gratuito do Resend, você DEVE usar 'onboarding@resend.dev'
-        // Se EMAIL_FROM estiver configurado com domínio não verificado, forçar uso do domínio padrão
-        let emailFrom = process.env.EMAIL_FROM || 'Groom Guru <onboarding@resend.dev>';
-        
-        // Se EMAIL_FROM não contém 'onboarding@resend.dev' ou 'resend.dev', usar o padrão
-        // Isso garante que sempre use um domínio válido no plano gratuito
-        if (!emailFrom.includes('resend.dev')) {
-          console.warn('⚠️ [EMAIL] EMAIL_FROM configurado com domínio não verificado:', emailFrom);
-          console.warn('⚠️ [EMAIL] Usando domínio padrão do Resend (onboarding@resend.dev)');
-          emailFrom = 'Groom Guru <onboarding@resend.dev>';
-        }
-        
-        console.log('📧 [EMAIL] Enviando de:', emailFrom);
-        console.log('📧 [EMAIL] Enviando para:', email);
-        
-        const { data, error } = await resendClient.emails.send({
-          from: emailFrom,
-          to: email,
-          subject: titulo,
-          html: htmlContent,
-          text: textContent,
-        });
+    // Enviar via Resend
+    // IMPORTANTE: Resend requer domínio verificado. Use o domínio padrão do Resend para emails de teste
+    // Para produção, você precisa verificar seu domínio em https://resend.com/domains
+    // IMPORTANTE: No plano gratuito do Resend, você DEVE usar 'onboarding@resend.dev'
+    // Se EMAIL_FROM estiver configurado com domínio não verificado, forçar uso do domínio padrão
+    let emailFrom = process.env.EMAIL_FROM || 'Barber Maestro <onboarding@resend.dev>';
 
-    if (error) {
-      console.error('❌ [EMAIL] Erro ao enviar via Resend:', error);
+    // Se EMAIL_FROM não contém 'onboarding@resend.dev' ou 'resend.dev', usar o padrão
+    // Isso garante que sempre use um domínio válido no plano gratuito
+    if (!emailFrom.includes('resend.dev')) {
+      console.warn('⚠️ [EMAIL] EMAIL_FROM configurado com domínio não verificado:', emailFrom);
+      console.warn('⚠️ [EMAIL] Usando domínio padrão do Resend (onboarding@resend.dev)');
+      emailFrom = 'Barber Maestro <onboarding@resend.dev>';
+    }
+
+    console.log('📧 [EMAIL] Enviando de:', emailFrom);
+    console.log('📧 [EMAIL] Enviando para:', email);
+    console.log('📧 [EMAIL] Assunto:', titulo);
+    console.log('📧 [EMAIL] Tamanho do HTML:', htmlContent.length, 'bytes');
+    console.log('📧 [EMAIL] Iniciando envio via Resend...');
+
+    // Enviar com timeout de 10 segundos (aumentado de 5 para 10)
+    const sendPromise = resendClient.emails.send({
+      from: emailFrom,
+      to: email,
+      subject: titulo,
+      html: htmlContent,
+      text: textContent,
+    }).then((result) => {
+      console.log('📧 [EMAIL] Resend retornou resultado:', JSON.stringify(result, null, 2));
+      return result;
+    }).catch((err) => {
+      console.error('📧 [EMAIL] Erro na promise do Resend:', err);
+      throw err;
+    });
+
+    // Timeout de 10 segundos para Resend (aumentado de 5 para 10)
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => {
+        console.error('📧 [EMAIL] TIMEOUT: Resend demorou mais de 10 segundos');
+        reject(new Error('Timeout: Resend demorou mais de 10 segundos'));
+      }, 10000);
+    });
+
+    console.log('📧 [EMAIL] Aguardando resposta do Resend (timeout: 10s)...');
+    const resultado = await Promise.race([sendPromise, timeoutPromise]) as any;
+    console.log('📧 [EMAIL] Resultado recebido do Resend:', JSON.stringify(resultado, null, 2));
+
+    const { data, error } = resultado || {};
+
+    // Verificar se houve erro OU se data é null (indica falha no Resend)
+    if (error || !data || data === null) {
+      // Se não há erro explícito mas data é null, criar um erro genérico
+      if (!error && (!data || data === null)) {
+        console.error('❌ [EMAIL] Resend retornou data: null - email não foi enviado');
+        console.error('❌ [EMAIL] Possíveis causas:');
+        console.error('   - Domínio não verificado no Resend');
+        console.error('   - Email de destino bloqueado ou inválido');
+        console.error('   - Limite de envio excedido');
+        console.error('   - API Key inválida ou expirada');
+      }
+      console.error('');
+      console.error('═══════════════════════════════════════════════════════');
+      console.error('❌ [EMAIL] ERRO AO ENVIAR VIA RESEND');
+      console.error('═══════════════════════════════════════════════════════');
+      console.error('❌ [EMAIL] Erro completo:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
       console.error('❌ [EMAIL] Status Code:', error?.statusCode);
       console.error('❌ [EMAIL] Mensagem:', error?.message);
       console.error('❌ [EMAIL] Nome do erro:', error?.name);
+      console.error('❌ [EMAIL] Stack:', error?.stack);
       console.error('❌ [EMAIL] Email de destino:', email);
       console.error('❌ [EMAIL] Tentando fallback para nodemailer (SMTP)...');
-      
-      // Se o erro for de domínio não verificado, sugerir usar o domínio padrão
-      if (error?.statusCode === 403 && error?.message?.includes('domain is not verified')) {
-        console.error('⚠️ [EMAIL] Domínio não verificado no Resend!');
-        console.error('⚠️ [EMAIL] Solução: Use o domínio padrão do Resend (onboarding@resend.dev)');
-        console.error('⚠️ [EMAIL] Ou verifique seu domínio em: https://resend.com/domains');
-        console.error('⚠️ [EMAIL] Remova a variável EMAIL_FROM do Railway se estiver configurada com domínio não verificado');
+      console.error('');
+
+      // Se o erro for de domínio não verificado ou plano de teste
+      if (error?.statusCode === 403) {
+        if (error?.message?.includes('domain is not verified')) {
+          console.error('⚠️ [EMAIL] Domínio não verificado no Resend!');
+          console.error('⚠️ [EMAIL] Solução: Verifique seu domínio em: https://resend.com/domains');
+          console.error('⚠️ [EMAIL] Ou use o email cadastrado no Resend para testes');
+        } else if (error?.message?.includes('only send testing emails to your own email address')) {
+          console.error('');
+          console.error('⚠️ [EMAIL] ⚠️ RESEND PLANO GRATUITO - LIMITAÇÃO DETECTADA ⚠️');
+          console.error('⚠️ [EMAIL] O plano gratuito do Resend só permite enviar para o email cadastrado');
+          console.error('⚠️ [EMAIL] Email cadastrado no Resend: brunocamargocontato@hotmail.com');
+          console.error('⚠️ [EMAIL] Email de destino tentado: ' + email);
+          console.error('');
+          console.error('✅ [EMAIL] SOLUÇÕES:');
+          console.error('   1. Para TESTES: Use o email cadastrado (brunocamargocontato@hotmail.com)');
+          console.error('   2. Para PRODUÇÃO: Verifique um domínio em https://resend.com/domains');
+          console.error('   3. Alternativa: Configure SendGrid ou Mailgun no Railway');
+          console.error('');
+          console.error('📖 [EMAIL] Guia completo: VERIFICAR_DOMINIO_RESEND.md');
+          console.error('');
+        }
       }
-      
+
       // Se o erro for de email inválido ou bloqueado, ainda tentar fallback
       // O Resend pode bloquear alguns domínios, mas o SMTP pode funcionar
       if (error?.statusCode === 422 || error?.statusCode === 400) {
         console.error('⚠️ [EMAIL] Email pode estar bloqueado no Resend, tentando SMTP...');
       }
-      
+
       return false;
     }
 
-    console.log('✅ [EMAIL] Email enviado via Resend com sucesso!');
-    console.log('✅ [EMAIL] Email ID:', data?.id);
-    
+    // Verificar se data.id existe (indica sucesso)
+    if (!data?.id) {
+      console.error('');
+      console.error('═══════════════════════════════════════════════════════');
+      console.error('❌ [EMAIL] RESEND RETORNOU SEM ID DE EMAIL');
+      console.error('═══════════════════════════════════════════════════════');
+      console.error('❌ [EMAIL] Data recebida:', JSON.stringify(data, null, 2));
+      console.error('❌ [EMAIL] Email não foi enviado - tentando fallback SMTP...');
+      console.error('');
+      return false;
+    }
+
+    console.log('');
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('✅ [EMAIL] EMAIL ENVIADO VIA RESEND COM SUCESSO!');
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('✅ [EMAIL] Email ID:', data.id);
+    console.log('✅ [EMAIL] Email de destino:', email);
+    console.log('✅ [EMAIL] Assunto:', titulo);
+    console.log('✅ [EMAIL] Verifique a caixa de entrada e spam do email:', email);
+    console.log('');
+
     return true;
   } catch (error: any) {
-    console.error('❌ [EMAIL] Erro ao enviar via Resend:');
+    console.error('');
+    console.error('═══════════════════════════════════════════════════════');
+    console.error('❌ [EMAIL] EXCEÇÃO AO ENVIAR VIA RESEND');
+    console.error('═══════════════════════════════════════════════════════');
     console.error('❌ [EMAIL] Tipo do erro:', error?.constructor?.name);
     console.error('❌ [EMAIL] Mensagem:', error?.message);
     console.error('❌ [EMAIL] Stack:', error?.stack);
     console.error('❌ [EMAIL] Erro completo:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+    console.error('❌ [EMAIL] Email de destino:', email);
     console.error('❌ [EMAIL] Tentando fallback para nodemailer...');
+    console.error('');
     return false;
   }
 }
@@ -672,15 +752,19 @@ export async function enviarEmailRecuperacaoSenha(params: EnviarRecuperacaoSenha
   console.log('📧 [EMAIL] Domínio do email:', email.split('@')[1] || 'desconhecido');
   console.log('');
 
-  // Tentar Resend primeiro (mais simples e confiável)
-  console.log('📧 [EMAIL] ETAPA 1: Tentando enviar via Resend...');
+  // Tentar Resend primeiro (mais rápido e confiável)
+  // IMPORTANTE: Resend deve responder em menos de 2 segundos
+  console.log('📧 [EMAIL] ETAPA 1: Tentando enviar via Resend (timeout: 5s)...');
   console.log('   RESEND_API_KEY presente:', !!process.env.RESEND_API_KEY);
   console.log('   resendClient presente:', !!resendClient);
   console.log('   isResendConfigured():', isResendConfigured());
-  
+
+  const inicioResend = Date.now();
   const resendEnviado = await enviarEmailViaResend(params);
+  const tempoResend = Date.now() - inicioResend;
+
   if (resendEnviado) {
-    console.log('✅ [EMAIL] Email enviado com sucesso via Resend!');
+    console.log(`✅ [EMAIL] Email enviado com sucesso via Resend em ${tempoResend}ms!`);
     console.log('═══════════════════════════════════════════════════════');
     return {
       sucesso: true,
@@ -689,18 +773,18 @@ export async function enviarEmailRecuperacaoSenha(params: EnviarRecuperacaoSenha
       metodo: 'resend',
     };
   }
-  
+
   console.log('');
-  console.log('⚠️ [EMAIL] Resend não funcionou, tentando SMTP como fallback...');
+  console.log(`⚠️ [EMAIL] Resend não funcionou após ${tempoResend}ms, tentando SMTP como fallback...`);
   console.log('═══════════════════════════════════════════════════════');
-  console.log('📧 [EMAIL] ETAPA 2: Usando nodemailer (SMTP) como fallback...');
+  console.log('📧 [EMAIL] ETAPA 2: Usando nodemailer (SMTP) como fallback (timeout: 10s)...');
   console.log('📧 [EMAIL] Verificando configuração SMTP...');
   console.log('   SMTP_HOST:', process.env.SMTP_HOST || 'NÃO CONFIGURADO');
   console.log('   SMTP_PORT:', process.env.SMTP_PORT || '587 (padrão)');
   console.log('   SMTP_USER:', process.env.SMTP_USER ? `${process.env.SMTP_USER.substring(0, 5)}...` : 'NÃO CONFIGURADO');
   console.log('   SMTP_PASS:', process.env.SMTP_PASS ? '***CONFIGURADO***' : 'NÃO CONFIGURADO');
   console.log('');
-  
+
   // IMPORTANTE: Sempre tentar SMTP, mesmo que não esteja configurado
   // O createTransporter criará Ethereal se SMTP não estiver configurado
   // Mas vamos garantir que funcione para TODOS os domínios
@@ -714,9 +798,9 @@ export async function enviarEmailRecuperacaoSenha(params: EnviarRecuperacaoSenha
     transporter = await createTransporter();
   }
 
-  const titulo = tipo === 'dono' 
-    ? `Recuperação de Senha - ${nomeBarbearia || 'Groom Guru'}`
-    : 'Recuperação de Senha - Groom Guru';
+  const titulo = tipo === 'dono'
+    ? `Recuperação de Senha - ${nomeBarbearia || 'Barber Master'}`
+    : 'Recuperação de Senha - Barber Master';
 
   const htmlTemplate = `
     <!DOCTYPE html>
@@ -815,7 +899,7 @@ export async function enviarEmailRecuperacaoSenha(params: EnviarRecuperacaoSenha
         </div>
         <div class="footer">
           <p>Este é um email automático, por favor não responda.</p>
-          <p>© ${new Date().getFullYear()} Groom Guru Platform</p>
+          <p>© ${new Date().getFullYear()} Barber Master</p>
         </div>
       </div>
     </body>
@@ -840,23 +924,35 @@ export async function enviarEmailRecuperacaoSenha(params: EnviarRecuperacaoSenha
     
     ⚠️ Importante: Se você não solicitou esta recuperação de senha, entre em contato conosco imediatamente.
     
-    © ${new Date().getFullYear()} Groom Guru Platform
+    © ${new Date().getFullYear()} Barber Maestro
   `;
 
   try {
-    const info = await transporter.sendMail({
-      from: process.env.EMAIL_FROM || '"Groom Guru" <noreply@groomguru.com>',
+    const inicioSMTP = Date.now();
+
+    // Enviar com timeout de 10 segundos para SMTP
+    const sendPromise = transporter.sendMail({
+      from: process.env.EMAIL_FROM || '"Barber Master" <noreply@barbermaster.com>',
       to: email,
       subject: titulo,
       text: textTemplate,
       html: htmlTemplate,
     });
 
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Timeout: SMTP demorou mais de 10 segundos')), 10000);
+    });
+
+    const info = await Promise.race([sendPromise, timeoutPromise]) as any;
+    const tempoSMTP = Date.now() - inicioSMTP;
+
+    console.log(`✅ [EMAIL] Email enviado via SMTP em ${tempoSMTP}ms!`);
+
     console.log('✅ [EMAIL] Email de recuperação de senha enviado via SMTP!');
     console.log('✅ [EMAIL] Message ID:', info.messageId);
     console.log('✅ [EMAIL] Email de destino:', email);
     console.log('✅ [EMAIL] Domínio:', email.split('@')[1] || 'desconhecido');
-    
+
     // Se usar Ethereal (teste), mostrar link de preview
     if (info.messageId) {
       const previewUrl = nodemailer.getTestMessageUrl(info);
@@ -873,7 +969,7 @@ export async function enviarEmailRecuperacaoSenha(params: EnviarRecuperacaoSenha
         console.log('✅ [EMAIL] Verifique a caixa de entrada e spam do email:', email);
       }
     }
-    
+
     console.log('═══════════════════════════════════════════════════════');
     console.log('✅ [EMAIL] ENVIO CONCLUÍDO COM SUCESSO!');
     console.log('═══════════════════════════════════════════════════════');
@@ -896,7 +992,7 @@ export async function enviarEmailRecuperacaoSenha(params: EnviarRecuperacaoSenha
     console.error('❌ [EMAIL] Mensagem:', error.message);
     console.error('❌ [EMAIL] Stack:', error.stack);
     console.error('');
-    
+
     // Mensagens de erro mais específicas
     if (error.code === 'ETIMEDOUT') {
       console.error('❌ [EMAIL] Timeout ao conectar ao servidor SMTP');
@@ -924,7 +1020,7 @@ export async function enviarEmailRecuperacaoSenha(params: EnviarRecuperacaoSenha
       console.error('');
       throw new Error(`Conexão recusada pelo servidor de email para ${email}. Verifique SMTP_HOST e SMTP_PORT.`);
     }
-    
+
     console.error('❌ [EMAIL] Erro desconhecido - verifique os logs acima');
     console.error('═══════════════════════════════════════════════════════');
     console.error('');

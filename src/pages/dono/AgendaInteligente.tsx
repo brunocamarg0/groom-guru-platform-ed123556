@@ -29,12 +29,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { 
-  Calendar as CalendarIcon, 
-  Clock, 
-  User, 
-  Scissors, 
-  ChevronLeft, 
+import {
+  Calendar as CalendarIcon,
+  Clock,
+  User,
+  Scissors,
+  ChevronLeft,
   ChevronRight,
   Plus,
   CheckCircle,
@@ -56,7 +56,7 @@ export default function AgendaInteligente() {
   const [filtroStatus, setFiltroStatus] = useState<string>("todos");
   const [agendamentoParaRecusar, setAgendamentoParaRecusar] = useState<{ id: string; clienteNome: string } | null>(null);
   const [motivoRecusa, setMotivoRecusa] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const [modalNovoAgendamento, setModalNovoAgendamento] = useState(false);
   const [formNovoAgendamento, setFormNovoAgendamento] = useState({
     clienteId: "",
@@ -149,7 +149,7 @@ export default function AgendaInteligente() {
   // Obter horários disponíveis baseado na seleção atual
   const horariosDisponiveis = useMemo(() => {
     const todosHorarios = gerarHorariosDisponiveis();
-    
+
     // Se não tiver profissional e data selecionados, retornar todos os horários
     if (!formNovoAgendamento.profissionalId || !formNovoAgendamento.data) {
       return todosHorarios;
@@ -205,15 +205,15 @@ export default function AgendaInteligente() {
   // Filtrar agendamentos por profissional e status
   const agendamentosFiltrados = useMemo(() => {
     let filtrados = agendamentos;
-    
+
     if (filtroProfissional !== "todos") {
       filtrados = filtrados.filter((a) => a.profissionalId === filtroProfissional);
     }
-    
+
     if (filtroStatus !== "todos") {
       filtrados = filtrados.filter((a) => a.status === filtroStatus);
     }
-    
+
     return filtrados;
   }, [agendamentos, filtroProfissional, filtroStatus]);
 
@@ -236,8 +236,9 @@ export default function AgendaInteligente() {
   }, [agendamentos]);
 
   // Funções de ação
+  // Funções de ação
   const handleConfirmar = async (id: string) => {
-    setIsLoading(true);
+    setProcessingId(id);
     try {
       await confirmarAgendamento(id);
       toast({
@@ -251,14 +252,14 @@ export default function AgendaInteligente() {
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setProcessingId(null);
     }
   };
 
   const handleRecusar = async () => {
     if (!agendamentoParaRecusar) return;
-    
-    setIsLoading(true);
+
+    setProcessingId(agendamentoParaRecusar.id);
     try {
       await recusarAgendamento(agendamentoParaRecusar.id, motivoRecusa);
       toast({
@@ -274,7 +275,7 @@ export default function AgendaInteligente() {
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setProcessingId(null);
     }
   };
 
@@ -342,7 +343,7 @@ export default function AgendaInteligente() {
       return;
     }
 
-    setIsLoading(true);
+    setProcessingId('creating');
     try {
       // Criar agendamento
       await criarAgendamento({
@@ -376,14 +377,14 @@ export default function AgendaInteligente() {
         observacoes: "",
       });
       setModalNovoAgendamento(false);
-      
+
       // Atualizar data selecionada para a data do novo agendamento
       setDataSelecionada(new Date(formNovoAgendamento.data));
     } catch (error) {
       // Erro já foi tratado no DonoContext com toast
       console.error('Erro ao criar agendamento:', error);
     } finally {
-      setIsLoading(false);
+      setProcessingId(null);
     }
   };
 
@@ -425,7 +426,7 @@ export default function AgendaInteligente() {
     return semanasDoMes.map((semanaInicio) => {
       const semanaFim = endOfWeek(semanaInicio, { weekStartsOn: 0 });
       const dias = eachDayOfInterval({ start: semanaInicio, end: semanaFim });
-      
+
       return dias.map((dia) => {
         const dataFormatada = format(dia, "yyyy-MM-dd");
         const agendamentosDia = agendamentosFiltrados.filter((a) => a.data === dataFormatada);
@@ -440,16 +441,16 @@ export default function AgendaInteligente() {
 
   const navegarData = (direcao: "anterior" | "proxima") => {
     if (visualizacao === "dia") {
-      setDataSelecionada(direcao === "anterior" 
-        ? subDays(dataSelecionada, 1) 
+      setDataSelecionada(direcao === "anterior"
+        ? subDays(dataSelecionada, 1)
         : addDays(dataSelecionada, 1));
     } else if (visualizacao === "semana") {
-      setDataSelecionada(direcao === "anterior" 
-        ? subDays(dataSelecionada, 7) 
+      setDataSelecionada(direcao === "anterior"
+        ? subDays(dataSelecionada, 7)
         : addDays(dataSelecionada, 7));
     } else {
-      setDataSelecionada(direcao === "anterior" 
-        ? subDays(dataSelecionada, 30) 
+      setDataSelecionada(direcao === "anterior"
+        ? subDays(dataSelecionada, 30)
         : addDays(dataSelecionada, 30));
     }
   };
@@ -495,13 +496,13 @@ export default function AgendaInteligente() {
             </Button>
           </div>
           <div>
-            <h2 className="text-2xl font-bold tracking-tight">
+            <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
               {visualizacao === "dia" && format(dataSelecionada, "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
               {visualizacao === "semana" && `${format(semanaInicio, "d 'de' MMM", { locale: ptBR })} - ${format(semanaFim, "d 'de' MMM 'de' yyyy", { locale: ptBR })}`}
               {visualizacao === "mes" && format(dataSelecionada, "MMMM 'de' yyyy", { locale: ptBR })}
             </h2>
             <div className="flex items-center gap-3">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-gray-700 dark:text-gray-300">
                 {agendamentosDoDia.length} agendamento(s) no dia selecionado
               </p>
               {agendamentosPendentes > 0 && (
@@ -527,11 +528,11 @@ export default function AgendaInteligente() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
                   <AlertCircle className="h-5 w-5 text-yellow-600" />
                   Agendamentos Pendentes de Confirmação
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-gray-700 dark:text-gray-300">
                   {listaAgendamentosPendentes.length} agendamento(s) aguardando sua confirmação
                 </CardDescription>
               </div>
@@ -580,10 +581,14 @@ export default function AgendaInteligente() {
                       <Button
                         size="sm"
                         onClick={() => handleConfirmar(agendamento.id)}
-                        disabled={isLoading}
+                        disabled={processingId === agendamento.id}
                         className="bg-green-600 hover:bg-green-700"
                       >
-                        <CheckCircle className="h-4 w-4 mr-2" />
+                        {processingId === agendamento.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                        )}
                         Confirmar
                       </Button>
                       <Button
@@ -591,7 +596,7 @@ export default function AgendaInteligente() {
                         variant="outline"
                         className="text-red-600 hover:text-red-700 hover:bg-red-50"
                         onClick={() => setAgendamentoParaRecusar({ id: agendamento.id, clienteNome: agendamento.clienteNome })}
-                        disabled={isLoading}
+                        disabled={!!processingId}
                       >
                         <XCircle className="h-4 w-4 mr-2" />
                         Recusar
@@ -602,7 +607,7 @@ export default function AgendaInteligente() {
               ))}
               {listaAgendamentosPendentes.length > 5 && (
                 <p className="text-sm text-center text-muted-foreground pt-2">
-                  E mais {listaAgendamentosPendentes.length - 5} agendamento(s) pendente(s). 
+                  E mais {listaAgendamentosPendentes.length - 5} agendamento(s) pendente(s).
                   Use os filtros para visualizar todos.
                 </p>
               )}
@@ -616,13 +621,13 @@ export default function AgendaInteligente() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Data e Hora Atual</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-gray-900 dark:text-gray-100">Data e Hora Atual</CardTitle>
+              <CardDescription className="text-gray-700 dark:text-gray-300">
                 Selecione uma data no calendário para ver os agendamentos
               </CardDescription>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-bold">
+              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {format(new Date(), "HH:mm")}
               </div>
               <div className="text-sm text-muted-foreground">
@@ -674,7 +679,7 @@ export default function AgendaInteligente() {
                 </div>
               </div>
               <div className="space-y-2">
-                <h3 className="font-semibold">Agendamentos de {format(dataSelecionada, "dd/MM/yyyy")}</h3>
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100">Agendamentos de {format(dataSelecionada, "dd/MM/yyyy")}</h3>
                 {agendamentosDoDia.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Nenhum agendamento para este dia</p>
                 ) : (
@@ -698,30 +703,6 @@ export default function AgendaInteligente() {
                               {agendamento.status}
                             </Badge>
                             <span className="font-medium">{formatarMoeda(agendamento.valor)}</span>
-                            {agendamento.status === "pendente" && (
-                              <div className="flex gap-1 ml-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 px-2"
-                                  onClick={() => handleConfirmar(agendamento.id)}
-                                  disabled={isLoading}
-                                >
-                                  <CheckCircle className="h-3 w-3 mr-1" />
-                                  Confirmar
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 px-2 text-red-600 hover:text-red-700"
-                                  onClick={() => setAgendamentoParaRecusar({ id: agendamento.id, clienteNome: agendamento.clienteNome })}
-                                  disabled={isLoading}
-                                >
-                                  <XCircle className="h-3 w-3 mr-1" />
-                                  Recusar
-                                </Button>
-                              </div>
-                            )}
                           </div>
                         </div>
                         <div className="mt-2 text-sm text-muted-foreground">
@@ -748,8 +729,8 @@ export default function AgendaInteligente() {
         <TabsContent value="dia" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Agenda do Dia</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-gray-900 dark:text-gray-100">Agenda do Dia</CardTitle>
+              <CardDescription className="text-gray-700 dark:text-gray-300">
                 {format(dataSelecionada, "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
               </CardDescription>
             </CardHeader>
@@ -783,30 +764,6 @@ export default function AgendaInteligente() {
                           {agendamento.status}
                         </Badge>
                         <span className="font-medium">{formatarMoeda(agendamento.valor)}</span>
-                        {agendamento.status === "pendente" && (
-                          <div className="flex gap-1 ml-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 px-2"
-                              onClick={() => handleConfirmar(agendamento.id)}
-                              disabled={isLoading}
-                            >
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                              Confirmar
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 px-2 text-red-600 hover:text-red-700"
-                              onClick={() => setAgendamentoParaRecusar({ id: agendamento.id, clienteNome: agendamento.clienteNome })}
-                              disabled={isLoading}
-                            >
-                              <XCircle className="h-3 w-3 mr-1" />
-                              Recusar
-                            </Button>
-                          </div>
-                        )}
                       </div>
                     </div>
                   ))}
@@ -819,8 +776,8 @@ export default function AgendaInteligente() {
         <TabsContent value="semana" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Agenda da Semana</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-gray-900 dark:text-gray-100">Agenda da Semana</CardTitle>
+              <CardDescription className="text-gray-700 dark:text-gray-300">
                 {format(semanaInicio, "d 'de' MMM", { locale: ptBR })} - {format(semanaFim, "d 'de' MMM 'de' yyyy", { locale: ptBR })}
               </CardDescription>
             </CardHeader>
@@ -829,9 +786,8 @@ export default function AgendaInteligente() {
                 {agendamentosDaSemana.map(({ dia, agendamentos }) => (
                   <div
                     key={dia.toISOString()}
-                    className={`border rounded-lg p-2 min-h-[200px] ${
-                      isSameDay(dia, new Date()) ? "bg-blue-50 border-blue-300" : ""
-                    } ${isSameDay(dia, dataSelecionada) ? "ring-2 ring-primary" : ""}`}
+                    className={`border rounded-lg p-2 min-h-[200px] ${isSameDay(dia, new Date()) ? "bg-blue-50 border-blue-300" : ""
+                      } ${isSameDay(dia, dataSelecionada) ? "ring-2 ring-primary" : ""}`}
                   >
                     <div className="font-semibold text-sm mb-2">
                       {format(dia, "EEE", { locale: ptBR })}
@@ -860,8 +816,8 @@ export default function AgendaInteligente() {
         <TabsContent value="mes" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Agenda do Mês</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-gray-900 dark:text-gray-100">Agenda do Mês</CardTitle>
+              <CardDescription className="text-gray-700 dark:text-gray-300">
                 {format(dataSelecionada, "MMMM 'de' yyyy", { locale: ptBR })}
               </CardDescription>
             </CardHeader>
@@ -881,13 +837,10 @@ export default function AgendaInteligente() {
                     {semana.map(({ dia, agendamentos, pertenceAoMes }) => (
                       <div
                         key={dia.toISOString()}
-                        className={`border rounded-lg p-2 min-h-[120px] ${
-                          !pertenceAoMes ? "opacity-40" : ""
-                        } ${
-                          isSameDay(dia, new Date()) ? "bg-blue-50 border-blue-300" : ""
-                        } ${
-                          isSameDay(dia, dataSelecionada) ? "ring-2 ring-primary" : ""
-                        } cursor-pointer hover:bg-accent`}
+                        className={`border rounded-lg p-2 min-h-[120px] ${!pertenceAoMes ? "opacity-40" : ""
+                          } ${isSameDay(dia, new Date()) ? "bg-blue-50 border-blue-300" : ""
+                          } ${isSameDay(dia, dataSelecionada) ? "ring-2 ring-primary" : ""
+                          } cursor-pointer hover:bg-accent`}
                         onClick={() => {
                           setDataSelecionada(dia);
                           setVisualizacao("dia");
@@ -959,8 +912,8 @@ export default function AgendaInteligente() {
                 <Select
                   value={formNovoAgendamento.profissionalId}
                   onValueChange={(value) => {
-                    setFormNovoAgendamento({ 
-                      ...formNovoAgendamento, 
+                    setFormNovoAgendamento({
+                      ...formNovoAgendamento,
                       profissionalId: value,
                       horario: "" // Limpar horário ao mudar profissional
                     });
@@ -987,8 +940,8 @@ export default function AgendaInteligente() {
               <Select
                 value={formNovoAgendamento.servicoId}
                 onValueChange={(value) => {
-                  setFormNovoAgendamento({ 
-                    ...formNovoAgendamento, 
+                  setFormNovoAgendamento({
+                    ...formNovoAgendamento,
                     servicoId: value,
                     horario: "" // Limpar horário ao mudar serviço (pode mudar duração)
                   });
@@ -1015,8 +968,8 @@ export default function AgendaInteligente() {
                   type="date"
                   value={formNovoAgendamento.data}
                   onChange={(e) => {
-                    setFormNovoAgendamento({ 
-                      ...formNovoAgendamento, 
+                    setFormNovoAgendamento({
+                      ...formNovoAgendamento,
                       data: e.target.value,
                       horario: "" // Limpar horário ao mudar data
                     });
@@ -1039,8 +992,8 @@ export default function AgendaInteligente() {
                       !formNovoAgendamento.profissionalId || !formNovoAgendamento.data
                         ? "Selecione profissional e data primeiro"
                         : horariosDisponiveis.length === 0
-                        ? "Nenhum horário disponível"
-                        : "Selecione um horário"
+                          ? "Nenhum horário disponível"
+                          : "Selecione um horário"
                     } />
                   </SelectTrigger>
                   <SelectContent>
@@ -1120,11 +1073,11 @@ export default function AgendaInteligente() {
             >
               Cancelar
             </Button>
-            <Button 
+            <Button
               onClick={handleCriarAgendamento}
-              disabled={isLoading}
+              disabled={processingId === 'creating'}
             >
-              {isLoading ? (
+              {processingId === 'creating' ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Criando...
@@ -1146,7 +1099,7 @@ export default function AgendaInteligente() {
           <DialogHeader>
             <DialogTitle>Recusar Agendamento</DialogTitle>
             <DialogDescription>
-              Você está prestes a recusar o agendamento de {agendamentoParaRecusar?.clienteNome}. 
+              Você está prestes a recusar o agendamento de {agendamentoParaRecusar?.clienteNome}.
               O cliente será notificado sobre a recusa.
             </DialogDescription>
           </DialogHeader>
@@ -1169,16 +1122,16 @@ export default function AgendaInteligente() {
                 setAgendamentoParaRecusar(null);
                 setMotivoRecusa("");
               }}
-              disabled={isLoading}
+              disabled={!!processingId}
             >
               Cancelar
             </Button>
             <Button
               variant="destructive"
               onClick={handleRecusar}
-              disabled={isLoading}
+              disabled={!!processingId}
             >
-              {isLoading ? "Recusando..." : "Confirmar Recusa"}
+              {processingId ? "Recusando..." : "Confirmar Recusa"}
             </Button>
           </DialogFooter>
         </DialogContent>

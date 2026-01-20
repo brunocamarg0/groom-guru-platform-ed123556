@@ -16,8 +16,14 @@ export async function registrarCliente(req: Request, res: Response) {
     }
 
     // Verificar se email já está em uso
+    // Usar select explícito para evitar problemas com colunas OAuth que podem não existir
     const emailExistente = await prisma.cliente.findUnique({
       where: { email },
+      select: {
+        id: true,
+        email: true,
+        nome: true,
+      },
     });
 
     if (emailExistente) {
@@ -113,6 +119,19 @@ export async function loginCliente(req: Request, res: Response) {
     // Buscar cliente
     const cliente = await prisma.cliente.findUnique({
       where: { email },
+      select: {
+        id: true,
+        nome: true,
+        email: true,
+        senha: true,
+        telefone: true,
+        dataNascimento: true,
+        ativo: true,
+        emailVerificado: true,
+        googleId: true,
+        facebookId: true,
+        appleId: true,
+      },
     });
 
     if (!cliente) {
@@ -690,9 +709,37 @@ export async function esqueciMinhaSenhaCliente(req: Request, res: Response) {
     }
 
     // Buscar cliente pelo email
-    const cliente = await prisma.cliente.findUnique({
-      where: { email },
-    });
+    // Usar select mínimo para evitar problemas com colunas OAuth que podem não existir
+    let cliente;
+    try {
+      cliente = await prisma.cliente.findUnique({
+        where: { email },
+        select: {
+          id: true,
+          nome: true,
+          email: true,
+          senha: true,
+          ativo: true,
+          emailVerificado: true,
+        },
+      });
+    } catch (prismaError: any) {
+      // Se der erro por colunas não existentes, tentar sem select (pegar tudo que existe)
+      if (prismaError.code === 'P2022' || prismaError.message?.includes('does not exist')) {
+        console.warn('⚠️ Colunas OAuth não existem, tentando query alternativa');
+        cliente = await prisma.$queryRaw`
+          SELECT id, nome, email, senha, ativo, "emailVerificado"
+          FROM "Cliente"
+          WHERE email = ${email}
+          LIMIT 1
+        ` as any;
+        if (cliente && Array.isArray(cliente) && cliente.length > 0) {
+          cliente = cliente[0];
+        }
+      } else {
+        throw prismaError;
+      }
+    }
 
     // Por segurança, sempre retornar sucesso mesmo se o email não existir
     // Isso previne enumeração de emails
@@ -721,10 +768,25 @@ export async function esqueciMinhaSenhaCliente(req: Request, res: Response) {
     const senhaHash = await hashSenha(senhaNova);
 
     // Atualizar senha no banco
-    await prisma.cliente.update({
-      where: { id: cliente.id },
-      data: { senha: senhaHash },
-    });
+    // Usar query raw para evitar problemas com colunas OAuth que podem não existir
+    try {
+      await prisma.cliente.update({
+        where: { id: cliente.id },
+        data: { senha: senhaHash },
+      });
+    } catch (updateError: any) {
+      // Se der erro por colunas não existentes, usar SQL raw
+      if (updateError.code === 'P2022' || updateError.message?.includes('does not exist')) {
+        console.warn('⚠️ Colunas OAuth não existem, usando SQL raw para update');
+        await prisma.$executeRaw`
+          UPDATE "Cliente"
+          SET senha = ${senhaHash}, "updatedAt" = NOW()
+          WHERE id = ${cliente.id}
+        `;
+      } else {
+        throw updateError;
+      }
+    }
 
     console.log('✅ Nova senha gerada para cliente:', cliente.email);
 
