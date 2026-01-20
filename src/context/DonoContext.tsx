@@ -455,7 +455,21 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   }, [qNotificacoes]);
 
   useEffect(() => {
-    if (qConfiguracao) setConfiguracao(qConfiguracao);
+    if (qConfiguracao) {
+      // Garantir que sempre temos uma configuração completa mesclando com a inicial
+      setConfiguracao({
+        ...configuracaoInicial,
+        ...qConfiguracao,
+        horarioFuncionamento: {
+          ...configuracaoInicial.horarioFuncionamento,
+          ...(qConfiguracao.horarioFuncionamento || {}),
+        },
+        politicaCancelamento: {
+          ...configuracaoInicial.politicaCancelamento,
+          ...(qConfiguracao.politicaCancelamento || {}),
+        },
+      });
+    }
   }, [qConfiguracao]);
 
   // Manter loading global sincronizado com queries principais

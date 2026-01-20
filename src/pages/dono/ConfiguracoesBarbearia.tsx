@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDono } from "@/context/DonoContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,11 +22,63 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Lock, CheckCircle, Clock, Settings } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ConfiguracaoBarbearia } from "@/types/dono";
+
+// Configuração padrão segura
+const configuracaoPadrao: ConfiguracaoBarbearia = {
+  id: "",
+  nome: "",
+  cnpjCpf: "",
+  modoConfirmacao: "hibrido",
+  horarioFuncionamento: {
+    segunda: { aberto: true, inicio: "09:00", fim: "18:00" },
+    terca: { aberto: true, inicio: "09:00", fim: "18:00" },
+    quarta: { aberto: true, inicio: "09:00", fim: "18:00" },
+    quinta: { aberto: true, inicio: "09:00", fim: "18:00" },
+    sexta: { aberto: true, inicio: "09:00", fim: "19:00" },
+    sabado: { aberto: true, inicio: "08:00", fim: "17:00" },
+    domingo: { aberto: false, inicio: "09:00", fim: "13:00" },
+  },
+  politicaCancelamento: {
+    prazoMinimo: 2,
+    permitirReagendamento: true,
+  },
+  linkAgendamento: "",
+  paginaPublica: true,
+};
 
 export default function ConfiguracoesBarbearia() {
   const { configuracao, atualizarConfiguracao } = useDono();
   const { toast } = useToast();
-  const [formData, setFormData] = useState(configuracao);
+  
+  // Função para garantir que temos uma configuração válida
+  const getConfiguracaoSegura = (config: ConfiguracaoBarbearia | undefined | null): ConfiguracaoBarbearia => {
+    if (!config) return configuracaoPadrao;
+    
+    return {
+      ...configuracaoPadrao,
+      ...config,
+      horarioFuncionamento: {
+        ...configuracaoPadrao.horarioFuncionamento,
+        ...(config.horarioFuncionamento || {}),
+      },
+      politicaCancelamento: {
+        ...configuracaoPadrao.politicaCancelamento,
+        ...(config.politicaCancelamento || {}),
+      },
+    };
+  };
+
+  const [formData, setFormData] = useState<ConfiguracaoBarbearia>(() => 
+    getConfiguracaoSegura(configuracao)
+  );
+
+  // Atualizar formData quando configuracao mudar
+  useEffect(() => {
+    if (configuracao) {
+      setFormData(getConfiguracaoSegura(configuracao));
+    }
+  }, [configuracao]);
   const [showAlterarSenha, setShowAlterarSenha] = useState(false);
   const [senhaForm, setSenhaForm] = useState({
     senhaAtual: "",
@@ -41,10 +93,10 @@ export default function ConfiguracoesBarbearia() {
       atualizarConfiguracao(formData);
       
       // Se houver mudança no modo de confirmação, atualizar no backend
-      if (formData.modoConfirmacao) {
+      if (formData.modoConfirmacao && formData.id) {
         const token = localStorage.getItem('token');
         const apiUrl = import.meta.env.VITE_API_URL || '/api';
-        const barbeariaId = configuracao.id; // Assumindo que o ID da barbearia está no configuracao
+        const barbeariaId = formData.id; // Usar o ID do formData que é garantido
         
         await fetch(`${apiUrl}/agendamentos/barbearia/${barbeariaId}/configuracao`, {
           method: 'PUT',
@@ -241,7 +293,7 @@ export default function ConfiguracoesBarbearia() {
             <Label htmlFor="nome">Nome da Barbearia</Label>
             <Input
               id="nome"
-              value={formData.nome}
+              value={formData.nome || ""}
               onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
             />
           </div>
@@ -249,7 +301,7 @@ export default function ConfiguracoesBarbearia() {
             <Label htmlFor="cnpj">CNPJ/CPF</Label>
             <Input
               id="cnpj"
-              value={formData.cnpjCpf}
+              value={formData.cnpjCpf || ""}
               onChange={(e) => setFormData({ ...formData, cnpjCpf: e.target.value })}
             />
           </div>
@@ -261,58 +313,63 @@ export default function ConfiguracoesBarbearia() {
           <CardTitle>Horário de Funcionamento</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {Object.entries(formData.horarioFuncionamento).map(([dia, horario]) => (
-            <div key={dia} className="flex items-center justify-between">
-              <div className="flex items-center gap-4 flex-1">
-                <Label className="w-24 capitalize">{dia}</Label>
-                <Switch
-                  checked={horario.aberto}
-                  onCheckedChange={(checked) =>
-                    setFormData({
-                      ...formData,
-                      horarioFuncionamento: {
-                        ...formData.horarioFuncionamento,
-                        [dia]: { ...horario, aberto: checked },
-                      },
-                    })
-                  }
-                />
-                {horario.aberto && (
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="time"
-                      value={horario.inicio}
-                      onChange={(e) =>
+          {formData.horarioFuncionamento && Object.entries(formData.horarioFuncionamento)
+            .filter(([_, horario]) => horario && typeof horario === 'object')
+            .map(([dia, horario]) => {
+              const horarioSeguro = horario || { aberto: false, inicio: "09:00", fim: "18:00" };
+              return (
+                <div key={dia} className="flex items-center justify-between">
+                  <div className="flex items-center gap-4 flex-1">
+                    <Label className="w-24 capitalize">{dia}</Label>
+                    <Switch
+                      checked={horarioSeguro.aberto || false}
+                      onCheckedChange={(checked) =>
                         setFormData({
                           ...formData,
                           horarioFuncionamento: {
                             ...formData.horarioFuncionamento,
-                            [dia]: { ...horario, inicio: e.target.value },
+                            [dia]: { ...horarioSeguro, aberto: checked },
                           },
                         })
                       }
-                      className="w-32"
                     />
-                    <span>até</span>
-                    <Input
-                      type="time"
-                      value={horario.fim}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          horarioFuncionamento: {
-                            ...formData.horarioFuncionamento,
-                            [dia]: { ...horario, fim: e.target.value },
-                          },
-                        })
-                      }
-                      className="w-32"
-                    />
+                    {horarioSeguro.aberto && (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="time"
+                          value={horarioSeguro.inicio || "09:00"}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              horarioFuncionamento: {
+                                ...formData.horarioFuncionamento,
+                                [dia]: { ...horarioSeguro, inicio: e.target.value },
+                              },
+                            })
+                          }
+                          className="w-32"
+                        />
+                        <span>até</span>
+                        <Input
+                          type="time"
+                          value={horarioSeguro.fim || "18:00"}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              horarioFuncionamento: {
+                                ...formData.horarioFuncionamento,
+                                [dia]: { ...horarioSeguro, fim: e.target.value },
+                              },
+                            })
+                          }
+                          className="w-32"
+                        />
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            </div>
-          ))}
+                </div>
+              );
+            })}
         </CardContent>
       </Card>
 
@@ -326,7 +383,7 @@ export default function ConfiguracoesBarbearia() {
             <Input
               id="prazoMinimo"
               type="number"
-              value={formData.politicaCancelamento.prazoMinimo}
+              value={formData.politicaCancelamento?.prazoMinimo || 2}
               onChange={(e) =>
                 setFormData({
                   ...formData,
@@ -342,7 +399,7 @@ export default function ConfiguracoesBarbearia() {
             <Label htmlFor="permitirReagendamento">Permitir Reagendamento</Label>
             <Switch
               id="permitirReagendamento"
-              checked={formData.politicaCancelamento.permitirReagendamento}
+              checked={formData.politicaCancelamento?.permitirReagendamento ?? true}
               onCheckedChange={(checked) =>
                 setFormData({
                   ...formData,
@@ -364,7 +421,7 @@ export default function ConfiguracoesBarbearia() {
         <CardContent>
           <div className="space-y-2">
             <Label>URL Pública</Label>
-            <Input value={formData.linkAgendamento} readOnly />
+            <Input value={formData.linkAgendamento || ""} readOnly />
             <p className="text-xs text-muted-foreground">
               Este é o link que seus clientes usarão para agendar
             </p>
