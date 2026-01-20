@@ -25,6 +25,60 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ConfiguracaoBarbearia } from "@/types/dono";
 
+// Função para comprimir imagem (reduz tamanho para evitar problemas)
+const compressImage = (file: File, maxWidth: number = 600, maxHeight: number = 600, quality: number = 0.7): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        // Calcular novas dimensões mantendo proporção
+        if (width > height) {
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = (width * maxHeight) / height;
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Não foi possível criar contexto do canvas'));
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error('Erro ao comprimir imagem'));
+            }
+          },
+          file.type,
+          quality
+        );
+      };
+      img.onerror = () => reject(new Error('Erro ao carregar imagem'));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
+    reader.readAsDataURL(file);
+  });
+};
+
 // Configuração padrão segura
 const configuracaoPadrao: ConfiguracaoBarbearia = {
   id: "",
@@ -90,37 +144,51 @@ export default function ConfiguracoesBarbearia() {
 
   const handleSubmit = async () => {
     try {
-      // Atualizar configuração local
-      atualizarConfiguracao(formData);
+      // Preparar dados para envio (sem campos que não devem ser enviados)
+      const dadosParaEnvio: Partial<ConfiguracaoBarbearia> = {
+        nome: formData.nome,
+        cnpjCpf: formData.cnpjCpf,
+        email: formData.email,
+        telefone: formData.telefone,
+        endereco: formData.endereco,
+        cidade: formData.cidade,
+        bairro: formData.bairro,
+        cep: formData.cep,
+        modoConfirmacao: formData.modoConfirmacao,
+        foto: formData.foto, // Incluir foto se existir
+      };
+
+      // Se a foto for muito grande (mais de 2MB em base64), avisar
+      if (formData.foto && formData.foto.length > 2000000) {
+        toast({
+          title: "Foto muito grande",
+          description: "A foto é muito grande (mais de 2MB). Por favor, use uma imagem menor.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('💾 [CONFIG PÁGINA] Salvando configurações...', {
+        temFoto: !!dadosParaEnvio.foto,
+        tamanhoFoto: dadosParaEnvio.foto ? dadosParaEnvio.foto.length : 0
+      });
+
+      // Atualizar configuração no backend (aguardar a promise)
+      await atualizarConfiguracao(dadosParaEnvio);
       
-      // Se houver mudança no modo de confirmação, atualizar no backend
-      if (formData.modoConfirmacao && formData.id) {
-        const token = localStorage.getItem('token');
-        const apiUrl = import.meta.env.VITE_API_URL || '/api';
-        const barbeariaId = formData.id; // Usar o ID do formData que é garantido
-        
-        await fetch(`${apiUrl}/agendamentos/barbearia/${barbeariaId}/configuracao`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            modoConfirmacao: formData.modoConfirmacao,
-          }),
+      // Toast de sucesso já é mostrado pela função atualizarConfiguracao
+      // Não precisa mostrar outro toast aqui
+    } catch (error: any) {
+      console.error('❌ [CONFIG PÁGINA] Erro ao salvar configurações:', error);
+      // O erro já foi tratado e o toast já foi mostrado pela função atualizarConfiguracao
+      // Mas podemos adicionar um toast adicional se necessário
+      if (!error?.handled) {
+        toast({
+          title: "Erro ao salvar",
+          description: error?.message || "Não foi possível salvar as configurações. Verifique os dados e tente novamente.",
+          variant: "destructive",
         });
       }
-      
-      toast({
-        title: "Configurações salvas",
-        description: "As configurações foram atualizadas com sucesso.",
-      });
-    } catch (error) {
-      toast({
-        title: "Erro ao salvar",
-        description: "Não foi possível salvar as configurações.",
-        variant: "destructive",
-      });
     }
   };
 
@@ -315,14 +383,14 @@ export default function ConfiguracoesBarbearia() {
                   type="file"
                   accept="image/*"
                   className="hidden"
-                  onChange={(e) => {
+                  onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (file) {
-                      // Validar tamanho (máximo 5MB)
-                      if (file.size > 5 * 1024 * 1024) {
+                      // Validar tamanho (máximo 2MB para evitar problemas)
+                      if (file.size > 2 * 1024 * 1024) {
                         toast({
                           title: "Erro",
-                          description: "A imagem deve ter no máximo 5MB.",
+                          description: "A imagem deve ter no máximo 2MB. Por favor, comprima a imagem antes de enviar.",
                           variant: "destructive",
                         });
                         return;
@@ -338,20 +406,36 @@ export default function ConfiguracoesBarbearia() {
                         return;
                       }
                       
-                      // Converter para base64
-                      const reader = new FileReader();
-                      reader.onloadend = () => {
-                        const base64String = reader.result as string;
-                        setFormData({ ...formData, foto: base64String });
-                      };
-                      reader.onerror = () => {
+                      try {
+                        // Comprimir e redimensionar a imagem antes de converter para base64
+                        const compressedImage = await compressImage(file);
+                        
+                        // Converter para base64
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          const base64String = reader.result as string;
+                          setFormData({ ...formData, foto: base64String });
+                          toast({
+                            title: "Foto carregada",
+                            description: "Foto pronta para salvar. Clique em 'Salvar Configurações'.",
+                          });
+                        };
+                        reader.onerror = () => {
+                          toast({
+                            title: "Erro",
+                            description: "Erro ao ler a imagem. Tente novamente.",
+                            variant: "destructive",
+                          });
+                        };
+                        reader.readAsDataURL(compressedImage);
+                      } catch (error) {
+                        console.error('Erro ao processar imagem:', error);
                         toast({
                           title: "Erro",
-                          description: "Erro ao ler a imagem. Tente novamente.",
+                          description: "Erro ao processar a imagem. Tente novamente.",
                           variant: "destructive",
                         });
-                      };
-                      reader.readAsDataURL(file);
+                      }
                     }
                   }}
                 />

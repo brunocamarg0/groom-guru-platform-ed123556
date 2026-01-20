@@ -1475,19 +1475,43 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   // Funções de configuração
   const atualizarConfiguracao = async (dados: Partial<ConfiguracaoBarbearia>) => {
     try {
-      await apiPut('/dono/configuracao', dados);
-      queryClient.invalidateQueries({ queryKey: ['configuracao'] });
+      console.log('💾 [CONFIG] Atualizando configuração:', { 
+        campos: Object.keys(dados),
+        temFoto: !!dados.foto,
+        tamanhoFoto: dados.foto ? dados.foto.length : 0
+      });
 
-      // Atualizar no Firestore
+      // Se há foto, verificar tamanho antes de enviar
+      if (dados.foto && dados.foto.length > 2000000) { // 2MB em base64
+        throw new Error('Foto muito grande. Por favor, use uma imagem menor.');
+      }
+
+      const response = await apiPut('/dono/configuracao', dados);
+      console.log('✅ [CONFIG] Configuração atualizada com sucesso');
+      
+      queryClient.invalidateQueries({ queryKey: ['configuracao'] });
+      queryClient.invalidateQueries({ queryKey: [barbeariaId] });
+
+      // Atualizar no Firestore (opcional, não crítico)
       if (barbeariaId) {
         firestoreUtils.setBarbeariaConfig(barbeariaId, dados).catch(err =>
-          console.error('❌ Erro ao atualizar configuração no Firestore:', err)
+          console.warn('⚠️ Erro ao atualizar configuração no Firestore (não crítico):', err)
         );
       }
-      toast.success('Configurações atualizadas');
+      
+      toast.success('Configurações atualizadas com sucesso!');
+      return response;
     } catch (error: any) {
-      console.error('Erro ao atualizar config:', error);
-      toast.error('Erro ao salvar configurações');
+      console.error('❌ [CONFIG] Erro ao atualizar config:', error);
+      console.error('❌ [CONFIG] Detalhes do erro:', {
+        message: error?.message,
+        status: error?.status,
+        stack: error?.stack
+      });
+      
+      const errorMessage = error?.message || error?.error || 'Erro ao salvar configurações';
+      toast.error(errorMessage);
+      throw error; // Re-lançar para que o componente possa tratar
     }
   };
 

@@ -140,7 +140,9 @@ app.options('*', (req, res) => {
   res.sendStatus(200);
 });
 
-app.use(express.json());
+// Aumentar limite do body parser para suportar imagens em base64
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Rota de teste - DEVE SER A PRIMEIRA ROTA (antes de qualquer middleware que possa bloquear)
 // Esta rota deve responder SEMPRE, mesmo se o banco de dados estiver offline
