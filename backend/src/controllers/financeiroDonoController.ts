@@ -7,12 +7,20 @@ import { AuthRequest } from '../middleware/auth';
  */
 export async function listarPagamentos(req: AuthRequest, res: Response) {
   try {
+    console.log('💰 [LISTAR PAGAMENTOS] Iniciando...');
+    console.log('   userId:', req.userId);
+    console.log('   userType:', req.userType);
+    console.log('   barbeariaId:', req.barbeariaId);
+    
     const { barbeariaId } = req;
     const { dataInicio, dataFim, metodo, status } = req.query;
 
     if (!barbeariaId) {
+      console.error('❌ [LISTAR PAGAMENTOS] Barbearia não identificada');
       return res.status(401).json({ error: 'Barbearia não identificada' });
     }
+    
+    console.log('✅ [LISTAR PAGAMENTOS] Barbearia identificada:', barbeariaId);
 
     const where: any = {
       agendamento: {
