@@ -79,7 +79,7 @@ router.put('/', async (req: AuthRequest, res) => {
 
     console.log('💾 [CONFIG BACKEND] Atualizando barbearia no banco...');
     
-    // Preparar dados de atualização (sem foto por enquanto se coluna não existir)
+    // Preparar dados de atualização
     const updateData: any = {
       ...(dados.nome && { nome: dados.nome }),
       ...(dados.cnpjCpf !== undefined && { cnpjCpf: dados.cnpjCpf }),
@@ -92,30 +92,36 @@ router.put('/', async (req: AuthRequest, res) => {
       ...(dados.cep !== undefined && { cep: dados.cep }),
       ...(dados.modoConfirmacao !== undefined && { modoConfirmacao: dados.modoConfirmacao }),
       ...(dados.status !== undefined && { status: dados.status }),
+      ...(dados.foto !== undefined && { foto: dados.foto }),
     };
     
-    // Tentar adicionar foto apenas se a coluna existir
-    // Se a coluna não existir, o erro será capturado e a foto será ignorada
-    if (dados.foto !== undefined) {
-      try {
-        // Verificar se a coluna existe tentando fazer um select primeiro
-        await prisma.$queryRaw`SELECT foto FROM "Barbearia" WHERE id = ${barbeariaId} LIMIT 1`;
-        updateData.foto = dados.foto;
-        console.log('💾 [CONFIG BACKEND] Coluna foto existe, incluindo no update');
-      } catch (colError: any) {
-        if (colError?.code === 'P2022' || colError?.message?.includes('does not exist')) {
-          console.warn('⚠️ [CONFIG BACKEND] Coluna foto não existe ainda, ignorando campo foto');
-          // Não adicionar foto ao updateData
-        } else {
-          throw colError; // Re-throw se for outro erro
-        }
+    let barbearia;
+    try {
+      // Tentar atualizar com todos os campos incluindo foto
+      barbearia = await prisma.barbearia.update({
+        where: { id: barbeariaId },
+        data: updateData,
+      });
+    } catch (updateError: any) {
+      // Se o erro for de coluna inexistente (P2022) e tiver foto no update, tentar sem foto
+      if (
+        (updateError?.code === 'P2022' || updateError?.message?.includes('does not exist')) &&
+        dados.foto !== undefined
+      ) {
+        console.warn('⚠️ [CONFIG BACKEND] Coluna foto não existe ainda, tentando atualizar sem foto');
+        const updateDataSemFoto = { ...updateData };
+        delete updateDataSemFoto.foto;
+        
+        barbearia = await prisma.barbearia.update({
+          where: { id: barbeariaId },
+          data: updateDataSemFoto,
+        });
+        console.log('✅ [CONFIG BACKEND] Configuração atualizada (sem foto)');
+      } else {
+        // Se for outro erro, re-throw
+        throw updateError;
       }
     }
-    
-    const barbearia = await prisma.barbearia.update({
-      where: { id: barbeariaId },
-      data: updateData,
-    });
 
     console.log('✅ [CONFIG BACKEND] Configuração atualizada com sucesso');
     res.json(barbearia);
