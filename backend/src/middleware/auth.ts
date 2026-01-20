@@ -48,9 +48,21 @@ export async function autenticarDono(
     const jwtSecret = obterJWTSecret();
     console.log('🔐 autenticarDono: JWT_SECRET configurado:', !!process.env.JWT_SECRET);
     console.log('🔐 autenticarDono: JWT_SECRET (primeiros 10 chars):', jwtSecret.substring(0, 10) + '...');
+    console.log('🔐 autenticarDono: Token completo (primeiros 50 chars):', token.substring(0, 50) + '...');
     
-    const decoded = jwt.verify(token, jwtSecret) as any;
-    console.log('🔐 autenticarDono: Token decodificado:', { id: decoded.id, email: decoded.email, tipo: decoded.tipo });
+    let decoded: any;
+    try {
+      decoded = jwt.verify(token, jwtSecret) as any;
+      console.log('✅ autenticarDono: Token decodificado com sucesso:', { id: decoded.id, email: decoded.email, tipo: decoded.tipo });
+    } catch (verifyError: any) {
+      console.error('❌ autenticarDono: Erro ao verificar token JWT:');
+      console.error('   Erro tipo:', verifyError.name);
+      console.error('   Erro mensagem:', verifyError.message);
+      console.error('   Token (primeiros 100 chars):', token.substring(0, 100));
+      console.error('   JWT_SECRET presente:', !!process.env.JWT_SECRET);
+      console.error('   JWT_SECRET usado (primeiros 20 chars):', jwtSecret.substring(0, 20) + '...');
+      throw verifyError; // Re-throw para ser capturado pelo catch externo
+    }
     
     // O token contém { id, email, tipo }
     const userId = decoded.id || decoded.userId;
