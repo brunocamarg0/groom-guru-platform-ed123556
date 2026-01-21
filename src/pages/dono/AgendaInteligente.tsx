@@ -79,6 +79,17 @@ export default function AgendaInteligente() {
     }).format(valor);
   };
 
+  // Evita bug de fuso: `new Date('YYYY-MM-DD')` é interpretado como UTC e pode voltar 1 dia no Brasil.
+  const parseDateOnlyToSafeDate = (value: string) => {
+    if (!value) return new Date(NaN);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const [ano, mes, dia] = value.split("-").map(Number);
+      // noon UTC => sempre cai no mesmo dia em fusos do Brasil
+      return new Date(Date.UTC(ano, mes - 1, dia, 12, 0, 0));
+    }
+    return new Date(value);
+  };
+
   // Gerar horários de 40 em 40 minutos (08:00 às 19:00)
   const gerarHorariosDisponiveis = (): string[] => {
     const horarios: string[] = [];
@@ -553,7 +564,7 @@ export default function AgendaInteligente() {
                       <div className="flex flex-col">
                         <span className="text-xs text-muted-foreground">Data</span>
                         <span className="font-semibold">
-                          {format(new Date(agendamento.data), "dd/MM/yyyy", { locale: ptBR })}
+                          {format(parseDateOnlyToSafeDate(agendamento.data), "dd/MM/yyyy", { locale: ptBR })}
                         </span>
                       </div>
                       <div className="flex flex-col">

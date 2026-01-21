@@ -75,6 +75,16 @@ export default function FinanceiroPagamentos() {
     }).format(valor);
   };
 
+  // Evita bug de fuso: `new Date('YYYY-MM-DD')` é interpretado como UTC e pode voltar 1 dia no Brasil.
+  const parseDateOnlyToSafeDate = (value: string) => {
+    if (!value) return new Date(NaN);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const [ano, mes, dia] = value.split("-").map(Number);
+      return new Date(Date.UTC(ano, mes - 1, dia, 12, 0, 0));
+    }
+    return new Date(value);
+  };
+
   // Agendamentos sem pagamento (para o modal)
   const agendamentosSemPagamento = useMemo(() => {
     const agendamentosComPagamento = new Set(pagamentos.map(p => p.agendamentoId));
@@ -559,7 +569,7 @@ export default function FinanceiroPagamentos() {
                   ) : (
                     agendamentosSemPagamento.map((agendamento) => (
                       <SelectItem key={agendamento.id} value={agendamento.id}>
-                        {agendamento.clienteNome} - {agendamento.servicoNome} - {format(new Date(agendamento.data), "dd/MM/yyyy")} às {agendamento.horario} - {formatarMoeda(agendamento.valor)}
+                        {agendamento.clienteNome} - {agendamento.servicoNome} - {format(parseDateOnlyToSafeDate(agendamento.data), "dd/MM/yyyy")} às {agendamento.horario} - {formatarMoeda(agendamento.valor)}
                       </SelectItem>
                     ))
                   )}
@@ -646,7 +656,7 @@ export default function FinanceiroPagamentos() {
                     <div className="text-sm space-y-1 text-muted-foreground">
                       <p>Cliente: {agendamento.clienteNome}</p>
                       <p>Serviço: {agendamento.servicoNome}</p>
-                      <p>Data: {format(new Date(agendamento.data), "dd/MM/yyyy")} às {agendamento.horario}</p>
+                      <p>Data: {format(parseDateOnlyToSafeDate(agendamento.data), "dd/MM/yyyy")} às {agendamento.horario}</p>
                       <p className="font-semibold text-foreground">Valor do Serviço: {formatarMoeda(agendamento.valor)}</p>
                     </div>
                   );
