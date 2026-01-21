@@ -226,28 +226,27 @@ const produtosIniciais: ProdutoDono[] = [
   },
 ];
 
-// Função helper para converter data para timezone de Brasília corretamente
-// Esta função garante que as datas sejam exibidas no dia correto, independente do fuso horário do servidor
+// Função helper para extrair data do agendamento corretamente
+// Como o backend salva datas em noon UTC (T12:00:00.000Z), usamos UTC para extrair a data
+// Isso garante consistência independente do fuso horário do cliente
 const converterDataParaBrasilia = (dataUTC: string | Date): string => {
   try {
     const data = typeof dataUTC === 'string' ? new Date(dataUTC) : dataUTC;
     
-    // Criar uma data no timezone de Brasília usando Intl.DateTimeFormat
-    const formatter = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'America/Sao_Paulo',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-    
-    // Formatar a data no timezone de Brasília
-    const dataFormatada = formatter.format(data);
+    // Se a data foi salva como T12:00:00.000Z (noon UTC), a data UTC é a correta
+    // Usar métodos UTC para extrair ano, mês e dia
+    const ano = data.getUTCFullYear();
+    const mes = String(data.getUTCMonth() + 1).padStart(2, '0');
+    const dia = String(data.getUTCDate()).padStart(2, '0');
     
     // Retornar no formato YYYY-MM-DD
-    return dataFormatada;
+    return `${ano}-${mes}-${dia}`;
   } catch (error) {
-    console.error('Erro ao converter data para Brasília:', error);
+    console.error('Erro ao converter data:', error);
     // Fallback: extrair apenas a parte da data se houver erro
+    if (typeof dataUTC === 'string' && dataUTC.includes('T')) {
+      return dataUTC.split('T')[0];
+    }
     const data = typeof dataUTC === 'string' ? new Date(dataUTC) : dataUTC;
     return data.toISOString().split('T')[0];
   }
