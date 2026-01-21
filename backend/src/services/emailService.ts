@@ -596,17 +596,16 @@ Acesse: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/${tipo === 'dono'
     `;
 
     // Enviar via Resend
-    // IMPORTANTE: Resend requer domínio verificado. Use o domínio padrão do Resend para emails de teste
-    // Para produção, você precisa verificar seu domínio em https://resend.com/domains
-    // IMPORTANTE: No plano gratuito do Resend, você DEVE usar 'onboarding@resend.dev'
-    // Se EMAIL_FROM estiver configurado com domínio não verificado, forçar uso do domínio padrão
+    // ✅ Produção: use EMAIL_FROM com domínio verificado (ex.: noreply@seu-dominio.com)
+    // 🧪 Teste (plano gratuito / domínio não verificado): Resend só permite enviar para o seu próprio email
+    //    (e geralmente exige usar onboarding@resend.dev). Nesses casos, o envio via Resend falhará (403)
+    //    e o sistema seguirá para o fallback SMTP.
     let emailFrom = process.env.EMAIL_FROM || 'Barber Maestro <onboarding@resend.dev>';
 
-    // Se EMAIL_FROM não contém 'onboarding@resend.dev' ou 'resend.dev', usar o padrão
-    // Isso garante que sempre use um domínio válido no plano gratuito
-    if (!emailFrom.includes('resend.dev')) {
-      console.warn('⚠️ [EMAIL] EMAIL_FROM configurado com domínio não verificado:', emailFrom);
-      console.warn('⚠️ [EMAIL] Usando domínio padrão do Resend (onboarding@resend.dev)');
+    // Permite forçar o remetente de teste do Resend (útil quando a conta está em modo de testes)
+    // Configure no Railway: RESEND_FORCE_TEST_FROM=true
+    if (process.env.RESEND_FORCE_TEST_FROM === 'true') {
+      console.warn('⚠️ [EMAIL] RESEND_FORCE_TEST_FROM=true — usando onboarding@resend.dev');
       emailFrom = 'Barber Maestro <onboarding@resend.dev>';
     }
 
