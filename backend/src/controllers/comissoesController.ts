@@ -20,7 +20,7 @@ export async function calcularComissoesProfissional(req: AuthRequest, res: Respo
     }
 
     const mesReferencia = `${ano}-${String(mes).padStart(2, '0')}`;
-    const dataInicio = new Date(`${ano}-${String(mes).padStart(2, '0')}-01T00:00:00-03:00`);
+    const dataInicio = new Date(`${ano}-${String(mes).padStart(2, '0')}-01T00:00:00.000Z`);
     const dataFim = new Date(Number(ano), Number(mes), 0, 23, 59, 59, 999);
     console.log(`📊 [COMISSÕES] Buscando para profissional ${profissionalId} no período ${dataInicio.toISOString()} - ${dataFim.toISOString()}`);
 
@@ -185,7 +185,7 @@ export async function listarResumoComissoes(req: AuthRequest, res: Response) {
     console.log('   anoAtual:', anoAtual);
     console.log('   mesReferencia:', mesReferencia);
 
-    const dataInicio = new Date(`${anoAtual}-${String(mesAtual).padStart(2, '0')}-01T00:00:00-03:00`);
+    const dataInicio = new Date(`${anoAtual}-${String(mesAtual).padStart(2, '0')}-01T00:00:00.000Z`);
     const dataFim = new Date(anoAtual, mesAtual, 0, 23, 59, 59, 999);
 
     console.log('   dataInicio:', dataInicio);

@@ -221,10 +221,17 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
 
       // Transformar agendamentos do banco para o formato do frontend
       const agendamentosFormatados: Agendamento[] = agendamentosData.map((a: any) => {
-        // Converter data UTC para horário de Brasília antes de extrair a data
-        const dataUTC = new Date(a.data);
-        const dataBrasilia = new Date(dataUTC.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-        const dataFormatada = dataBrasilia.toISOString().split('T')[0];
+        // Extrair apenas a data (yyyy-MM-dd) usando UTC para evitar conversão de timezone
+        let dataFormatada: string;
+        if (a.data) {
+          const dataObj = new Date(a.data);
+          const ano = dataObj.getUTCFullYear();
+          const mes = String(dataObj.getUTCMonth() + 1).padStart(2, '0');
+          const dia = String(dataObj.getUTCDate()).padStart(2, '0');
+          dataFormatada = `${ano}-${mes}-${dia}`;
+        } else {
+          dataFormatada = new Date().toISOString().split('T')[0];
+        }
 
         return {
           id: a.id,
@@ -363,10 +370,19 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
         observacoes: novoAgendamento.observacoes,
       });
 
-      // Converter data UTC para horário de Brasília
-      const dataUTC = agendamentoData.data ? new Date(agendamentoData.data) : new Date();
-      const dataBrasilia = new Date(dataUTC.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-      const dataFormatada = dataBrasilia.toISOString().split('T')[0];
+      // Extrair apenas a data (yyyy-MM-dd) da resposta
+      // A data vem armazenada ao meio-dia UTC para evitar problemas de timezone
+      let dataFormatada: string;
+      if (agendamentoData.data) {
+        const dataObj = new Date(agendamentoData.data);
+        // Usar getUTC* para evitar conversão de timezone
+        const ano = dataObj.getUTCFullYear();
+        const mes = String(dataObj.getUTCMonth() + 1).padStart(2, '0');
+        const dia = String(dataObj.getUTCDate()).padStart(2, '0');
+        dataFormatada = `${ano}-${mes}-${dia}`;
+      } else {
+        dataFormatada = new Date().toISOString().split('T')[0];
+      }
 
       // Transformar resposta para o formato do frontend
       const agendamento: Agendamento = {

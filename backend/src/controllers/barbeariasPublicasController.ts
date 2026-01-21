@@ -263,10 +263,10 @@ export async function buscarHorariosOcupados(req: Request, res: Response) {
 
     console.log(`🔧 [HORARIOS] Buscando horários ocupados para barbearia ${id} na data ${data}`);
 
-    // Criar datas de início e fim do dia usando timezone de Brasília (-03:00)
-    // Isso garante que a busca considere o dia correto independente do servidor
-    const dataInicio = new Date(`${data}T00:00:00-03:00`);
-    const dataFim = new Date(`${data}T23:59:59.999-03:00`);
+    // Criar datas de início e fim do dia usando UTC
+    // Isso garante consistência com o armazenamento ao meio-dia UTC
+    const dataInicio = new Date(`${data}T00:00:00.000Z`);
+    const dataFim = new Date(`${data}T23:59:59.999Z`);
     
     console.log(`🔧 [HORARIOS] Range de busca: ${dataInicio.toISOString()} até ${dataFim.toISOString()}`);
 

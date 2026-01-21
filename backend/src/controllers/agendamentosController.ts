@@ -43,16 +43,16 @@ export async function verificarDisponibilidadeProfissional(
   barbeariaId: string
 ): Promise<boolean> {
   try {
-    // Garantir conversão correta da data usando timezone de Brasília
+    // Usar meio-dia UTC para evitar problemas de timezone
     const dataString = typeof data === 'string' ? data : data.toISOString().split('T')[0];
-    const dataAgendamento = new Date(`${dataString}T${horario}:00-03:00`);
+    const dataAgendamento = new Date(`${dataString}T12:00:00.000Z`);
 
     const inicioAgendamento = dataAgendamento.getTime();
     const fimAgendamento = inicioAgendamento + duracaoServico * 60 * 1000;
 
-    // Buscar agendamentos do profissional na mesma data usando timezone correto
-    const inicioDia = new Date(`${dataString}T00:00:00-03:00`);
-    const fimDia = new Date(`${dataString}T23:59:59.999-03:00`);
+    // Buscar agendamentos do dia usando range de data corrigido para meio-dia UTC
+    const inicioDia = new Date(`${dataString}T00:00:00.000Z`);
+    const fimDia = new Date(`${dataString}T23:59:59.999Z`);
 
     const agendamentos = await prisma.agendamento.findMany({
       where: {
@@ -169,9 +169,9 @@ export async function listarAgendamentos(req: Request, res: Response) {
     }
 
     if (data && typeof data === 'string') {
-      // Usar timezone de Brasília para garantir busca correta
-      const dataInicio = new Date(`${data}T00:00:00-03:00`);
-      const dataFim = new Date(`${data}T23:59:59.999-03:00`);
+      // Usar range de data UTC para busca correta
+      const dataInicio = new Date(`${data}T00:00:00.000Z`);
+      const dataFim = new Date(`${data}T23:59:59.999Z`);
 
       where.data = {
         gte: dataInicio,
@@ -614,8 +614,9 @@ export async function criarAgendamento(req: Request, res: Response) {
 
     const modoConfirmacao = (barbearia.modoConfirmacao || 'hibrido') as ModoConfirmacao;
 
-    // Combinar data e horário usando timezone de Brasília (-03:00)
-    const dataAgendamento = new Date(`${data}T${horario}:00-03:00`);
+    // Combinar data e horário usando meio-dia UTC para evitar problemas de timezone
+    // Isso garante que a data seja preservada corretamente em qualquer fuso horário
+    const dataAgendamento = new Date(`${data}T12:00:00.000Z`);
 
     // Determinar status inicial baseado no modo
     let statusInicial = 'pendente';
