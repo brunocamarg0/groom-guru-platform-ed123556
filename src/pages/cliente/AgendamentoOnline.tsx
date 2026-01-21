@@ -182,6 +182,16 @@ export default function AgendamentoOnline() {
     }).format(valor);
   };
 
+  // Evita bug de fuso: `new Date('YYYY-MM-DD')` é interpretado como UTC e pode voltar 1 dia no Brasil.
+  const formatarDataBR = (dataISO?: string) => {
+    if (!dataISO) return "";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dataISO)) {
+      const [ano, mes, dia] = dataISO.split("-");
+      return `${dia}/${mes}/${ano}`;
+    }
+    return new Date(dataISO).toLocaleDateString("pt-BR");
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -520,8 +530,7 @@ export default function AgendamentoOnline() {
               <div className="flex items-center justify-between p-3 border rounded-lg">
                 <span className="text-muted-foreground">Data:</span>
                 <span className="font-medium">
-                  {formData.data &&
-                    new Date(formData.data).toLocaleDateString("pt-BR")}
+                  {formatarDataBR(formData.data as string)}
                 </span>
               </div>
               <div className="flex items-center justify-between p-3 border rounded-lg">
