@@ -7,6 +7,7 @@ import adminBarbeariasRoutes from './routes/admin/barbearias';
 import adminConvitesRoutes from './routes/admin/convites';
 import adminUsuariosRoutes from './routes/admin/usuarios';
 import criarExemploRoutes from './routes/admin/criar-exemplo';
+import corrigirAdminRoutes from './routes/admin/corrigir-admin';
 import ativacaoRoutes from './routes/ativacao';
 import authRoutes from './routes/auth';
 import googleAuthRoutes from './routes/googleAuth';
@@ -221,6 +222,7 @@ app.use('/api/emergency', emergencyRoutes);
 
 // Rotas admin - ordem importa! Rotas mais específicas primeiro
 app.use('/api/admin', criarExemploRoutes); // /api/admin/criar-exemplo
+app.use('/api/admin', corrigirAdminRoutes); // /api/admin/corrigir-admin
 app.use('/api/admin', adminUsuariosRoutes); // /api/admin/barbearias/:id/dono
 app.use('/api/admin', adminConvitesRoutes); // /api/admin/barbearias/:id/convite
 app.use('/api/admin/barbearias', adminBarbeariasRoutes); // /api/admin/barbearias
