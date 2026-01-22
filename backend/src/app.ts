@@ -30,6 +30,7 @@ import donoComissoesRoutes from './routes/dono/comissoes';
 import clientePanelRoutes from './routes/cliente/panel';
 import barbeariasPublicasRoutes from './routes/barbeariasPublicas';
 import emergencyRoutes from './routes/emergency';
+import pagamentosRoutes from './routes/pagamentos';
 // Carregar configuração do Passport (pode falhar se OAuth não estiver configurado)
 try {
   require('./config/passport');
@@ -192,6 +193,7 @@ app.use('/api/auth/apple', appleAuthRoutes);
 app.use('/api', ativacaoRoutes);
 app.use('/api/solicitacoes', solicitacoesRoutes);
 app.use('/api/agendamentos', agendamentosRoutes);
+app.use('/api/pagamentos', pagamentosRoutes);
 
 // Rotas públicas de barbearias (para clientes)
 console.log('🔧 Registrando rotas públicas de barbearias em /api/barbearias');

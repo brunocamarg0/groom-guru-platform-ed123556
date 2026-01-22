@@ -170,6 +170,7 @@ model Agendamento {
   observacao  String?
   confirmadoAutomaticamente Boolean @default(false) // Se foi confirmado automaticamente (modo híbrido)
   dataConfirmacaoAutomatica DateTime? // Data/hora da confirmação automática (para calcular janela de 2h)
+  formaPagamento String? // online, presencial - forma de pagamento escolhida pelo cliente
   
   // Relacionamento com cliente (opcional - pode ser agendamento sem cadastro)
   clienteId   String?
@@ -310,11 +311,17 @@ model Pagamento {
   agendamento   Agendamento @relation(fields: [agendamentoId], references: [id], onDelete: Cascade)
   agendamentoId String      @unique
   valor         Float
-  metodo        String      // pix, cartao_credito, cartao_debito, dinheiro
-  status        String      @default("pendente") // pago, pendente, reembolsado
+  metodo        String      // pix, cartao_credito, cartao_debito, dinheiro, mercado_pago
+  status        String      @default("pendente") // pago, pendente, reembolsado, cancelado, em_processamento
   taxaGateway   Float?      @default(0)
   dataPagamento DateTime?
   dataVencimento DateTime?
+  
+  // Campos específicos do Mercado Pago
+  mercadoPagoPreferenceId String? // ID da preferência de pagamento criada no MP
+  mercadoPagoPaymentId    String? // ID do pagamento quando aprovado
+  mercadoPagoStatus       String? // approved, pending, rejected, cancelled, refunded
+  mercadoPagoPaymentType  String? // credit_card, debit_card, ticket, bank_transfer, etc
   
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt

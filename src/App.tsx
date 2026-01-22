@@ -40,6 +40,9 @@ import ClienteDashboard from "./pages/cliente/ClienteDashboard";
 import AgendamentoOnline from "./pages/cliente/AgendamentoOnline";
 import BuscarBarbearias from "./pages/cliente/BuscarBarbearias";
 import PagamentoIntegrado from "./pages/cliente/PagamentoIntegrado";
+import PagamentoSucesso from "./pages/cliente/PagamentoSucesso";
+import PagamentoFalha from "./pages/cliente/PagamentoFalha";
+import PagamentoPendente from "./pages/cliente/PagamentoPendente";
 import HistoricoAgendamentos from "./pages/cliente/HistoricoAgendamentos";
 import Avaliacoes from "./pages/cliente/Avaliacoes";
 import PerfilCliente from "./pages/cliente/PerfilCliente";
@@ -111,6 +114,9 @@ const App = () => (
                                   <Route path="/auth/callback" element={<AuthCallback />} />
                                   <Route path="/ativar-conta" element={<AtivarConta />} />
                                   <Route path="/funcionalidades" element={<Funcionalidades />} />
+                                  <Route path="/cliente/pagamento/sucesso" element={<PagamentoSucesso />} />
+                                  <Route path="/cliente/pagamento/falha" element={<PagamentoFalha />} />
+                                  <Route path="/cliente/pagamento/pendente" element={<PagamentoPendente />} />
                                   <Route path="/admin" element={<AdminLayout />}>
                                     <Route index element={<AdminDashboard />} />
                                     <Route path="barbearias/nova" element={<CadastrarBarbearia />} />

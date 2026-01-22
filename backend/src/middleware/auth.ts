@@ -7,6 +7,7 @@ export interface AuthRequest extends Request {
   userId?: string;
   userType?: 'dono' | 'admin' | 'cliente';
   barbeariaId?: string;
+  clienteId?: string;
 }
 
 /**
@@ -115,6 +116,81 @@ export async function autenticarDono(
     console.error('❌ Erro stack:', error.stack);
     
     // Mensagens de erro mais específicas
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ error: 'Token inválido: formato incorreto' });
+    }
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Token expirado. Faça login novamente.' });
+    }
+    
+    return res.status(401).json({ error: 'Token inválido' });
+  }
+}
+
+/**
+ * Middleware para autenticar usuário cliente
+ */
+export async function autenticarCliente(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.replace('Bearer ', '').trim();
+
+    if (!token) {
+      return res.status(401).json({ error: 'Token não fornecido' });
+    }
+
+    const tokenParts = token.split('.');
+    if (tokenParts.length !== 3) {
+      return res.status(401).json({ error: 'Token inválido: formato incorreto' });
+    }
+
+    const jwtSecret = obterJWTSecret();
+    let decoded: any;
+    
+    try {
+      decoded = jwt.verify(token, jwtSecret) as any;
+    } catch (verifyError: any) {
+      if (verifyError.name === 'TokenExpiredError') {
+        return res.status(401).json({ error: 'Token expirado. Faça login novamente.' });
+      }
+      return res.status(401).json({ error: 'Token inválido' });
+    }
+
+    const userId = decoded.id || decoded.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Token inválido: ID do usuário não encontrado' });
+    }
+
+    // Verificar se é cliente
+    if (decoded.tipo !== 'cliente') {
+      return res.status(403).json({ error: 'Acesso negado. Apenas clientes podem acessar esta rota.' });
+    }
+
+    const cliente = await prisma.cliente.findUnique({
+      where: { id: userId },
+    });
+
+    if (!cliente) {
+      return res.status(401).json({ error: 'Cliente não encontrado' });
+    }
+
+    if (!cliente.ativo) {
+      return res.status(401).json({ error: 'Cliente inativo' });
+    }
+
+    req.userId = cliente.id;
+    req.userType = 'cliente';
+    req.clienteId = cliente.id;
+
+    next();
+  } catch (error: any) {
+    console.error('❌ Erro na autenticação do cliente:', error);
+    
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({ error: 'Token inválido: formato incorreto' });
     }

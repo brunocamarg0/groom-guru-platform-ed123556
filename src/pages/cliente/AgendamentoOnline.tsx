@@ -23,6 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { NovoAgendamento } from "@/types/cliente";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Link } from "react-router-dom";
+import { SelecaoFormaPagamento } from "@/components/pagamento/SelecaoFormaPagamento";
 
 // Gerar horários de 40 em 40 minutos (08:00 às 19:00)
 const gerarTodosHorarios = (): string[] => {
@@ -56,6 +57,7 @@ export default function AgendamentoOnline() {
   const [loading, setLoading] = useState(false);
   const [horariosOcupados, setHorariosOcupados] = useState<string[]>([]);
   const [loadingHorarios, setLoadingHorarios] = useState(false);
+  const [agendamentoIdAtual, setAgendamentoIdAtual] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<NovoAgendamento>>({
     barbeariaId: searchParams.get("barbearia") || "",
     servicoId: "",
@@ -161,11 +163,12 @@ export default function AgendamentoOnline() {
 
       toast({
         title: "Agendamento criado!",
-        description: "Redirecionando para página de pagamento...",
+        description: "Escolha a forma de pagamento...",
       });
 
-      // Redirecionar para página de pagamento após criar agendamento
-      navigate(`/cliente/pagamento?agendamento=${novoAgendamento.id}`);
+      // Ir para step 5 (seleção de forma de pagamento)
+      setAgendamentoIdAtual(novoAgendamento.id);
+      setStep(5);
     } catch (error: any) {
       toast({
         title: "Erro",
@@ -270,15 +273,15 @@ export default function AgendamentoOnline() {
 
       {/* Progress Steps */}
       <div className="flex items-center justify-between mb-6">
-        {[1, 2, 3, 4].map((s) => (
+        {[1, 2, 3, 4, 5].map((s) => (
           <div key={s} className="flex items-center flex-1">
             <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= s ? "bg-primary text-primary-foreground" : "bg-muted"
+              className={`w-8 h-8 rounded-full flex items-center justify-center $            {step >= s ? "bg-primary text-primary-foreground" : "bg-muted"
                 }`}
             >
               {step > s ? <CheckCircle className="h-4 w-4" /> : s}
             </div>
-            {s < 4 && (
+            {s < 5 && (
               <div
                 className={`flex-1 h-1 mx-2 ${step > s ? "bg-primary" : "bg-muted"
                   }`}
@@ -556,6 +559,48 @@ export default function AgendamentoOnline() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Step 5: Seleção de Forma de Pagamento */}
+      {step === 5 && (
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Resumo do Agendamento</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Serviço:</span>
+                <span className="font-medium">{servicoSelecionado?.nome}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Data:</span>
+                <span className="font-medium">
+                  {formData.data &&
+                    new Date(formData.data).toLocaleDateString("pt-BR")} às {formData.hora}
+                </span>
+              </div>
+              <div className="flex items-center justify-between font-bold text-lg pt-2 border-t">
+                <span>Total:</span>
+                <span>{formatarMoeda(servicoSelecionado?.preco || 0)}</span>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <SelecaoFormaPagamento
+            agendamentoId={agendamentoIdAtual || ""}
+            valor={servicoSelecionado?.preco || 0}
+            onPagamentoPresencial={() => {
+              toast({
+                title: "Agendamento confirmado!",
+                description: "Você pagará na barbearia no dia do atendimento.",
+              });
+              setTimeout(() => {
+                navigate("/cliente");
+              }, 1500);
+            }}
+          />
+        </div>
       )}
     </div>
   );

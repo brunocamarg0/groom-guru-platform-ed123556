@@ -157,3 +157,7 @@ Após configurar:
 - Resend Docs: https://resend.com/docs
 - Resend Status: https://status.resend.com
 - Railway Docs: https://docs.railway.app
+
+
+
+
