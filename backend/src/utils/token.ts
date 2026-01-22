@@ -40,10 +40,18 @@ export function validarToken(token: string): boolean {
 }
 
 /**
+ * Obtém o secret JWT de forma centralizada
+ * IMPORTANTE: Este secret deve ser o mesmo em todos os lugares
+ */
+export function obterJWTSecret(): string {
+  return process.env.JWT_SECRET || 'seu-secret-super-seguro-aqui-mude-em-producao';
+}
+
+/**
  * Gera token JWT para autenticação
  */
 export function gerarTokenJWT(payload: { id: string; email: string; tipo: 'dono' | 'cliente' | 'admin'; barbeariaId?: string }): string {
-  const secret = process.env.JWT_SECRET || 'seu-secret-super-seguro-aqui-mude-em-producao';
+  const secret = obterJWTSecret();
   return jwt.sign(payload, secret, {
     expiresIn: '7d', // Token expira em 7 dias
   });
@@ -53,7 +61,7 @@ export function gerarTokenJWT(payload: { id: string; email: string; tipo: 'dono'
  * Verifica e decodifica token JWT
  */
 export function verificarTokenJWT(token: string): { id: string; email: string; tipo: 'dono' | 'cliente' | 'admin'; barbeariaId?: string } {
-  const secret = process.env.JWT_SECRET || 'seu-secret-super-seguro-aqui-mude-em-producao';
+  const secret = obterJWTSecret();
   return jwt.verify(token, secret) as { id: string; email: string; tipo: 'dono' | 'cliente' | 'admin'; barbeariaId?: string };
 }
 

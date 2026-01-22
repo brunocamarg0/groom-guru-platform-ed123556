@@ -80,6 +80,7 @@ export default function GestaoClientes() {
         nome: formCliente.nome.trim(),
         email: formCliente.email.trim(),
         telefone: formCliente.telefone.trim(),
+        vip: false,
       });
 
       // Limpar formulário e fechar modal

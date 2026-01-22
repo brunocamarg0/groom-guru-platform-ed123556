@@ -49,7 +49,7 @@ const createTransporter = async (): Promise<nodemailer.Transporter> => {
     console.log('📧 [EMAIL] Host:', process.env.SMTP_HOST);
     console.log('📧 [EMAIL] Port:', process.env.SMTP_PORT || '587');
     console.log('📧 [EMAIL] Secure:', process.env.SMTP_SECURE === 'true');
-    
+
     const smtpConfig: any = {
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT || '587'),
@@ -75,7 +75,7 @@ const createTransporter = async (): Promise<nodemailer.Transporter> => {
       maxConnections: 1,
       maxMessages: 3
     };
-    
+
     // Configurações específicas para Outlook
     if (process.env.SMTP_HOST.includes('outlook') || process.env.SMTP_HOST.includes('hotmail')) {
       smtpConfig.requireTLS = true;
@@ -84,9 +84,9 @@ const createTransporter = async (): Promise<nodemailer.Transporter> => {
         minVersion: 'TLSv1.2'
       };
     }
-    
+
     transporterCache = nodemailer.createTransport(smtpConfig);
-    
+
     // Testar conexão
     try {
       await transporterCache.verify();
@@ -95,7 +95,7 @@ const createTransporter = async (): Promise<nodemailer.Transporter> => {
       console.error('⚠️ [EMAIL] Erro ao verificar conexão SMTP:', verifyError);
       console.warn('⚠️ [EMAIL] Continuando mesmo assim - tentará enviar quando necessário');
     }
-    
+
     return transporterCache;
   }
 
@@ -190,7 +190,7 @@ export async function enviarEmailConvite(params: EnviarConviteParams) {
     <body>
       <div class="container">
         <div class="header">
-          <h1>🎉 Bem-vindo ao Barber Master!</h1>
+          <h1>🎉 Bem-vindo ao Barber Maestro!</h1>
         </div>
         <div class="content">
           <p>Olá <strong>${nomeResponsavel}</strong>,</p>
@@ -208,19 +208,19 @@ export async function enviarEmailConvite(params: EnviarConviteParams) {
             ${linkAtivacao}
           </p>
           
-          <p><strong>⚠️ Importante:</strong> Este link expira em ${expiraEm.toLocaleDateString('pt-BR', { 
-            day: '2-digit', 
-            month: 'long', 
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-          })}.</p>
+          <p><strong>⚠️ Importante:</strong> Este link expira em ${expiraEm.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })}.</p>
           
           <p>Se você não solicitou este cadastro, pode ignorar este email.</p>
         </div>
         <div class="footer">
           <p>Este é um email automático, por favor não responda.</p>
-          <p>© ${new Date().getFullYear()} Barber Master</p>
+          <p>© ${new Date().getFullYear()} Barber Maestro</p>
         </div>
       </div>
     </body>
@@ -228,7 +228,7 @@ export async function enviarEmailConvite(params: EnviarConviteParams) {
   `;
 
   const textTemplate = `
-    Bem-vindo ao Barber Master!
+    Bem-vindo ao Barber Maestro!
     
     Olá ${nomeResponsavel},
     
@@ -242,13 +242,13 @@ export async function enviarEmailConvite(params: EnviarConviteParams) {
     
     Se você não solicitou este cadastro, pode ignorar este email.
     
-    © ${new Date().getFullYear()} Barber Master
+    © ${new Date().getFullYear()} Barber Maestro
   `;
 
   try {
     const transporter = await createTransporter();
     const info = await transporter.sendMail({
-      from: process.env.EMAIL_FROM || '"Barber Master" <noreply@barbermaster.com>',
+      from: process.env.EMAIL_FROM || '"Barber Maestro" <noreply@barbermaster.com>',
       to: email,
       subject: `Ative sua conta - ${nomeBarbearia}`,
       text: textTemplate,
@@ -256,7 +256,7 @@ export async function enviarEmailConvite(params: EnviarConviteParams) {
     });
 
     console.log('✅ Email enviado:', info.messageId);
-    
+
     // Se usar Ethereal, mostra o link de preview
     if (info.messageId) {
       const previewUrl = nodemailer.getTestMessageUrl(info);
@@ -389,7 +389,7 @@ export async function enviarEmailSenha(params: EnviarSenhaParams) {
         </div>
         <div class="footer">
           <p>Este é um email automático, por favor não responda.</p>
-          <p>© ${new Date().getFullYear()} Barber Master</p>
+          <p>© ${new Date().getFullYear()} Barber Maestro</p>
         </div>
       </div>
     </body>
@@ -414,12 +414,12 @@ export async function enviarEmailSenha(params: EnviarSenhaParams) {
     
     Se você não solicitou este cadastro, entre em contato conosco imediatamente.
     
-    © ${new Date().getFullYear()} Barber Master
+    © ${new Date().getFullYear()} Barber Maestro
   `;
 
   try {
     const info = await transporter.sendMail({
-      from: process.env.EMAIL_FROM || '"Barber Master" <noreply@barbermaster.com>',
+      from: process.env.EMAIL_FROM || '"Barber Maestro" <noreply@barbermaster.com>',
       to: email,
       subject: `Acesso aprovado - ${nomeBarbearia}`,
       text: textTemplate,
@@ -427,7 +427,7 @@ export async function enviarEmailSenha(params: EnviarSenhaParams) {
     });
 
     console.log('✅ Email com senha enviado:', info.messageId);
-    
+
     if (info.messageId) {
       const previewUrl = nodemailer.getTestMessageUrl(info);
       if (previewUrl) {
@@ -470,14 +470,14 @@ async function enviarEmailViaResend(params: EnviarRecuperacaoSenhaParams): Promi
 
   try {
     console.log('📧 [EMAIL] Tentando enviar via Resend...');
-    
+
     console.log('📧 [EMAIL] Enviando para:', email);
     console.log('📧 [EMAIL] Nome:', nome);
     console.log('📧 [EMAIL] Tipo:', tipo);
-    
-    const titulo = tipo === 'dono' 
+
+    const titulo = tipo === 'dono'
       ? `Recuperação de Senha - ${nomeBarbearia || 'Barber Master'}`
-      : 'Recuperação de Senha - Barber Master';
+      : 'Recuperação de Senha - Barber Maestro';
 
     // HTML do email
     const htmlContent = `
@@ -569,7 +569,7 @@ async function enviarEmailViaResend(params: EnviarRecuperacaoSenhaParams): Promi
           </div>
           <div class="footer">
             <p>Este é um email automático, por favor não responda.</p>
-            <p>© ${new Date().getFullYear()} Barber Master</p>
+            <p>© ${new Date().getFullYear()} Barber Maestro</p>
           </div>
         </div>
       </body>
@@ -595,55 +595,54 @@ Acesse: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/${tipo === 'dono'
 © ${new Date().getFullYear()} Barber Master
     `;
 
-        // Enviar via Resend
-        // IMPORTANTE: Resend requer domínio verificado. Use o domínio padrão do Resend para emails de teste
-        // Para produção, você precisa verificar seu domínio em https://resend.com/domains
-        // IMPORTANTE: No plano gratuito do Resend, você DEVE usar 'onboarding@resend.dev'
-        // Se EMAIL_FROM estiver configurado com domínio não verificado, forçar uso do domínio padrão
-        let emailFrom = process.env.EMAIL_FROM || 'Barber Master <onboarding@resend.dev>';
-        
-        // Se EMAIL_FROM não contém 'onboarding@resend.dev' ou 'resend.dev', usar o padrão
-        // Isso garante que sempre use um domínio válido no plano gratuito
-        if (!emailFrom.includes('resend.dev')) {
-          console.warn('⚠️ [EMAIL] EMAIL_FROM configurado com domínio não verificado:', emailFrom);
-          console.warn('⚠️ [EMAIL] Usando domínio padrão do Resend (onboarding@resend.dev)');
-          emailFrom = 'Barber Master <onboarding@resend.dev>';
-        }
-        
-        console.log('📧 [EMAIL] Enviando de:', emailFrom);
-        console.log('📧 [EMAIL] Enviando para:', email);
-        console.log('📧 [EMAIL] Assunto:', titulo);
-        console.log('📧 [EMAIL] Tamanho do HTML:', htmlContent.length, 'bytes');
-        console.log('📧 [EMAIL] Iniciando envio via Resend...');
-        
-        // Enviar com timeout de 10 segundos (aumentado de 5 para 10)
-        const sendPromise = resendClient.emails.send({
-          from: emailFrom,
-          to: email,
-          subject: titulo,
-          html: htmlContent,
-          text: textContent,
-        }).then((result) => {
-          console.log('📧 [EMAIL] Resend retornou resultado:', JSON.stringify(result, null, 2));
-          return result;
-        }).catch((err) => {
-          console.error('📧 [EMAIL] Erro na promise do Resend:', err);
-          throw err;
-        });
+    // Enviar via Resend
+    // ✅ Produção: use EMAIL_FROM com domínio verificado (ex.: noreply@seu-dominio.com)
+    // 🧪 Teste (plano gratuito / domínio não verificado): Resend só permite enviar para o seu próprio email
+    //    (e geralmente exige usar onboarding@resend.dev). Nesses casos, o envio via Resend falhará (403)
+    //    e o sistema seguirá para o fallback SMTP.
+    let emailFrom = process.env.EMAIL_FROM || 'Barber Maestro <onboarding@resend.dev>';
 
-        // Timeout de 10 segundos para Resend (aumentado de 5 para 10)
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => {
-            console.error('📧 [EMAIL] TIMEOUT: Resend demorou mais de 10 segundos');
-            reject(new Error('Timeout: Resend demorou mais de 10 segundos'));
-          }, 10000);
-        });
+    // Permite forçar o remetente de teste do Resend (útil quando a conta está em modo de testes)
+    // Configure no Railway: RESEND_FORCE_TEST_FROM=true
+    if (process.env.RESEND_FORCE_TEST_FROM === 'true') {
+      console.warn('⚠️ [EMAIL] RESEND_FORCE_TEST_FROM=true — usando onboarding@resend.dev');
+      emailFrom = 'Barber Maestro <onboarding@resend.dev>';
+    }
 
-        console.log('📧 [EMAIL] Aguardando resposta do Resend (timeout: 10s)...');
-        const resultado = await Promise.race([sendPromise, timeoutPromise]) as any;
-        console.log('📧 [EMAIL] Resultado recebido do Resend:', JSON.stringify(resultado, null, 2));
-        
-        const { data, error } = resultado || {};
+    console.log('📧 [EMAIL] Enviando de:', emailFrom);
+    console.log('📧 [EMAIL] Enviando para:', email);
+    console.log('📧 [EMAIL] Assunto:', titulo);
+    console.log('📧 [EMAIL] Tamanho do HTML:', htmlContent.length, 'bytes');
+    console.log('📧 [EMAIL] Iniciando envio via Resend...');
+
+    // Enviar com timeout de 10 segundos (aumentado de 5 para 10)
+    const sendPromise = resendClient.emails.send({
+      from: emailFrom,
+      to: email,
+      subject: titulo,
+      html: htmlContent,
+      text: textContent,
+    }).then((result) => {
+      console.log('📧 [EMAIL] Resend retornou resultado:', JSON.stringify(result, null, 2));
+      return result;
+    }).catch((err) => {
+      console.error('📧 [EMAIL] Erro na promise do Resend:', err);
+      throw err;
+    });
+
+    // Timeout de 10 segundos para Resend (aumentado de 5 para 10)
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => {
+        console.error('📧 [EMAIL] TIMEOUT: Resend demorou mais de 10 segundos');
+        reject(new Error('Timeout: Resend demorou mais de 10 segundos'));
+      }, 10000);
+    });
+
+    console.log('📧 [EMAIL] Aguardando resposta do Resend (timeout: 10s)...');
+    const resultado = await Promise.race([sendPromise, timeoutPromise]) as any;
+    console.log('📧 [EMAIL] Resultado recebido do Resend:', JSON.stringify(resultado, null, 2));
+
+    const { data, error } = resultado || {};
 
     // Verificar se houve erro OU se data é null (indica falha no Resend)
     if (error || !data || data === null) {
@@ -668,7 +667,7 @@ Acesse: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/${tipo === 'dono'
       console.error('❌ [EMAIL] Email de destino:', email);
       console.error('❌ [EMAIL] Tentando fallback para nodemailer (SMTP)...');
       console.error('');
-      
+
       // Se o erro for de domínio não verificado ou plano de teste
       if (error?.statusCode === 403) {
         if (error?.message?.includes('domain is not verified')) {
@@ -691,13 +690,13 @@ Acesse: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/${tipo === 'dono'
           console.error('');
         }
       }
-      
+
       // Se o erro for de email inválido ou bloqueado, ainda tentar fallback
       // O Resend pode bloquear alguns domínios, mas o SMTP pode funcionar
       if (error?.statusCode === 422 || error?.statusCode === 400) {
         console.error('⚠️ [EMAIL] Email pode estar bloqueado no Resend, tentando SMTP...');
       }
-      
+
       return false;
     }
 
@@ -722,7 +721,7 @@ Acesse: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/${tipo === 'dono'
     console.log('✅ [EMAIL] Assunto:', titulo);
     console.log('✅ [EMAIL] Verifique a caixa de entrada e spam do email:', email);
     console.log('');
-    
+
     return true;
   } catch (error: any) {
     console.error('');
@@ -758,11 +757,11 @@ export async function enviarEmailRecuperacaoSenha(params: EnviarRecuperacaoSenha
   console.log('   RESEND_API_KEY presente:', !!process.env.RESEND_API_KEY);
   console.log('   resendClient presente:', !!resendClient);
   console.log('   isResendConfigured():', isResendConfigured());
-  
+
   const inicioResend = Date.now();
   const resendEnviado = await enviarEmailViaResend(params);
   const tempoResend = Date.now() - inicioResend;
-  
+
   if (resendEnviado) {
     console.log(`✅ [EMAIL] Email enviado com sucesso via Resend em ${tempoResend}ms!`);
     console.log('═══════════════════════════════════════════════════════');
@@ -773,7 +772,7 @@ export async function enviarEmailRecuperacaoSenha(params: EnviarRecuperacaoSenha
       metodo: 'resend',
     };
   }
-  
+
   console.log('');
   console.log(`⚠️ [EMAIL] Resend não funcionou após ${tempoResend}ms, tentando SMTP como fallback...`);
   console.log('═══════════════════════════════════════════════════════');
@@ -784,7 +783,7 @@ export async function enviarEmailRecuperacaoSenha(params: EnviarRecuperacaoSenha
   console.log('   SMTP_USER:', process.env.SMTP_USER ? `${process.env.SMTP_USER.substring(0, 5)}...` : 'NÃO CONFIGURADO');
   console.log('   SMTP_PASS:', process.env.SMTP_PASS ? '***CONFIGURADO***' : 'NÃO CONFIGURADO');
   console.log('');
-  
+
   // IMPORTANTE: Sempre tentar SMTP, mesmo que não esteja configurado
   // O createTransporter criará Ethereal se SMTP não estiver configurado
   // Mas vamos garantir que funcione para TODOS os domínios
@@ -798,7 +797,7 @@ export async function enviarEmailRecuperacaoSenha(params: EnviarRecuperacaoSenha
     transporter = await createTransporter();
   }
 
-  const titulo = tipo === 'dono' 
+  const titulo = tipo === 'dono'
     ? `Recuperação de Senha - ${nomeBarbearia || 'Barber Master'}`
     : 'Recuperação de Senha - Barber Master';
 
@@ -924,12 +923,12 @@ export async function enviarEmailRecuperacaoSenha(params: EnviarRecuperacaoSenha
     
     ⚠️ Importante: Se você não solicitou esta recuperação de senha, entre em contato conosco imediatamente.
     
-    © ${new Date().getFullYear()} Barber Master
+    © ${new Date().getFullYear()} Barber Maestro
   `;
 
   try {
     const inicioSMTP = Date.now();
-    
+
     // Enviar com timeout de 10 segundos para SMTP
     const sendPromise = transporter.sendMail({
       from: process.env.EMAIL_FROM || '"Barber Master" <noreply@barbermaster.com>',
@@ -945,14 +944,14 @@ export async function enviarEmailRecuperacaoSenha(params: EnviarRecuperacaoSenha
 
     const info = await Promise.race([sendPromise, timeoutPromise]) as any;
     const tempoSMTP = Date.now() - inicioSMTP;
-    
+
     console.log(`✅ [EMAIL] Email enviado via SMTP em ${tempoSMTP}ms!`);
 
     console.log('✅ [EMAIL] Email de recuperação de senha enviado via SMTP!');
     console.log('✅ [EMAIL] Message ID:', info.messageId);
     console.log('✅ [EMAIL] Email de destino:', email);
     console.log('✅ [EMAIL] Domínio:', email.split('@')[1] || 'desconhecido');
-    
+
     // Se usar Ethereal (teste), mostrar link de preview
     if (info.messageId) {
       const previewUrl = nodemailer.getTestMessageUrl(info);
@@ -969,7 +968,7 @@ export async function enviarEmailRecuperacaoSenha(params: EnviarRecuperacaoSenha
         console.log('✅ [EMAIL] Verifique a caixa de entrada e spam do email:', email);
       }
     }
-    
+
     console.log('═══════════════════════════════════════════════════════');
     console.log('✅ [EMAIL] ENVIO CONCLUÍDO COM SUCESSO!');
     console.log('═══════════════════════════════════════════════════════');
@@ -992,7 +991,7 @@ export async function enviarEmailRecuperacaoSenha(params: EnviarRecuperacaoSenha
     console.error('❌ [EMAIL] Mensagem:', error.message);
     console.error('❌ [EMAIL] Stack:', error.stack);
     console.error('');
-    
+
     // Mensagens de erro mais específicas
     if (error.code === 'ETIMEDOUT') {
       console.error('❌ [EMAIL] Timeout ao conectar ao servidor SMTP');
@@ -1020,7 +1019,7 @@ export async function enviarEmailRecuperacaoSenha(params: EnviarRecuperacaoSenha
       console.error('');
       throw new Error(`Conexão recusada pelo servidor de email para ${email}. Verifique SMTP_HOST e SMTP_PORT.`);
     }
-    
+
     console.error('❌ [EMAIL] Erro desconhecido - verifique os logs acima');
     console.error('═══════════════════════════════════════════════════════');
     console.error('');

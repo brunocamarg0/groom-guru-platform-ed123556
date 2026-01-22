@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useCliente } from "@/context/ClienteContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,16 +20,23 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Key, Bell, Mail, MessageSquare, Trash2, AlertTriangle } from "lucide-react";
+import { Key, Bell, Mail, MessageSquare, Trash2, AlertTriangle, Save, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { apiPut, apiDelete } from "@/services/api";
+import { useNavigate } from "react-router-dom";
 
 export default function ConfiguracoesCliente() {
+  const { cliente, atualizarPerfil } = useCliente();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [senhaAtual, setSenhaAtual] = useState("");
   const [novaSenha, setNovaSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
   const [isDialogSenhaOpen, setIsDialogSenhaOpen] = useState(false);
   const [isDialogExcluirOpen, setIsDialogExcluirOpen] = useState(false);
+  const [salvando, setSalvando] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
+  const [confirmarExclusao, setConfirmarExclusao] = useState("");
 
   const [preferencias, setPreferencias] = useState({
     notificacoesApp: true,
@@ -38,11 +46,20 @@ export default function ConfiguracoesCliente() {
     lembretes: true,
   });
 
-  const handleAlterarSenha = () => {
+  const handleAlterarSenha = async () => {
     if (!senhaAtual || !novaSenha || !confirmarSenha) {
       toast({
         title: "Erro",
         description: "Preencha todos os campos.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (novaSenha.length < 6) {
+      toast({
+        title: "Erro",
+        description: "A nova senha deve ter pelo menos 6 caracteres.",
         variant: "destructive",
       });
       return;
@@ -57,22 +74,91 @@ export default function ConfiguracoesCliente() {
       return;
     }
 
-    toast({
-      title: "Senha alterada",
-      description: "Sua senha foi alterada com sucesso.",
-    });
-    setIsDialogSenhaOpen(false);
-    setSenhaAtual("");
-    setNovaSenha("");
-    setConfirmarSenha("");
+    setSalvando(true);
+    try {
+      await apiPut('/cliente/alterar-senha', {
+        senhaAtual,
+        novaSenha,
+      });
+
+      toast({
+        title: "Senha alterada",
+        description: "Sua senha foi alterada com sucesso.",
+      });
+      setIsDialogSenhaOpen(false);
+      setSenhaAtual("");
+      setNovaSenha("");
+      setConfirmarSenha("");
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message || "Não foi possível alterar a senha.",
+        variant: "destructive",
+      });
+    } finally {
+      setSalvando(false);
+    }
   };
 
-  const handleExcluirConta = () => {
-    toast({
-      title: "Conta excluída",
-      description: "Sua conta foi excluída conforme LGPD.",
-    });
-    setIsDialogExcluirOpen(false);
+  const handleSalvarPreferencias = async () => {
+    setSalvando(true);
+    try {
+      await atualizarPerfil({
+        preferenciasNotificacao: preferencias,
+      } as any);
+      
+      toast({
+        title: "Preferências salvas",
+        description: "Suas preferências foram atualizadas com sucesso.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message || "Não foi possível salvar as preferências.",
+        variant: "destructive",
+      });
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const handleExcluirConta = async () => {
+    if (confirmarExclusao !== "EXCLUIR") {
+      toast({
+        title: "Erro",
+        description: "Digite 'EXCLUIR' para confirmar a exclusão.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setExcluindo(true);
+    try {
+      await apiDelete('/cliente/conta');
+      
+      toast({
+        title: "Conta excluída",
+        description: "Sua conta foi excluída conforme LGPD. Sentiremos sua falta!",
+      });
+
+      // Limpar dados locais e redirecionar
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('userType');
+      
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000);
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message || "Não foi possível excluir a conta.",
+        variant: "destructive",
+      });
+    } finally {
+      setExcluindo(false);
+      setIsDialogExcluirOpen(false);
+    }
   };
 
   return (
@@ -91,7 +177,7 @@ export default function ConfiguracoesCliente() {
             Alterar Senha
           </CardTitle>
           <CardDescription>
-            Altere sua senha de acesso
+            Altere sua senha de acesso para manter sua conta segura
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -114,6 +200,7 @@ export default function ConfiguracoesCliente() {
                     type="password"
                     value={senhaAtual}
                     onChange={(e) => setSenhaAtual(e.target.value)}
+                    placeholder="Digite sua senha atual"
                   />
                 </div>
                 <div className="space-y-2">
@@ -123,6 +210,7 @@ export default function ConfiguracoesCliente() {
                     type="password"
                     value={novaSenha}
                     onChange={(e) => setNovaSenha(e.target.value)}
+                    placeholder="Mínimo 6 caracteres"
                   />
                 </div>
                 <div className="space-y-2">
@@ -132,6 +220,7 @@ export default function ConfiguracoesCliente() {
                     type="password"
                     value={confirmarSenha}
                     onChange={(e) => setConfirmarSenha(e.target.value)}
+                    placeholder="Repita a nova senha"
                   />
                 </div>
               </div>
@@ -139,7 +228,16 @@ export default function ConfiguracoesCliente() {
                 <Button variant="outline" onClick={() => setIsDialogSenhaOpen(false)}>
                   Cancelar
                 </Button>
-                <Button onClick={handleAlterarSenha}>Alterar Senha</Button>
+                <Button onClick={handleAlterarSenha} disabled={salvando}>
+                  {salvando ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Alterando...
+                    </>
+                  ) : (
+                    "Alterar Senha"
+                  )}
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -179,7 +277,7 @@ export default function ConfiguracoesCliente() {
                 Notificações por Email
               </Label>
               <p className="text-sm text-muted-foreground">
-                Receba notificações por email
+                Receba confirmações e lembretes por email
               </p>
             </div>
             <Switch
@@ -197,7 +295,7 @@ export default function ConfiguracoesCliente() {
                 Notificações por WhatsApp
               </Label>
               <p className="text-sm text-muted-foreground">
-                Receba notificações via WhatsApp
+                Receba lembretes via WhatsApp
               </p>
             </div>
             <Switch
@@ -210,7 +308,7 @@ export default function ConfiguracoesCliente() {
 
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label>Promoções</Label>
+              <Label>Promoções e Ofertas</Label>
               <p className="text-sm text-muted-foreground">
                 Receba ofertas e promoções exclusivas
               </p>
@@ -237,6 +335,20 @@ export default function ConfiguracoesCliente() {
               }
             />
           </div>
+
+          <Button onClick={handleSalvarPreferencias} className="w-full" disabled={salvando}>
+            {salvando ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Salvando...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                Salvar Preferências
+              </>
+            )}
+          </Button>
         </CardContent>
       </Card>
 
@@ -251,6 +363,9 @@ export default function ConfiguracoesCliente() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <p className="text-sm text-muted-foreground mb-4">
+            A exclusão da conta é permanente e irá remover todos os seus dados, incluindo histórico de agendamentos e pontos de fidelidade. Esta ação não pode ser desfeita.
+          </p>
           <Dialog open={isDialogExcluirOpen} onOpenChange={setIsDialogExcluirOpen}>
             <DialogTrigger asChild>
               <Button variant="destructive">
@@ -260,23 +375,55 @@ export default function ConfiguracoesCliente() {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Excluir Conta</DialogTitle>
+                <DialogTitle className="text-destructive">Excluir Conta</DialogTitle>
                 <DialogDescription>
                   Esta ação é irreversível. Todos os seus dados serão excluídos conforme a LGPD.
                 </DialogDescription>
               </DialogHeader>
-              <div className="py-4">
-                <p className="text-sm text-muted-foreground">
-                  Tem certeza que deseja excluir sua conta? Todos os seus dados serão
-                  permanentemente removidos.
-                </p>
+              <div className="space-y-4">
+                <div className="p-4 bg-destructive/10 rounded-lg">
+                  <p className="text-sm font-medium text-destructive">
+                    Ao excluir sua conta, você perderá:
+                  </p>
+                  <ul className="text-sm text-muted-foreground mt-2 list-disc list-inside">
+                    <li>Histórico completo de agendamentos</li>
+                    <li>Pontos de fidelidade acumulados</li>
+                    <li>Créditos disponíveis</li>
+                    <li>Avaliações realizadas</li>
+                  </ul>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmarExclusao">
+                    Digite <span className="font-bold">EXCLUIR</span> para confirmar
+                  </Label>
+                  <Input
+                    id="confirmarExclusao"
+                    value={confirmarExclusao}
+                    onChange={(e) => setConfirmarExclusao(e.target.value)}
+                    placeholder="EXCLUIR"
+                  />
+                </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsDialogExcluirOpen(false)}>
+                <Button variant="outline" onClick={() => {
+                  setIsDialogExcluirOpen(false);
+                  setConfirmarExclusao("");
+                }}>
                   Cancelar
                 </Button>
-                <Button variant="destructive" onClick={handleExcluirConta}>
-                  Excluir Conta
+                <Button 
+                  variant="destructive" 
+                  onClick={handleExcluirConta}
+                  disabled={excluindo || confirmarExclusao !== "EXCLUIR"}
+                >
+                  {excluindo ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Excluindo...
+                    </>
+                  ) : (
+                    "Excluir Conta Permanentemente"
+                  )}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -286,10 +433,3 @@ export default function ConfiguracoesCliente() {
     </div>
   );
 }
-
-
-
-
-
-
-

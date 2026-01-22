@@ -1,4 +1,5 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -30,6 +31,7 @@ import {
   LogOut,
   Building2,
 } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -38,9 +40,50 @@ import { ThemeProvider, useTheme } from "@/context/ThemeContext";
 
 function DonoLayoutContent() {
   const location = useLocation();
-  const { notificacoes } = useDono();
+  const { notificacoes, configuracao } = useDono();
   const { theme } = useTheme();
   const notificacoesNaoLidas = notificacoes?.filter((n) => !n.lida).length || 0;
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  // Verificar autenticação ao montar o componente (apenas uma vez)
+  useEffect(() => {
+    const checkAuth = () => {
+      const token = localStorage.getItem('token');
+      const userType = localStorage.getItem('userType');
+      
+      console.log('🔐 [DONO LAYOUT] Verificando autenticação...');
+      console.log('   Token presente:', !!token);
+      console.log('   UserType:', userType);
+      console.log('   Path:', location.pathname);
+      
+      // Se não há token ou userType não é 'dono', redirecionar para login
+      if (!token || userType !== 'dono') {
+        console.warn('⚠️ [DONO LAYOUT] Token não encontrado ou tipo de usuário incorreto. Redirecionando...');
+        window.location.href = '/login?tab=owner';
+        return;
+      }
+      
+      console.log('✅ [DONO LAYOUT] Autenticação válida');
+      setIsCheckingAuth(false);
+    };
+
+    // Delay maior para garantir que o token foi salvo após o login
+    // E que todas as requisições iniciais foram processadas
+    const timer = setTimeout(checkAuth, 1000);
+    return () => clearTimeout(timer);
+  }, [location.pathname]);
+
+  // Se ainda está verificando autenticação, mostrar loading
+  if (isCheckingAuth) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="text-muted-foreground">Verificando autenticação...</p>
+        </div>
+      </div>
+    );
+  }
 
   const menuItems = [
     {
@@ -117,12 +160,21 @@ function DonoLayoutContent() {
         <Sidebar className="bg-sidebar border-r border-sidebar-border">
         <SidebarHeader className="border-b border-sidebar-border bg-sidebar">
           <div className="flex items-center gap-3 px-4 py-3">
-            <div className="bg-primary p-2 rounded-full">
-              <Building2 className="h-5 w-5 text-primary-foreground" />
-            </div>
+            {configuracao?.foto ? (
+              <Avatar className="h-10 w-10 border-2 border-primary/20">
+                <AvatarImage src={configuracao.foto} alt={configuracao.nome || "Barbearia"} />
+                <AvatarFallback className="bg-primary text-primary-foreground">
+                  <Building2 className="h-5 w-5" />
+                </AvatarFallback>
+              </Avatar>
+            ) : (
+              <div className="bg-primary p-2 rounded-full">
+                <Building2 className="h-5 w-5 text-primary-foreground" />
+              </div>
+            )}
             <div className="flex flex-col">
               <span className="font-semibold text-sm text-sidebar-foreground">
-                Painel do Dono
+                {configuracao?.nome || "Painel do Dono"}
               </span>
               <span className="text-xs text-sidebar-foreground/70">
                 Gestão Completa

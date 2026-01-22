@@ -102,7 +102,7 @@ export default function AdminLayout() {
             </div>
             <div className="flex flex-col">
               <span className="font-black text-sm uppercase text-sidebar-foreground">
-                Barber Master
+                Barber Maestro
               </span>
               <span className="text-xs text-sidebar-foreground/70">
                 Admin Panel

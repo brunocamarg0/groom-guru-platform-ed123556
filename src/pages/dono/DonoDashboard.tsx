@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useDono } from "@/context/DonoContext";
 import {
   Card,
@@ -16,6 +17,7 @@ import {
   TrendingUp,
   AlertCircle,
   CreditCard,
+  Loader2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,8 +25,7 @@ import { Link } from "react-router-dom";
 import { apiGet } from "@/services/api";
 
 export default function DonoDashboard() {
-  const { kpi, agendamentos, notificacoes } = useDono();
-  const [resumoComissoes, setResumoComissoes] = useState<any>(null);
+  const { barbeariaId, kpi, agendamentos, notificacoes, loading } = useDono();
 
   const formatarMoeda = (valor: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -33,24 +34,23 @@ export default function DonoDashboard() {
     }).format(valor);
   };
 
-  const agendamentosHoje = agendamentos.filter(
+  const agendamentosHoje = (agendamentos || []).filter(
     (a) => a.data === new Date().toISOString().split("T")[0]
   );
 
-  // Carregar resumo de comissões do mês atual
-  useEffect(() => {
-    const carregarComissoes = async () => {
-      try {
-        const mes = new Date().getMonth() + 1;
-        const ano = new Date().getFullYear();
-        const data = await apiGet<any>(`/dono/comissoes/resumo?mes=${mes}&ano=${ano}`);
-        setResumoComissoes(data.resumoGeral);
-      } catch (error) {
-        console.error('Erro ao carregar resumo de comissões:', error);
-      }
-    };
-    carregarComissoes();
-  }, []);
+  // Carregar resumo de comissões usando React Query para cache
+  const { data: comissoesData } = useQuery({
+    queryKey: ['comissoes-resumo', barbeariaId],
+    queryFn: () => {
+      const mes = new Date().getMonth() + 1;
+      const ano = new Date().getFullYear();
+      return apiGet<any>(`/dono/comissoes/resumo?mes=${mes}&ano=${ano}`);
+    },
+    enabled: !!barbeariaId,
+    staleTime: 1000 * 60 * 15, // 15 minutos de cache
+  });
+
+  const resumoComissoes = comissoesData?.resumoGeral || null;
 
   const alertas = [
     ...(agendamentosHoje.length < 5
@@ -60,6 +60,17 @@ export default function DonoDashboard() {
       ? [{ tipo: "info", mensagem: `${notificacoes.filter((n) => !n.lida).length} notificações não lidas` }]
       : []),
   ];
+
+  // Mostrar loading enquanto carrega dados
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="text-muted-foreground">Carregando dados do painel...</p>
+        <p className="text-xs text-muted-foreground">Isso pode levar alguns segundos na primeira vez</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -284,8 +295,8 @@ export default function DonoDashboard() {
                         agendamento.status === "confirmado"
                           ? "default"
                           : agendamento.status === "pendente"
-                          ? "secondary"
-                          : "destructive"
+                            ? "secondary"
+                            : "destructive"
                       }
                     >
                       {agendamento.status}

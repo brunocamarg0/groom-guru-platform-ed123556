@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import prisma from '../lib/prisma';
+import { obterJWTSecret } from '../utils/token';
 
 export interface AuthRequestCliente extends Request {
   userId?: string;
@@ -26,7 +27,8 @@ export async function autenticarCliente(
       return res.status(401).json({ error: 'Token não fornecido' });
     }
 
-    const jwtSecret = process.env.JWT_SECRET || 'fallback-secret';
+    // Usar função centralizada para obter o secret (garante consistência)
+    const jwtSecret = obterJWTSecret();
     const decoded = jwt.verify(token, jwtSecret) as any;
     
     const userId = decoded.id || decoded.userId;

@@ -62,10 +62,11 @@ export default function NotificacoesCliente() {
               </p>
             ) : (
               notificacoesArray.map((notificacao) => {
-                const tipoKey = notificacao.tipo || "sistema";
+                const notificacaoComTipo = notificacao as { id: string; titulo: string; mensagem: string; lida: boolean; data: string; tipo?: string; canal?: string };
+                const tipoKey = notificacaoComTipo.tipo || "sistema";
                 const tipo = tipoConfig[tipoKey] || tipoConfig.sistema;
                 const TipoIcon = tipo.icon;
-                const canalKey = notificacao.canal || "app";
+                const canalKey = notificacaoComTipo.canal || "app";
                 const canal = canalConfig[canalKey] || canalConfig.app;
                 return (
                   <div
@@ -90,7 +91,7 @@ export default function NotificacoesCliente() {
                           {notificacao.mensagem || "Sem mensagem"}
                         </p>
                         <div className="flex items-center gap-2 mt-2">
-                          {notificacao.canal && (
+                          {notificacaoComTipo.canal && (
                             <Badge variant="outline" className="text-xs">
                               {canal.label}
                             </Badge>

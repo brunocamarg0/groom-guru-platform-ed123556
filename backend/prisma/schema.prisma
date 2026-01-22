@@ -39,6 +39,7 @@ model Barbearia {
   bairro            String?
   cep               String?
   modoConfirmacao   String   @default("hibrido") // automatico, manual, hibrido
+  foto              String?  // URL ou base64 da foto da barbearia
   
   // Relacionamentos
   dono              UsuarioDono?  @relation("BarbeariaDono")

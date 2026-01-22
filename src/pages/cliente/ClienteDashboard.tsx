@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Calendar,
   Clock,
@@ -22,12 +23,16 @@ import {
   Phone,
   Mail,
   Search,
+  RefreshCw,
+  XCircle,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ClienteDashboard() {
   const navigate = useNavigate();
-  let cliente, getProximoAgendamento, fidelidade, barbearias;
+  const { toast } = useToast();
+  let cliente, getProximoAgendamento, fidelidade, barbearias, cancelarAgendamento, carregarDados;
   
   try {
     const clienteContext = useCliente();
@@ -35,6 +40,8 @@ export default function ClienteDashboard() {
     getProximoAgendamento = clienteContext.getProximoAgendamento;
     fidelidade = clienteContext.fidelidade;
     barbearias = clienteContext.barbearias || [];
+    cancelarAgendamento = clienteContext.cancelarAgendamento;
+    carregarDados = clienteContext.carregarDados;
   } catch (error) {
     console.error("Erro ao carregar dados do cliente:", error);
     return (
@@ -72,7 +79,7 @@ export default function ClienteDashboard() {
     if (!proximoAgendamento) return null;
 
     const dataAgendamento = new Date(
-      `${proximoAgendamento.data}T${proximoAgendamento.horario}`
+      `${proximoAgendamento.data}T${proximoAgendamento.horario || proximoAgendamento.hora}`
     );
     const agora = new Date();
 
@@ -105,23 +112,62 @@ export default function ClienteDashboard() {
     }
   };
 
+  const handleCancelarAgendamento = async () => {
+    if (!proximoAgendamento) return;
+    
+    if (confirm("Tem certeza que deseja cancelar este agendamento?")) {
+      try {
+        await cancelarAgendamento(proximoAgendamento.id);
+        toast({
+          title: "Agendamento cancelado",
+          description: "Seu agendamento foi cancelado com sucesso.",
+        });
+        // Recarregar dados
+        if (carregarDados) {
+          await carregarDados();
+        }
+      } catch (error: any) {
+        toast({
+          title: "Erro",
+          description: error.message || "Não foi possível cancelar o agendamento.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
   const tempoRestante = calcularTempoRestante();
 
-  const statusConfig = {
-    confirmado: { label: "Confirmado", variant: "default" as const },
-    aguardando_pagamento: { label: "Aguardando Pagamento", variant: "secondary" as const },
-    concluido: { label: "Concluído", variant: "outline" as const },
-    cancelado: { label: "Cancelado", variant: "destructive" as const },
-    reagendado: { label: "Reagendado", variant: "secondary" as const },
+  const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
+    confirmado: { label: "Confirmado", variant: "default" },
+    aguardando_pagamento: { label: "Aguardando Pagamento", variant: "secondary" },
+    pendente: { label: "Pendente", variant: "secondary" },
+    concluido: { label: "Concluído", variant: "outline" },
+    cancelado: { label: "Cancelado", variant: "destructive" },
+    reagendado: { label: "Reagendado", variant: "secondary" },
+  };
+
+  const getStatusConfig = (status: string) => {
+    return statusConfig[status] || { label: status, variant: "default" as const };
   };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Olá, {cliente.nome.split(" ")[0]}! 👋</h2>
-        <p className="text-muted-foreground">
-          Bem-vindo ao seu painel de agendamentos
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Olá, {cliente.nome.split(" ")[0]}! 👋</h2>
+          <p className="text-muted-foreground">
+            Bem-vindo ao seu painel de agendamentos
+          </p>
+        </div>
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={() => carregarDados && carregarDados()}
+        >
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Atualizar
+        </Button>
       </div>
 
       {/* Próximo Agendamento */}
@@ -140,8 +186,8 @@ export default function ClienteDashboard() {
                   </CardDescription>
                 )}
               </div>
-              <Badge variant={statusConfig[proximoAgendamento.status].variant}>
-                {statusConfig[proximoAgendamento.status].label}
+              <Badge variant={getStatusConfig(proximoAgendamento.status).variant}>
+                {getStatusConfig(proximoAgendamento.status).label}
               </Badge>
             </div>
           </CardHeader>
@@ -150,28 +196,28 @@ export default function ClienteDashboard() {
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Data e Horário</p>
                 <p className="font-medium">
-                  {formatarData(proximoAgendamento.data, proximoAgendamento.horario)}
+                  {formatarData(proximoAgendamento.data, proximoAgendamento.horario || proximoAgendamento.hora)}
                 </p>
               </div>
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Profissional</p>
                 <p className="font-medium flex items-center gap-2">
                   <User className="h-4 w-4" />
-                  {proximoAgendamento.profissionalNome}
+                  {proximoAgendamento.profissionalNome || 'A definir'}
                 </p>
               </div>
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Serviço</p>
                 <p className="font-medium flex items-center gap-2">
                   <Scissors className="h-4 w-4" />
-                  {proximoAgendamento.servicoNome}
+                  {proximoAgendamento.servicoNome || proximoAgendamento.servico?.nome || 'N/A'}
                 </p>
               </div>
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Valor</p>
                 <p className="font-medium flex items-center gap-2">
                   <DollarSign className="h-4 w-4" />
-                  {formatarMoeda(proximoAgendamento.valor)}
+                  {formatarMoeda(proximoAgendamento.valor || proximoAgendamento.servico?.preco || 0)}
                 </p>
               </div>
             </div>
@@ -184,13 +230,9 @@ export default function ClienteDashboard() {
               </Button>
               <Button
                 variant="destructive"
-                onClick={() => {
-                  // Cancelar agendamento
-                  if (confirm("Tem certeza que deseja cancelar este agendamento?")) {
-                    // Implementar cancelamento
-                  }
-                }}
+                onClick={handleCancelarAgendamento}
               >
+                <XCircle className="h-4 w-4 mr-2" />
                 Cancelar
               </Button>
             </div>
@@ -206,7 +248,7 @@ export default function ClienteDashboard() {
           </CardHeader>
           <CardContent>
             <Button asChild>
-              <Link to="/cliente/agendar">
+              <Link to="/cliente/barbearias">
                 <Calendar className="h-4 w-4 mr-2" />
                 Agendar Agora
               </Link>
@@ -217,7 +259,7 @@ export default function ClienteDashboard() {
 
       {/* Atalhos Rápidos */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Link to="/cliente/agendar">
+        <Link to="/cliente/barbearias">
           <Card className="cursor-pointer hover:bg-accent transition-colors">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -351,9 +393,18 @@ export default function ClienteDashboard() {
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="bg-primary p-2 rounded-full">
-                        <Scissors className="h-5 w-5 text-primary-foreground" />
-                      </div>
+                      {barbearia.foto ? (
+                        <Avatar className="h-12 w-12 border-2 border-primary/20">
+                          <AvatarImage src={barbearia.foto} alt={barbearia.nome} />
+                          <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                            {barbearia.nome.charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                      ) : (
+                        <div className="bg-primary p-2 rounded-full">
+                          <Scissors className="h-5 w-5 text-primary-foreground" />
+                        </div>
+                      )}
                       <div className="flex-1">
                         <CardTitle className="text-lg">{barbearia.nome}</CardTitle>
                         {(barbearia.endereco || barbearia.cidade || barbearia.bairro) && (
@@ -446,4 +497,3 @@ export default function ClienteDashboard() {
     </div>
   );
 }
-

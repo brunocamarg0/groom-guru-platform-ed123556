@@ -74,6 +74,7 @@ export default function ComissoesBarbeiros() {
   const [profissionalSelecionado, setProfissionalSelecionado] = useState<string | null>(null);
   const [comissoesDetalhadas, setComissoesDetalhadas] = useState<Comissao[]>([]);
   const [carregando, setCarregando] = useState(false);
+  const [tabAtiva, setTabAtiva] = useState("resumo");
 
   const formatarMoeda = (valor: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -111,6 +112,7 @@ export default function ComissoesBarbeiros() {
       const data = await apiGet<any>(`/dono/comissoes/profissional/${profissionalId}?mes=${mes}&ano=${ano}`);
       setComissoesDetalhadas(data.comissoes || []);
       setProfissionalSelecionado(profissionalId);
+      setTabAtiva("detalhes");
     } catch (error: any) {
       console.error('Erro ao carregar comissões detalhadas:', error);
       toast.error('Erro ao carregar comissões detalhadas');
@@ -145,7 +147,7 @@ export default function ComissoesBarbeiros() {
     }
 
     try {
-      const resultado = await apiPost('/dono/comissoes/marcar-todas-pagas', {
+      const resultado = await apiPost<{ total: number }>('/dono/comissoes/marcar-todas-pagas', {
         profissionalId,
         mes,
         ano,
@@ -257,7 +259,7 @@ export default function ComissoesBarbeiros() {
         </div>
       )}
 
-      <Tabs defaultValue="resumo" className="space-y-4">
+      <Tabs value={tabAtiva} onValueChange={setTabAtiva} className="space-y-4">
         <TabsList>
           <TabsTrigger value="resumo">Resumo por Profissional</TabsTrigger>
           <TabsTrigger value="detalhes">Detalhes de Agendamentos</TabsTrigger>

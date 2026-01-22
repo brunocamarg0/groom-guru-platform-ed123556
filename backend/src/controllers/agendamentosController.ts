@@ -1,5 +1,27 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
+
+// Select para barbearia sem a coluna foto (até migration ser executada)
+const barbeariaSelect = {
+  id: true,
+  nome: true,
+  cnpjCpf: true,
+  responsavel: true,
+  plano: true,
+  status: true,
+  dataCriacao: true,
+  dataVencimento: true,
+  email: true,
+  telefone: true,
+  endereco: true,
+  cidade: true,
+  bairro: true,
+  cep: true,
+  modoConfirmacao: true,
+  // foto removida temporariamente até migration ser executada
+  createdAt: true,
+  updatedAt: true,
+};
 import {
   notificarConfirmacaoAgendamento,
   notificarRecusaAgendamento,
@@ -13,7 +35,7 @@ type ModoConfirmacao = 'automatico' | 'manual' | 'hibrido';
 /**
  * Verificar disponibilidade de um profissional em um horário específico
  */
-async function verificarDisponibilidadeProfissional(
+export async function verificarDisponibilidadeProfissional(
   profissionalId: string,
   data: string | Date,
   horario: string,
@@ -21,18 +43,16 @@ async function verificarDisponibilidadeProfissional(
   barbeariaId: string
 ): Promise<boolean> {
   try {
-    const dataAgendamento = new Date(data);
-    const [hora, minuto] = horario.split(':').map(Number);
-    dataAgendamento.setHours(hora, minuto, 0, 0);
+    // Usar meio-dia UTC para evitar problemas de timezone
+    const dataString = typeof data === 'string' ? data : data.toISOString().split('T')[0];
+    const dataAgendamento = new Date(`${dataString}T12:00:00.000Z`);
 
     const inicioAgendamento = dataAgendamento.getTime();
     const fimAgendamento = inicioAgendamento + duracaoServico * 60 * 1000;
 
-    // Buscar agendamentos do profissional na mesma data
-    const inicioDia = new Date(dataAgendamento);
-    inicioDia.setHours(0, 0, 0, 0);
-    const fimDia = new Date(dataAgendamento);
-    fimDia.setHours(23, 59, 59, 999);
+    // Buscar agendamentos do dia usando range de data corrigido para meio-dia UTC
+    const inicioDia = new Date(`${dataString}T00:00:00.000Z`);
+    const fimDia = new Date(`${dataString}T23:59:59.999Z`);
 
     const agendamentos = await prisma.agendamento.findMany({
       where: {
@@ -57,11 +77,7 @@ async function verificarDisponibilidadeProfissional(
 
     // Verificar conflitos
     for (const agendamento of agendamentos) {
-      const dataAgend = new Date(agendamento.data);
-      const [horaAgend, minutoAgend] = agendamento.horario.split(':').map(Number);
-      dataAgend.setHours(horaAgend, minutoAgend, 0, 0);
-
-      const inicioExistente = dataAgend.getTime();
+      const inicioExistente = new Date(agendamento.data).getTime();
       const fimExistente = inicioExistente + agendamento.servico.duracao * 60 * 1000;
 
       // Verificar sobreposição
@@ -153,11 +169,10 @@ export async function listarAgendamentos(req: Request, res: Response) {
     }
 
     if (data && typeof data === 'string') {
-      const dataInicio = new Date(data);
-      dataInicio.setHours(0, 0, 0, 0);
-      const dataFim = new Date(data);
-      dataFim.setHours(23, 59, 59, 999);
-      
+      // Usar range de data UTC para busca correta
+      const dataInicio = new Date(`${data}T00:00:00.000Z`);
+      const dataFim = new Date(`${data}T23:59:59.999Z`);
+
       where.data = {
         gte: dataInicio,
         lte: dataFim,
@@ -224,7 +239,28 @@ export async function buscarAgendamento(req: Request, res: Response) {
       include: {
         clienteRel: true,
         servico: true,
-        barbearia: true,
+        barbearia: {
+          select: {
+            id: true,
+            nome: true,
+            cnpjCpf: true,
+            responsavel: true,
+            plano: true,
+            status: true,
+            dataCriacao: true,
+            dataVencimento: true,
+            email: true,
+            telefone: true,
+            endereco: true,
+            cidade: true,
+            bairro: true,
+            cep: true,
+            modoConfirmacao: true,
+            // foto removida temporariamente até migration ser executada
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
         profissionais: {
           include: {
             profissional: {
@@ -277,7 +313,9 @@ export async function confirmarAgendamento(req: Request, res: Response) {
       include: {
         clienteRel: true,
         servico: true,
-        barbearia: true,
+        barbearia: {
+          select: barbeariaSelect,
+        },
       },
     });
 
@@ -374,7 +412,9 @@ export async function recusarAgendamento(req: Request, res: Response) {
       include: {
         clienteRel: true,
         servico: true,
-        barbearia: true,
+        barbearia: {
+          select: barbeariaSelect,
+        },
       },
     });
 
@@ -386,14 +426,16 @@ export async function recusarAgendamento(req: Request, res: Response) {
       where: { id },
       data: {
         status: 'recusado',
-        observacao: motivo 
+        observacao: motivo
           ? `${agendamento.observacao || ''}\n[Recusado] ${motivo}`.trim()
           : agendamento.observacao,
       },
       include: {
         clienteRel: true,
         servico: true,
-        barbearia: true,
+        barbearia: {
+          select: barbeariaSelect,
+        },
       },
     });
 
@@ -455,14 +497,16 @@ export async function cancelarAgendamento(req: Request, res: Response) {
       where: { id },
       data: {
         status: 'cancelado',
-        observacao: motivo 
+        observacao: motivo
           ? `${agendamento.observacao || ''}\n[Cancelado] ${motivo}`.trim()
           : agendamento.observacao,
       },
       include: {
         clienteRel: true,
         servico: true,
-        barbearia: true,
+        barbearia: {
+          select: barbeariaSelect,
+        },
       },
     });
 
@@ -504,7 +548,9 @@ export async function concluirAgendamento(req: Request, res: Response) {
       include: {
         clienteRel: true,
         servico: true,
-        barbearia: true,
+        barbearia: {
+          select: barbeariaSelect,
+        },
       },
     });
 
@@ -526,9 +572,10 @@ export async function criarAgendamento(req: Request, res: Response) {
   try {
     const { barbeariaId, clienteId, servicoId, profissionalId, cliente, telefone, data, horario, observacao } = req.body;
 
-    if (!barbeariaId || !servicoId || !data || !horario) {
-      return res.status(400).json({ error: 'Campos obrigatórios: barbeariaId, servicoId, data, horario' });
-    }
+    console.log('📅 [AGENDAMENTO] Criando novo agendamento:');
+    console.log('   barbeariaId:', barbeariaId);
+    console.log('   profissionalId:', profissionalId);
+    console.log('   cliente:', cliente);
 
     // Buscar configuração da barbearia e serviço
     const [barbearia, servico] = await Promise.all([
@@ -566,11 +613,10 @@ export async function criarAgendamento(req: Request, res: Response) {
     }
 
     const modoConfirmacao = (barbearia.modoConfirmacao || 'hibrido') as ModoConfirmacao;
-    
-    // Combinar data e horário
-    const dataAgendamento = new Date(data);
-    const [hora, minuto] = horario.split(':').map(Number);
-    dataAgendamento.setHours(hora, minuto, 0, 0);
+
+    // Combinar data e horário usando meio-dia UTC para evitar problemas de timezone
+    // Isso garante que a data seja preservada corretamente em qualquer fuso horário
+    const dataAgendamento = new Date(`${data}T12:00:00.000Z`);
 
     // Determinar status inicial baseado no modo
     let statusInicial = 'pendente';
@@ -635,12 +681,16 @@ export async function criarAgendamento(req: Request, res: Response) {
 
     // Associar profissional se informado
     if (profissionalId) {
+      console.log('   🔗 Vinculando profissional:', profissionalId);
       await prisma.agendamentoProfissional.create({
         data: {
           agendamentoId: agendamento.id,
           profissionalId,
         },
       });
+      console.log('   ✅ Vínculo criado com sucesso');
+    } else {
+      console.log('   ⚠️ Nenhum profissionalId informado para vincular');
     }
 
     // Buscar agendamento novamente com profissional associado (se foi associado)

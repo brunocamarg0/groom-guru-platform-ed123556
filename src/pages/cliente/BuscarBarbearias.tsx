@@ -13,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Scissors, MapPin, Phone, Mail, Search, Star, Users, Clock, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function BuscarBarbearias() {
   const { barbearias, buscarBarbearias } = useCliente();
@@ -73,9 +73,9 @@ export default function BuscarBarbearias() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto p-4">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">Agendar Serviço</h2>
+        <h2 className="text-3xl font-bold tracking-tight">Buscar Barbearias</h2>
         <p className="text-muted-foreground">
-          Escolha uma barbearia e agende seu serviço
+          Encontre a barbearia ideal e agende seu serviço
         </p>
       </div>
 
@@ -197,6 +197,7 @@ export default function BuscarBarbearias() {
                 <CardHeader className="pb-3">
                   <div className="flex items-start gap-3">
                     <Avatar className="h-16 w-16 border-2 border-primary/20">
+                      <AvatarImage src={barbearia.foto || undefined} alt={barbearia.nome} />
                       <AvatarFallback className="bg-primary/10 text-primary text-lg font-bold">
                         {barbearia.nome.charAt(0).toUpperCase()}
                       </AvatarFallback>

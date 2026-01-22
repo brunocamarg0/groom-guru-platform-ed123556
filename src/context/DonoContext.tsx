@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import {
   KPI,
   AgendamentoDono,
@@ -10,27 +10,58 @@ import {
   ProdutoDono,
   NotificacaoDono,
   ConfiguracaoBarbearia,
-  RelatorioDono,
+  RelatorioDono
 } from "@/types/dono";
 import { apiGet, apiPost, apiPut, apiDelete } from "@/services/api";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import * as firestoreUtils from "@/lib/firestoreUtils";
 
-// Função para decodificar JWT e obter barbeariaId
-function obterBarbeariaIdDoToken(): string | null {
+// Função para decodificar JWT e obter dados do token
+function obterDadosDoToken(): { id: string; email: string; tipo: string; barbeariaId?: string } | null {
   try {
     const token = localStorage.getItem('token');
     if (!token) return null;
     
     // Decodificar JWT (sem verificar assinatura, apenas para obter dados)
     const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.barbeariaId || null;
+    return payload;
   } catch (error) {
     console.error('Erro ao decodificar token:', error);
     return null;
   }
 }
 
+// Função para obter barbeariaId do token ou localStorage
+function obterBarbeariaIdDoToken(): string | null {
+  // O token não contém barbeariaId diretamente, precisa buscar do localStorage
+  // que foi salvo durante o login
+  try {
+    const barbeariaStr = localStorage.getItem('barbearia');
+    if (barbeariaStr) {
+      const barbearia = JSON.parse(barbeariaStr);
+      return barbearia.id || null;
+    }
+    
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      return user.barbeariaId || null;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Erro ao obter barbeariaId:', error);
+    return null;
+  }
+}
+
 interface DonoContextType {
+  // Estado
+  loading: boolean;
+  barbeariaId: string | null;
+
   // Dados
   kpi: KPI;
   agendamentos: AgendamentoDono[];
@@ -67,6 +98,7 @@ interface DonoContextType {
   toggleServicoAtivo: (id: string) => Promise<void>;
   
   registrarPagamento: (pagamento: Omit<PagamentoDono, "id">) => Promise<void>;
+  registrarPagamentoManual: (agendamentoId: string, valor: number, metodo: 'dinheiro' | 'pix' | 'cartao_credito' | 'cartao_debito', observacao?: string) => Promise<void>;
   
   criarPromocao: (promocao: Omit<PromocaoDono, "id">) => Promise<void>;
   atualizarPromocao: (id: string, dados: Partial<PromocaoDono>) => Promise<void>;
@@ -194,6 +226,32 @@ const produtosIniciais: ProdutoDono[] = [
   },
 ];
 
+// Função helper para extrair data do agendamento corretamente
+// Como o backend salva datas em noon UTC (T12:00:00.000Z), usamos UTC para extrair a data
+// Isso garante consistência independente do fuso horário do cliente
+const converterDataParaBrasilia = (dataUTC: string | Date): string => {
+  try {
+    const data = typeof dataUTC === 'string' ? new Date(dataUTC) : dataUTC;
+    
+    // Se a data foi salva como T12:00:00.000Z (noon UTC), a data UTC é a correta
+    // Usar métodos UTC para extrair ano, mês e dia
+    const ano = data.getUTCFullYear();
+    const mes = String(data.getUTCMonth() + 1).padStart(2, '0');
+    const dia = String(data.getUTCDate()).padStart(2, '0');
+    
+    // Retornar no formato YYYY-MM-DD
+    return `${ano}-${mes}-${dia}`;
+  } catch (error) {
+    console.error('Erro ao converter data:', error);
+    // Fallback: extrair apenas a parte da data se houver erro
+    if (typeof dataUTC === 'string' && dataUTC.includes('T')) {
+      return dataUTC.split('T')[0];
+    }
+    const data = typeof dataUTC === 'string' ? new Date(dataUTC) : dataUTC;
+    return data.toISOString().split('T')[0];
+  }
+};
+
 const configuracaoInicial: ConfiguracaoBarbearia = {
   id: "1",
   nome: "Barbearia do João",
@@ -217,30 +275,38 @@ const configuracaoInicial: ConfiguracaoBarbearia = {
 };
 
 export function DonoProvider({ children }: { children: ReactNode }) {
-  // Obter barbeariaId do token JWT (prioridade) ou localStorage (fallback)
+  const navigate = useNavigate();
+  // Obter barbeariaId do localStorage (salvo durante o login)
+  // O token JWT não contém barbeariaId, apenas id, email e tipo
   const getBarbeariaIdFromStorage = (): string | null => {
-    // Primeiro tenta obter do token JWT
-    const tokenId = obterBarbeariaIdDoToken();
-    if (tokenId) return tokenId;
-    
-    // Fallback: tenta obter do localStorage
     try {
-      const userStr = localStorage.getItem('user');
-      const barbeariaStr = localStorage.getItem('barbearia');
+      console.log('🔍 [DONO CONTEXT] Buscando barbeariaId no localStorage...');
       
+      // Primeiro tenta obter do objeto barbearia salvo no login
+      const barbeariaStr = localStorage.getItem('barbearia');
       if (barbeariaStr) {
         const barbearia = JSON.parse(barbeariaStr);
+        console.log('✅ [DONO CONTEXT] barbeariaId encontrado em localStorage.barbearia:', barbearia.id);
         return barbearia.id || null;
       }
       
+      // Fallback: tenta obter do objeto user
+      const userStr = localStorage.getItem('user');
       if (userStr) {
         const user = JSON.parse(userStr);
-        return user.barbeariaId || null;
+        if (user.barbeariaId) {
+          console.log('✅ [DONO CONTEXT] barbeariaId encontrado em localStorage.user:', user.barbeariaId);
+          return user.barbeariaId;
+        }
       }
       
+      console.warn('⚠️ [DONO CONTEXT] barbeariaId não encontrado no localStorage');
+      console.warn('   localStorage.barbearia:', localStorage.getItem('barbearia'));
+      console.warn('   localStorage.user:', localStorage.getItem('user'));
+      console.warn('   localStorage.token:', localStorage.getItem('token') ? 'Presente' : 'Ausente');
       return null;
     } catch (error) {
-      console.error('Erro ao obter barbeariaId do localStorage:', error);
+      console.error('❌ [DONO CONTEXT] Erro ao obter barbeariaId do localStorage:', error);
       return null;
     }
   };
@@ -258,8 +324,521 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   const [produtos, setProdutos] = useState<ProdutoDono[]>([]);
   const [notificacoes, setNotificacoes] = useState<NotificacaoDono[]>([]);
   const [configuracao, setConfiguracao] = useState<ConfiguracaoBarbearia>(configuracaoInicial);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Mudado para false por padrão, React Query cuida do loading
   const [ultimoCarregamento, setUltimoCarregamento] = useState<number>(0);
+  const [migracaoConcluida, setMigracaoConcluida] = useState<boolean>(false);
+
+  const queryClient = useQueryClient();
+
+  // --- CONFIGURAÇÃO DO REACT QUERY PARA NEON ---
+
+  // Verificar se há token antes de fazer requisições
+  // Usar useState para garantir que seja recalculado quando o token mudar
+  const [hasToken, setHasToken] = useState(() => 
+    typeof window !== 'undefined' && !!localStorage.getItem('token')
+  );
+  
+  // Atualizar hasToken quando o token mudar
+  useEffect(() => {
+    const checkToken = () => {
+      const tokenPresent = typeof window !== 'undefined' && !!localStorage.getItem('token');
+      if (tokenPresent !== hasToken) {
+        console.log('🔄 [DONO CONTEXT] Token mudou, atualizando hasToken:', tokenPresent);
+        setHasToken(tokenPresent);
+      }
+    };
+    
+    // Verificar imediatamente
+    checkToken();
+    
+    // Verificar periodicamente (a cada 1 segundo) para pegar mudanças no localStorage
+    const interval = setInterval(checkToken, 1000);
+    
+    // Listener para mudanças no localStorage (pode não funcionar em todas as abas)
+    window.addEventListener('storage', checkToken);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('storage', checkToken);
+    };
+  }, [hasToken]);
+  
+  // Log para debug - FORÇAR LOG VISÍVEL
+  useEffect(() => {
+    const tokenPresent = typeof window !== 'undefined' && !!localStorage.getItem('token');
+    console.log('═══════════════════════════════════════════════════════════');
+    console.log('🔍 [DONO CONTEXT] Estado atual:');
+    console.log('   barbeariaId:', barbeariaId);
+    console.log('   hasToken (state):', hasToken);
+    console.log('   token presente (localStorage):', tokenPresent);
+    console.log('   userType:', localStorage.getItem('userType'));
+    console.log('   Query habilitada (profissionais):', !!barbeariaId && hasToken);
+    console.log('   Query habilitada (clientes):', !!barbeariaId && hasToken);
+    console.log('   Query habilitada (serviços):', !!barbeariaId && hasToken);
+    console.log('   Query habilitada (produtos):', !!barbeariaId && hasToken);
+    console.log('   Query habilitada (pagamentos):', !!barbeariaId && hasToken);
+    console.log('═══════════════════════════════════════════════════════════');
+    
+    // Se hasToken está false mas o token está presente, forçar atualização
+    if (!hasToken && tokenPresent) {
+      console.warn('⚠️ [DONO CONTEXT] hasToken está false mas token está presente! Forçando atualização...');
+      setHasToken(true);
+    }
+  }, [barbeariaId, hasToken]);
+  
+  // Hook para buscar KPIs
+  const { data: kpisData, isLoading: loadingKpi, error: errorKpi } = useQuery({
+    queryKey: ['kpis', barbeariaId],
+    queryFn: () => {
+      console.log('📊 [QUERY] Buscando KPIs para barbeariaId:', barbeariaId);
+      return apiGet<any>('/dono/dashboard/kpis');
+    },
+    enabled: !!barbeariaId && hasToken, // Só fazer requisição se tiver token
+    staleTime: 1000 * 60 * 5, // 5 minutos de cache
+    retry: (failureCount, error: any) => {
+      // Não tentar novamente se for erro 401 (token inválido)
+      if (error?.status === 401 || error?.message?.includes('401')) {
+        console.error('❌ [QUERY KPIs] Erro 401, não tentando novamente');
+        return false;
+      }
+      return failureCount < 2; // Tentar no máximo 2 vezes
+    },
+  });
+  
+  // Log de erros nas queries
+  useEffect(() => {
+    if (errorKpi) {
+      console.error('❌ [QUERY KPIs] Erro ao buscar KPIs:', errorKpi);
+    }
+    if (kpisData) {
+      console.log('✅ [QUERY KPIs] KPIs carregados:', kpisData);
+    }
+  }, [kpisData, errorKpi]);
+
+  // Hook para buscar Professionais
+  const queryEnabledProfs = !!barbeariaId && hasToken;
+  const { data: qProfissionais, isLoading: loadingProfs, error: errorProfs } = useQuery({
+    queryKey: ['profissionais', barbeariaId],
+    queryFn: () => {
+      console.log('👥 [QUERY] Buscando profissionais para barbeariaId:', barbeariaId);
+      return apiGet<any[]>('/dono/profissionais');
+    },
+    enabled: queryEnabledProfs,
+    staleTime: 1000 * 60 * 10,
+    retry: (failureCount, error: any) => {
+      if (error?.status === 401 || error?.message?.includes('401')) {
+        console.error('❌ [QUERY PROFISSIONAIS] Erro 401, não tentando novamente');
+        return false;
+      }
+      return failureCount < 2;
+    },
+  });
+  
+  // Log quando a query é habilitada/desabilitada
+  useEffect(() => {
+    console.log('🔧 [QUERY PROFISSIONAIS] Estado:', {
+      enabled: queryEnabledProfs,
+      barbeariaId: !!barbeariaId,
+      hasToken,
+      isLoading: loadingProfs,
+      hasData: !!qProfissionais,
+      hasError: !!errorProfs,
+    });
+  }, [queryEnabledProfs, loadingProfs, qProfissionais, errorProfs, barbeariaId, hasToken]);
+  
+  useEffect(() => {
+    if (errorProfs) {
+      console.error('❌ [QUERY PROFISSIONAIS] Erro ao buscar profissionais:', errorProfs);
+    }
+    if (qProfissionais) {
+      console.log('✅ [QUERY PROFISSIONAIS] Profissionais carregados:', qProfissionais.length);
+    }
+  }, [qProfissionais, errorProfs]);
+
+  // Hook para buscar Clientes
+  const queryEnabledClientes = !!barbeariaId && hasToken;
+  const { data: qClientes, isLoading: loadingClis, error: errorClientes } = useQuery({
+    queryKey: ['clientes', barbeariaId],
+    queryFn: () => {
+      console.log('👤 [QUERY] Buscando clientes para barbeariaId:', barbeariaId);
+      return apiGet<any[]>('/dono/clientes');
+    },
+    enabled: queryEnabledClientes,
+    staleTime: 1000 * 60 * 10,
+    retry: (failureCount, error: any) => {
+      if (error?.status === 401 || error?.message?.includes('401')) {
+        console.error('❌ [QUERY CLIENTES] Erro 401, não tentando novamente');
+        return false;
+      }
+      return failureCount < 2;
+    },
+  });
+  
+  // Log quando a query é habilitada/desabilitada
+  useEffect(() => {
+    console.log('🔧 [QUERY CLIENTES] Estado:', {
+      enabled: queryEnabledClientes,
+      barbeariaId: !!barbeariaId,
+      hasToken,
+      isLoading: loadingClis,
+      hasData: !!qClientes,
+      hasError: !!errorClientes,
+    });
+  }, [queryEnabledClientes, loadingClis, qClientes, errorClientes, barbeariaId, hasToken]);
+  
+  useEffect(() => {
+    if (errorClientes) {
+      console.error('❌ [QUERY CLIENTES] Erro ao buscar clientes:', errorClientes);
+    }
+    if (qClientes) {
+      console.log('✅ [QUERY CLIENTES] Clientes carregados:', qClientes.length);
+    }
+  }, [qClientes, errorClientes]);
+
+  // Hook para buscar Agendamentos
+  const { data: qAgendamentos, isLoading: loadingAgends } = useQuery({
+    queryKey: ['agendamentos', barbeariaId],
+    queryFn: () => apiGet<any[]>(`/agendamentos/barbearia/${barbeariaId}`),
+    enabled: !!barbeariaId && hasToken,
+    staleTime: 1000 * 60 * 2, // Agendamentos expiram mais rápido
+    retry: (failureCount, error: any) => {
+      if (error?.status === 401 || error?.message?.includes('401')) {
+        return false;
+      }
+      return failureCount < 2;
+    },
+  });
+
+  // Hook para buscar Serviços
+  const queryEnabledServicos = !!barbeariaId && hasToken;
+  const { data: qServicos, isLoading: loadingSrvs, error: errorServicos } = useQuery({
+    queryKey: ['servicos', barbeariaId],
+    queryFn: () => {
+      console.log('✂️ [QUERY] Buscando serviços para barbeariaId:', barbeariaId);
+      return apiGet<any[]>('/dono/servicos');
+    },
+    enabled: queryEnabledServicos,
+    staleTime: 1000 * 60 * 30,
+    retry: (failureCount, error: any) => {
+      if (error?.status === 401 || error?.message?.includes('401')) {
+        console.error('❌ [QUERY SERVIÇOS] Erro 401, não tentando novamente');
+        return false;
+      }
+      return failureCount < 2;
+    },
+  });
+  
+  // Log quando a query é habilitada/desabilitada
+  useEffect(() => {
+    console.log('🔧 [QUERY SERVIÇOS] Estado:', {
+      enabled: queryEnabledServicos,
+      barbeariaId: !!barbeariaId,
+      hasToken,
+      isLoading: loadingSrvs,
+      hasData: !!qServicos,
+      hasError: !!errorServicos,
+    });
+  }, [queryEnabledServicos, loadingSrvs, qServicos, errorServicos, barbeariaId, hasToken]);
+  
+  useEffect(() => {
+    if (errorServicos) {
+      console.error('❌ [QUERY SERVIÇOS] Erro ao buscar serviços:', errorServicos);
+    }
+    if (qServicos) {
+      console.log('✅ [QUERY SERVIÇOS] Serviços carregados:', qServicos.length);
+    }
+  }, [qServicos, errorServicos]);
+
+  // Hook para buscar Produtos
+  const queryEnabledProdutos = !!barbeariaId && hasToken;
+  const { data: qProdutos, error: errorProdutos, isLoading: loadingProdutos } = useQuery({
+    queryKey: ['produtos', barbeariaId],
+    queryFn: () => {
+      console.log('📦 [QUERY] Buscando produtos para barbeariaId:', barbeariaId);
+      return apiGet<any[]>('/dono/produtos');
+    },
+    enabled: queryEnabledProdutos,
+    retry: (failureCount, error: any) => {
+      if (error?.status === 401 || error?.message?.includes('401')) {
+        console.error('❌ [QUERY PRODUTOS] Erro 401, não tentando novamente');
+        return false;
+      }
+      return failureCount < 2;
+    },
+  });
+  
+  // Log quando a query é habilitada/desabilitada
+  useEffect(() => {
+    console.log('🔧 [QUERY PRODUTOS] Estado:', {
+      enabled: queryEnabledProdutos,
+      barbeariaId: !!barbeariaId,
+      hasToken,
+      isLoading: loadingProdutos,
+      hasData: !!qProdutos,
+      hasError: !!errorProdutos,
+    });
+  }, [queryEnabledProdutos, loadingProdutos, qProdutos, errorProdutos, barbeariaId, hasToken]);
+  
+  useEffect(() => {
+    if (errorProdutos) {
+      console.error('❌ [QUERY PRODUTOS] Erro ao buscar produtos:', errorProdutos);
+    }
+    if (qProdutos) {
+      console.log('✅ [QUERY PRODUTOS] Produtos carregados:', qProdutos.length);
+    }
+  }, [qProdutos, errorProdutos]);
+
+  // Hook para buscar Promoções
+  const { data: qPromocoes } = useQuery({
+    queryKey: ['promocoes', barbeariaId],
+    queryFn: () => apiGet<any[]>('/dono/promocoes'),
+    enabled: !!barbeariaId,
+  });
+
+  // Hook para buscar Notificações
+  const { data: qNotificacoes } = useQuery({
+    queryKey: ['notificacoes', barbeariaId],
+    queryFn: () => apiGet<any[]>('/dono/notificacoes'),
+    enabled: !!barbeariaId,
+  });
+
+  // Hook para buscar Avaliações
+  const { data: qAvaliacoes } = useQuery({
+    queryKey: ['avaliacoes', barbeariaId],
+    queryFn: () => apiGet<any[]>('/dono/avaliacoes'),
+    enabled: !!barbeariaId,
+  });
+
+  // Hook para buscar Configuração
+  const { data: qConfiguracao } = useQuery({
+    queryKey: ['configuracao', barbeariaId],
+    queryFn: () => apiGet<any>('/dono/configuracao'),
+    enabled: !!barbeariaId,
+  });
+
+  // Hook para buscar Pagamentos
+  const queryEnabledPagamentos = !!barbeariaId && hasToken;
+  const { data: qPagamentos, isLoading: loadingPags, error: errorPagamentos } = useQuery({
+    queryKey: ['pagamentos', barbeariaId],
+    queryFn: () => {
+      console.log('💰 [QUERY] Buscando pagamentos para barbeariaId:', barbeariaId);
+      return apiGet<any[]>('/dono/financeiro/pagamentos');
+    },
+    enabled: queryEnabledPagamentos,
+    staleTime: 1000 * 30, // 30 segundos de cache (atualiza mais frequentemente)
+    refetchInterval: 1000 * 30, // Refetch a cada 30 segundos quando na página
+    retry: (failureCount, error: any) => {
+      if (error?.status === 401 || error?.message?.includes('401')) {
+        console.error('❌ [QUERY PAGAMENTOS] Erro 401, não tentando novamente');
+        return false;
+      }
+      return failureCount < 2;
+    },
+  });
+  
+  // Log quando a query é habilitada/desabilitada
+  useEffect(() => {
+    console.log('🔧 [QUERY PAGAMENTOS] Estado:', {
+      enabled: queryEnabledPagamentos,
+      barbeariaId: !!barbeariaId,
+      hasToken,
+      isLoading: loadingPags,
+      hasData: !!qPagamentos,
+      hasError: !!errorPagamentos,
+    });
+  }, [queryEnabledPagamentos, loadingPags, qPagamentos, errorPagamentos, barbeariaId, hasToken]);
+
+  // --- SINCRONIZAÇÃO DOS DADOS DO REACT QUERY COM O ESTADO DO CONTEXTO ---
+
+  useEffect(() => {
+      if (kpisData) {
+        setKpi({
+          faturamentoHoje: kpisData.faturamentoHoje || 0,
+          faturamentoSemana: kpisData.faturamentoSemana || 0,
+          faturamentoMes: kpisData.faturamentoMes || 0,
+          agendamentosHoje: kpisData.agendamentosHoje || 0,
+          cancelamentos: kpisData.cancelamentos || 0,
+          clientesRecorrentes: kpisData.clientesRecorrentes || kpisData.totalClientes || 0,
+          notaMedia: kpisData.notaMedia || 0,
+          totalAvaliacoes: kpisData.totalAvaliacoes || 0,
+          variacaoHoje: kpisData.variacaoHoje || 0,
+          variacaoSemana: kpisData.variacaoSemana || 0,
+          variacaoMes: kpisData.variacaoMes || 0,
+        });
+      }
+  }, [kpisData]);
+
+  useEffect(() => {
+    if (qProfissionais) {
+      console.log('🔄 [SYNC] Sincronizando profissionais:', qProfissionais.length);
+      const transformados = qProfissionais.map((prof: any) => ({
+        id: prof.id,
+        nome: prof.nome,
+        email: prof.email || '',
+        telefone: prof.telefone,
+        foto: prof.foto,
+        especialidades: prof.especialidades || [],
+        comissao: {
+          tipo: prof.comissaoTipo || 'percentual',
+          valor: prof.comissaoValor || 0,
+        },
+        ativo: prof.ativo !== undefined ? prof.ativo : true,
+        dataAdmissao: prof.dataAdmissao?.split('T')[0] || new Date().toISOString().split('T')[0],
+        avaliacaoMedia: 0,
+        totalAvaliacoes: 0,
+        faturamentoTotal: 0,
+        faltas: 0,
+      }));
+      setProfissionais(transformados);
+      console.log('✅ [SYNC] Profissionais sincronizados:', transformados.length);
+    } else {
+      console.log('⚠️ [SYNC] qProfissionais está undefined/null');
+    }
+  }, [qProfissionais]);
+
+  useEffect(() => {
+    if (qClientes) {
+      console.log('🔄 [SYNC] Sincronizando clientes:', qClientes.length);
+      const transformados = qClientes.map((cli: any) => ({
+        id: cli.id,
+        nome: cli.nome,
+        email: cli.email || '',
+        telefone: cli.telefone || '',
+        foto: cli.foto,
+        dataNascimento: cli.dataNascimento?.split('T')[0],
+        vip: false,
+        totalAgendamentos: cli._count?.agendamentos || 0,
+        ultimoAgendamento: cli.ultimoAgendamento,
+        ticketMedio: cli.ticketMedio || 0,
+        frequencia: cli.frequencia || 0,
+        dataCadastro: cli.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0],
+      }));
+      setClientes(transformados);
+      console.log('✅ [SYNC] Clientes sincronizados:', transformados.length);
+    } else {
+      console.log('⚠️ [SYNC] qClientes está undefined/null');
+    }
+  }, [qClientes]);
+
+  useEffect(() => {
+    if (qAgendamentos) {
+      const transformados = qAgendamentos.map((ag: any) => {
+        // Converter data para timezone de Brasília corretamente
+        const dataFormatada = converterDataParaBrasilia(ag.data);
+        
+        // Para o horário, usar o horário salvo ou extrair do campo data
+        let horarioFormatado = ag.horario;
+        if (!horarioFormatado && ag.data) {
+          // Extrair horário no timezone de Brasília
+          const dataObj = typeof ag.data === 'string' ? new Date(ag.data) : ag.data;
+          const formatterHora = new Intl.DateTimeFormat('pt-BR', {
+            timeZone: 'America/Sao_Paulo',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+          });
+          horarioFormatado = formatterHora.format(dataObj);
+        }
+        
+        return {
+          id: ag.id,
+          clienteId: ag.clienteId || '',
+          clienteNome: ag.clienteRel?.nome || ag.cliente || 'Cliente não cadastrado',
+          clienteTelefone: ag.clienteRel?.telefone || ag.telefone,
+          profissionalId: ag.profissionais?.[0]?.profissionalId || '',
+          profissionalNome: ag.profissionais?.[0]?.profissional?.nome || 'Não atribuído',
+          servicoId: ag.servicoId,
+          servicoNome: ag.servico?.nome || '',
+          data: dataFormatada,
+          horario: horarioFormatado || '00:00',
+          duracao: ag.servico?.duracao || 40,
+          valor: ag.servico?.preco || 0,
+          status: ag.status,
+          observacoes: ag.observacao,
+          dataCriacao: ag.createdAt,
+        };
+      });
+      setAgendamentos(transformados);
+    }
+  }, [qAgendamentos]);
+
+  useEffect(() => {
+    if (qServicos) {
+      console.log('🔄 [SYNC] Sincronizando serviços:', qServicos.length);
+      setServicos(qServicos);
+      console.log('✅ [SYNC] Serviços sincronizados:', qServicos.length);
+    } else {
+      console.log('⚠️ [SYNC] qServicos está undefined/null');
+    }
+  }, [qServicos]);
+
+  useEffect(() => {
+    if (qProdutos) {
+      console.log('🔄 [SYNC] Sincronizando produtos:', qProdutos.length);
+      setProdutos(qProdutos);
+      console.log('✅ [SYNC] Produtos sincronizados:', qProdutos.length);
+    } else {
+      console.log('⚠️ [SYNC] qProdutos está undefined/null');
+    }
+  }, [qProdutos]);
+
+  useEffect(() => {
+    if (qPromocoes) setPromocoes(qPromocoes);
+  }, [qPromocoes]);
+
+  useEffect(() => {
+    if (qNotificacoes) setNotificacoes(qNotificacoes);
+  }, [qNotificacoes]);
+
+  useEffect(() => {
+    if (qConfiguracao) {
+      // Garantir que sempre temos uma configuração completa mesclando com a inicial
+      setConfiguracao({
+        ...configuracaoInicial,
+        ...qConfiguracao,
+        horarioFuncionamento: {
+          ...configuracaoInicial.horarioFuncionamento,
+          ...(qConfiguracao.horarioFuncionamento || {}),
+        },
+        politicaCancelamento: {
+          ...configuracaoInicial.politicaCancelamento,
+          ...(qConfiguracao.politicaCancelamento || {}),
+        },
+      });
+    }
+  }, [qConfiguracao]);
+
+  useEffect(() => {
+    if (qPagamentos) {
+      const transformados: PagamentoDono[] = qPagamentos.map((pag: any) => ({
+        id: pag.id,
+        agendamentoId: pag.agendamentoId,
+        valor: pag.valor,
+        metodo: pag.metodo as 'pix' | 'cartao_credito' | 'cartao_debito' | 'dinheiro',
+        status: pag.status as 'pago' | 'pendente' | 'reembolsado',
+        taxaGateway: pag.taxaGateway || 0,
+        dataPagamento: pag.dataPagamento 
+          ? (typeof pag.dataPagamento === 'string' 
+              ? pag.dataPagamento 
+              : new Date(pag.dataPagamento).toISOString())
+          : undefined,
+        dataVencimento: pag.dataVencimento 
+          ? (typeof pag.dataVencimento === 'string'
+              ? pag.dataVencimento
+              : new Date(pag.dataVencimento).toISOString())
+          : undefined,
+      }));
+      setPagamentos(transformados);
+    } else if (qPagamentos === null || qPagamentos === undefined) {
+      // Se não houver pagamentos, definir array vazio
+      setPagamentos([]);
+    }
+  }, [qPagamentos]);
+
+  // Manter loading global sincronizado com queries principais
+  useEffect(() => {
+    setLoading(loadingProfs || loadingClis || loadingAgends || loadingSrvs || loadingKpi || loadingPags);
+  }, [loadingProfs, loadingClis, loadingAgends, loadingSrvs, loadingKpi, loadingPags]);
 
   // Atualizar barbeariaId quando localStorage mudar
   useEffect(() => {
@@ -279,9 +858,9 @@ export function DonoProvider({ children }: { children: ReactNode }) {
     };
 
     window.addEventListener('storage', handleStorageChange);
-    
-    // Verificar periodicamente (fallback)
-    const interval = setInterval(checkBarbeariaId, 1000);
+
+    // Verificar periodicamente (fallback) - reduzido para 5 segundos para evitar sobrecarga
+    const interval = setInterval(checkBarbeariaId, 5000);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
@@ -289,402 +868,154 @@ export function DonoProvider({ children }: { children: ReactNode }) {
     };
   }, [barbeariaId]);
 
-  // Carregar dados da API quando o componente montar ou barbeariaId mudar
-  // Mas só se estiver em uma rota do dono (não na página inicial)
-  useEffect(() => {
-    const currentPath = window.location.pathname;
-    const isDonoRoute = currentPath.startsWith('/dono');
-    
-    if (barbeariaId && isDonoRoute) {
-      console.log('🔄 Carregando dados do banco para barbeariaId:', barbeariaId);
-      console.log('🔄 Rota atual:', currentPath);
-      console.log('🔄 Token disponível:', !!localStorage.getItem('token'));
-      // Forçar carregamento imediato ao entrar no painel
-      carregarDados(true);
-    } else if (isDonoRoute && !barbeariaId) {
-      console.warn('⚠️ BarbeariaId não encontrado. Verifique se está logado como dono.');
-      console.warn('⚠️ localStorage.user:', localStorage.getItem('user'));
-      console.warn('⚠️ localStorage.barbearia:', localStorage.getItem('barbearia'));
-      setLoading(false);
-    }
-  }, [barbeariaId]);
-
-  // Listener para recarregar quando navegar para /dono
+  // Auto-refresh dos dados a cada 10 segundos para reduzir delay
   useEffect(() => {
     if (!barbeariaId) return;
 
-    const checkRoute = () => {
+    const refreshInterval = setInterval(() => {
+      // Só recarrega se não estiver carregando e se a página estiver visível
+      if (!loading && document.visibilityState === 'visible') {
+        console.log('🔄 [AUTO-REFRESH] Atualizando dados do painel...');
+        queryClient.invalidateQueries({ queryKey: [barbeariaId] });
+      }
+    }, 10000); // 10 segundos
+
+    return () => clearInterval(refreshInterval);
+  }, [barbeariaId, loading]);
+
+  // Não verificar token periodicamente - isso pode causar redirecionamentos prematuros
+  // O DonoLayout já faz a verificação inicial
+
+  // ÚNICO Listener para carregar dados iniciais
+  useEffect(() => {
+    const currentPath = window.location.pathname;
+    const isDonoRoute = currentPath.startsWith('/dono');
+
+    if (isDonoRoute) {
+      if (barbeariaId) {
+        console.log('🔄 [RE-VALIDATE] Validando dados para barbeariaId:', barbeariaId);
+        // Invalida o cache para garantir que os dados estejam frescos
+        queryClient.invalidateQueries({ queryKey: [barbeariaId] });
+      } else {
+        const recId = getBarbeariaIdFromStorage();
+        if (recId) {
+          setBarbeariaId(recId);
+        }
+      }
+    }
+  }, [barbeariaId, window.location.pathname]);
+
+  // Função leve para recarregar apenas agendamentos (usada no polling)
+  const recarregarAgendamentos = useCallback(async () => {
+    if (!barbeariaId) return;
+
+    try {
+      const agendamentosData = await apiGet<any[]>(`/agendamentos/barbearia/${barbeariaId}`).catch((err) => {
+        console.warn('⚠️ Erro ao recarregar agendamentos:', err);
+        return null;
+      });
+
+      if (!agendamentosData) return;
+
+      // Transformar agendamentos da API para o formato do frontend
+      const agendamentosTransformados: AgendamentoDono[] = agendamentosData.map((ag: any) => {
+        // Converter data para timezone de Brasília corretamente
+        const dataFormatada = converterDataParaBrasilia(ag.data);
+        
+        // Para o horário, usar o horário salvo ou extrair do campo data
+        let horarioFormatado = ag.horario;
+        if (!horarioFormatado && ag.data) {
+          // Extrair horário no timezone de Brasília
+          const dataObj = typeof ag.data === 'string' ? new Date(ag.data) : ag.data;
+          const formatterHora = new Intl.DateTimeFormat('pt-BR', {
+            timeZone: 'America/Sao_Paulo',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+          });
+          horarioFormatado = formatterHora.format(dataObj);
+        }
+        
+        return {
+          id: ag.id,
+          clienteId: ag.clienteId || '',
+          clienteNome: ag.clienteRel?.nome || ag.cliente || 'Cliente não cadastrado',
+          clienteTelefone: ag.clienteRel?.telefone || ag.telefone,
+          profissionalId: ag.profissionais?.[0]?.profissionalId || '',
+          profissionalNome: ag.profissionais?.[0]?.profissional?.nome || 'Não atribuído',
+          servicoId: ag.servicoId,
+          servicoNome: ag.servico?.nome || '',
+          data: dataFormatada,
+          horario: horarioFormatado || '00:00',
+          duracao: ag.servico?.duracao || 40,
+          valor: ag.servico?.preco || 0,
+          status: ag.status,
+          observacoes: ag.observacao,
+          dataCriacao: ag.createdAt,
+        };
+      });
+
+      // Só atualizar se houver diferença (evitar re-renders desnecessários)
+      setAgendamentos(prev => {
+        // Comparar por IDs e quantidade
+        const prevIds = new Set(prev.map(a => a.id));
+        const newIds = new Set(agendamentosTransformados.map(a => a.id));
+        
+        // Se quantidade ou IDs forem diferentes, atualizar
+        if (prev.length !== agendamentosTransformados.length || 
+            ![...newIds].every(id => prevIds.has(id)) ||
+            ![...prevIds].every(id => newIds.has(id))) {
+          console.log('🔄 [POLLING] Novos agendamentos detectados! Atualizando...');
+          return agendamentosTransformados;
+        }
+        
+        return prev;
+      });
+    } catch (error) {
+      console.error('❌ Erro ao recarregar agendamentos:', error);
+    }
+  }, [barbeariaId]);
+
+  // Polling automático para atualizar agendamentos em tempo real
+  // Verifica novos agendamentos a cada 10 segundos quando estiver na página do dono
+  useEffect(() => {
+    if (!barbeariaId) return;
+
+    const checkAndUpdate = () => {
       const currentPath = window.location.pathname;
       const isDonoRoute = currentPath.startsWith('/dono');
       
-      if (isDonoRoute) {
-        console.log('🔄 Detectada navegação para /dono, recarregando dados...');
-        // Forçar carregamento ao navegar para o painel
-        carregarDados(true);
+      // Só fazer polling se estiver na página do dono e a página estiver visível
+      if (isDonoRoute && !document.hidden) {
+        recarregarAgendamentos();
       }
     };
 
-    // Verificar imediatamente
-    checkRoute();
+    // Verificar imediatamente ao montar
+    checkAndUpdate();
 
-    // Escutar mudanças de rota
-    const handlePopState = () => {
-      setTimeout(checkRoute, 100);
+    // Configurar polling a cada 10 segundos
+    const pollingInterval = setInterval(checkAndUpdate, 10000);
+
+    // Também verificar quando a página voltar a ficar visível
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        checkAndUpdate();
+      }
     };
 
-    window.addEventListener('popstate', handlePopState);
-    
-    // Verificar periodicamente (fallback para React Router)
-    const interval = setInterval(checkRoute, 2000);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      window.removeEventListener('popstate', handlePopState);
-      clearInterval(interval);
+      clearInterval(pollingInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [barbeariaId]);
+  }, [barbeariaId, recarregarAgendamentos]);
 
   const carregarDados = async (forcar: boolean = false) => {
-    if (!barbeariaId) {
-      console.warn('⚠️ [CARREGAR DADOS] Não é possível carregar dados: barbeariaId não definido');
-      setLoading(false);
-      return;
-    }
-
-    // Evitar múltiplas chamadas simultâneas (debounce de 1 segundo)
-    // Mas permitir forçar o carregamento (útil após criar/atualizar/deletar)
-    const agora = Date.now();
-    if (!forcar && agora - ultimoCarregamento < 1000) {
-      console.log('⏸️ [CARREGAR DADOS] Carregamento já em andamento, aguardando...');
-      // Aguardar um pouco e tentar novamente se estiver forçando
-      if (forcar) {
-        await new Promise(resolve => setTimeout(resolve, 1100));
-        return carregarDados(true);
-      }
-      return;
-    }
-    setUltimoCarregamento(agora);
-
-    console.log('📥 [CARREGAR DADOS] ==========================================');
-    console.log('📥 [CARREGAR DADOS] Iniciando carregamento de dados do banco de dados...');
-    console.log('📥 [CARREGAR DADOS] barbeariaId:', barbeariaId);
-    console.log('📥 [CARREGAR DADOS] Token:', localStorage.getItem('token') ? 'Presente' : 'Ausente');
-    console.log('📥 [CARREGAR DADOS] Forçar:', forcar);
-    setLoading(true);
-    try {
-      // Carregar dados em paralelo do BANCO DE DADOS
-      // IMPORTANTE: Sempre carrega do banco, nunca usa dados mockados
-      const [
-        kpisData,
-        agendamentosData,
-        profissionaisData,
-        clientesData,
-        servicosData,
-        pagamentosData,
-        promocoesData,
-        avaliacoesData,
-        produtosData,
-        notificacoesData,
-        configuracaoData,
-      ] = await Promise.all([
-        apiGet<KPI>('/dono/dashboard/kpis').catch((err) => {
-          console.warn('⚠️ Erro ao carregar KPIs do banco:', err);
-          // Retorna valores padrão se houver erro, mas não dados mockados
-          return null;
-        }),
-        apiGet<any[]>(`/agendamentos/barbearia/${barbeariaId}`).catch((err) => {
-          console.warn('⚠️ Erro ao carregar agendamentos do banco:', err);
-          return [];
-        }),
-        apiGet<any[]>('/dono/profissionais').catch((err) => {
-          console.error('❌ Erro ao carregar profissionais do banco:', err);
-          // Se erro de autenticação, retorna array vazio (não dados mockados)
-          if (err.message?.includes('Token inválido') || err.message?.includes('Token não fornecido')) {
-            console.error('❌ Token inválido ou não fornecido. Faça login novamente.');
-            return [];
-          }
-          // Em caso de erro, retorna array vazio (não dados mockados)
-          return [];
-        }),
-        apiGet<any[]>('/dono/clientes').catch((err) => {
-          console.warn('⚠️ Erro ao carregar clientes do banco:', err);
-          return [];
-        }),
-        apiGet<any[]>('/dono/servicos').catch((err) => {
-          console.warn('⚠️ Erro ao carregar serviços do banco:', err);
-          return [];
-        }),
-        apiGet<any[]>('/dono/financeiro/pagamentos').catch((err) => {
-          console.warn('⚠️ Erro ao carregar pagamentos do banco:', err);
-          return [];
-        }),
-        apiGet<any[]>('/dono/promocoes').catch((err) => {
-          console.warn('⚠️ Erro ao carregar promoções do banco:', err);
-          return [];
-        }),
-        apiGet<any[]>('/dono/avaliacoes').catch((err) => {
-          console.warn('⚠️ Erro ao carregar avaliações do banco:', err);
-          return [];
-        }),
-        apiGet<any[]>('/dono/produtos').catch((err) => {
-          console.warn('⚠️ Erro ao carregar produtos do banco:', err);
-          return [];
-        }),
-        apiGet<any[]>('/dono/notificacoes').catch((err) => {
-          console.warn('⚠️ Erro ao carregar notificações do banco:', err);
-          return [];
-        }),
-        apiGet<any>('/dono/configuracao').catch((err) => {
-          console.warn('⚠️ Erro ao carregar configuração do banco:', err);
-          return null;
-        }),
-      ]);
-
-      console.log('✅ Dados carregados do banco:');
-      console.log('  - Profissionais:', profissionaisData?.length || 0, profissionaisData);
-      console.log('  - Clientes:', clientesData?.length || 0, clientesData);
-      console.log('  - Agendamentos:', agendamentosData?.length || 0);
-      
-      // IMPORTANTE: Se não houver dados, define arrays vazios (NUNCA dados mockados)
-      if (!profissionaisData || profissionaisData.length === 0) {
-        console.log('ℹ️ Nenhum profissional encontrado no banco de dados');
-      }
-
-      // Atualizar KPIs (só se dados vieram do banco)
-      if (kpisData) {
-        setKpi({
-          faturamentoHoje: kpisData.faturamentoHoje || 0,
-          faturamentoSemana: kpisData.faturamentoSemana || 0,
-          faturamentoMes: kpisData.faturamentoMes || 0,
-          agendamentosHoje: kpisData.agendamentosHoje || 0,
-          cancelamentos: kpisData.cancelamentos || 0,
-          clientesRecorrentes: kpisData.clientesRecorrentes || kpisData.totalClientes || 0,
-          notaMedia: kpisData.notaMedia || 0,
-          totalAvaliacoes: kpisData.totalAvaliacoes || 0,
-          variacaoHoje: kpisData.variacaoHoje || 0,
-          variacaoSemana: kpisData.variacaoSemana || 0,
-          variacaoMes: kpisData.variacaoMes || 0,
-        });
-      }
-
-      // Transformar agendamentos da API para o formato do frontend
-      const agendamentosTransformados: AgendamentoDono[] = agendamentosData.map((ag: any) => ({
-        id: ag.id,
-        clienteId: ag.clienteId || '',
-        clienteNome: ag.clienteRel?.nome || ag.cliente || 'Cliente não cadastrado',
-        clienteTelefone: ag.clienteRel?.telefone || ag.telefone,
-        profissionalId: ag.profissionais?.[0]?.profissionalId || '',
-        profissionalNome: ag.profissionais?.[0]?.profissional?.nome || 'Não atribuído',
-        servicoId: ag.servicoId,
-        servicoNome: ag.servico?.nome || '',
-        data: ag.data.split('T')[0],
-        horario: ag.horario || new Date(ag.data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-        duracao: ag.servico?.duracao || 40,
-        valor: ag.servico?.preco || 0,
-        status: ag.status,
-        observacoes: ag.observacao,
-        dataCriacao: ag.createdAt,
-      }));
-
-      setAgendamentos(agendamentosTransformados);
-
-      // Transformar profissionais da API (SEMPRE do banco de dados)
-      // Se profissionaisData for null/undefined ou array vazio, define array vazio (não dados mockados)
-      const profissionaisTransformados: ProfissionalDono[] = (profissionaisData || []).map((prof: any) => ({
-        id: prof.id,
-        nome: prof.nome,
-        email: prof.email || '',
-        telefone: prof.telefone,
-        foto: prof.foto,
-        especialidades: prof.especialidades || [],
-        comissao: {
-          tipo: prof.comissaoTipo || 'percentual',
-          valor: prof.comissaoValor || 0,
-        },
-        ativo: prof.ativo !== undefined ? prof.ativo : true,
-        dataAdmissao: prof.dataAdmissao 
-          ? (typeof prof.dataAdmissao === 'string' 
-              ? (prof.dataAdmissao.includes('T') ? prof.dataAdmissao.split('T')[0] : prof.dataAdmissao)
-              : new Date(prof.dataAdmissao).toISOString().split('T')[0])
-          : new Date().toISOString().split('T')[0],
-        avaliacaoMedia: 0, // Calcular se necessário
-        totalAvaliacoes: 0,
-        faturamentoTotal: 0,
-        faltas: 0,
-      }));
-
-      console.log('✅ Profissionais carregados do banco:', profissionaisTransformados.length);
-      setProfissionais(profissionaisTransformados);
-
-      // Transformar clientes da API (SEMPRE do banco de dados)
-      // Se clientesData for null/undefined ou array vazio, define array vazio (não dados mockados)
-      const clientesTransformados: ClienteDono[] = (clientesData || []).map((cli: any) => ({
-        id: cli.id,
-        nome: cli.nome,
-        email: cli.email || '',
-        telefone: cli.telefone || '',
-        foto: cli.foto,
-        dataNascimento: cli.dataNascimento ? (typeof cli.dataNascimento === 'string' ? cli.dataNascimento.split('T')[0] : new Date(cli.dataNascimento).toISOString().split('T')[0]) : undefined,
-        vip: false, // Adicionar campo no backend se necessário
-        totalAgendamentos: cli.totalAgendamentos || cli._count?.agendamentos || 0,
-        ultimoAgendamento: cli.ultimoAgendamento ? (typeof cli.ultimoAgendamento === 'string' ? cli.ultimoAgendamento : new Date(cli.ultimoAgendamento).toISOString()) : undefined,
-        ticketMedio: cli.ticketMedio || 0,
-        frequencia: cli.frequencia || 0,
-        dataCadastro: cli.createdAt ? (typeof cli.createdAt === 'string' ? cli.createdAt.split('T')[0] : new Date(cli.createdAt).toISOString().split('T')[0]) : new Date().toISOString().split('T')[0],
-      }));
-
-      console.log('✅ [CARREGAR DADOS] Clientes carregados do banco:', clientesTransformados.length);
-      console.log('✅ [CARREGAR DADOS] IDs dos clientes:', clientesTransformados.map(c => c.id));
-      
-      // Preservar clientes temporários que não vieram do banco (evitar que sumam)
-      setClientes(prev => {
-        const idsDoBanco = new Set(clientesTransformados.map(c => c.id));
-        const clientesTemporarios = prev.filter(c => !idsDoBanco.has(c.id));
-        
-        // Se houver clientes temporários, mantê-los na lista
-        if (clientesTemporarios.length > 0) {
-          console.log('⚠️ [CARREGAR DADOS] Mantendo clientes temporários:', clientesTemporarios.map(c => c.nome));
-          return [...clientesTransformados, ...clientesTemporarios];
-        }
-        
-        return clientesTransformados;
-      });
-
-      // Carregar serviços do banco
-      console.log('✅ Serviços carregados do banco:', servicosData?.length || 0);
-      setServicos(servicosData || []);
-
-      // Transformar pagamentos da API
-      const pagamentosTransformados: PagamentoDono[] = (pagamentosData || []).map((pag: any) => ({
-        id: pag.id,
-        agendamentoId: pag.agendamentoId,
-        valor: pag.valor,
-        metodo: pag.metodo as 'pix' | 'cartao_credito' | 'cartao_debito' | 'dinheiro',
-        status: pag.status as 'pago' | 'pendente' | 'reembolsado',
-        taxaGateway: pag.taxaGateway || 0,
-        dataPagamento: pag.dataPagamento || undefined,
-        dataVencimento: pag.dataVencimento || undefined,
-      }));
-      console.log('✅ Pagamentos carregados do banco:', pagamentosTransformados.length);
-      setPagamentos(pagamentosTransformados);
-
-      // Transformar promoções da API
-      const promocoesTransformadas: PromocaoDono[] = (promocoesData || []).map((prom: any) => ({
-        id: prom.id,
-        nome: prom.nome,
-        tipo: prom.tipo as 'desconto_percentual' | 'desconto_fixo' | 'cashback' | 'pontos',
-        valor: prom.valor,
-        validoDe: prom.validoDe,
-        validoAte: prom.validoAte,
-        ativo: prom.ativo,
-        aplicavelA: prom.aplicavelA as 'todos' | 'servico' | 'horario' | 'cliente_vip',
-        servicoId: prom.servicoId || undefined,
-        horarioInicio: prom.horarioInicio || undefined,
-        horarioFim: prom.horarioFim || undefined,
-      }));
-      console.log('✅ Promoções carregadas do banco:', promocoesTransformadas.length);
-      setPromocoes(promocoesTransformadas);
-
-      // Transformar avaliações da API
-      const avaliacoesTransformadas: AvaliacaoDono[] = (avaliacoesData || []).map((av: any) => ({
-        id: av.id,
-        agendamentoId: av.agendamentoId,
-        clienteId: av.clienteId,
-        clienteNome: av.cliente?.nome || 'Cliente',
-        profissionalId: av.agendamento?.profissionais?.[0]?.profissionalId || '',
-        profissionalNome: av.agendamento?.profissionais?.[0]?.profissional?.nome || 'Não atribuído',
-        notaProfissional: av.notaProfissional,
-        notaAtendimento: av.notaAtendimento,
-        notaAmbiente: av.notaAmbiente,
-        comentario: av.comentario || undefined,
-        resposta: av.resposta || undefined,
-        data: av.createdAt,
-      }));
-      console.log('✅ Avaliações carregadas do banco:', avaliacoesTransformadas.length);
-      setAvaliacoes(avaliacoesTransformadas);
-
-      // Transformar produtos da API
-      const produtosTransformados: ProdutoDono[] = (produtosData || []).map((prod: any) => ({
-        id: prod.id,
-        nome: prod.nome,
-        descricao: prod.descricao || undefined,
-        categoria: prod.categoria as 'pomada' | 'oleo' | 'kit' | 'outro',
-        preco: prod.preco,
-        estoque: prod.estoque,
-        estoqueMinimo: prod.estoqueMinimo,
-        ativo: prod.ativo,
-        foto: prod.foto || undefined,
-      }));
-      console.log('✅ Produtos carregados do banco:', produtosTransformados.length);
-      setProdutos(produtosTransformados);
-
-      // Transformar notificações da API
-      const notificacoesTransformadas: NotificacaoDono[] = (notificacoesData || []).map((not: any) => ({
-        id: not.id,
-        tipo: not.tipo as 'agendamento' | 'pagamento' | 'avaliacao' | 'estoque' | 'sistema',
-        titulo: not.titulo,
-        mensagem: not.mensagem,
-        lida: not.lida,
-        data: not.data || not.createdAt,
-        acao: not.urlAcao ? {
-          url: not.urlAcao,
-          label: not.labelAcao || 'Ver',
-        } : undefined,
-      }));
-      console.log('✅ Notificações carregadas do banco:', notificacoesTransformadas.length);
-      setNotificacoes(notificacoesTransformadas);
-
-      // Atualizar configuração da barbearia
-      if (configuracaoData) {
-        setConfiguracao({
-          id: configuracaoData.id || configuracao.id,
-          nome: configuracaoData.nome || configuracao.nome,
-          cnpjCpf: configuracaoData.cnpjCpf || configuracao.cnpjCpf,
-          email: configuracaoData.email || configuracao.email,
-          telefone: configuracaoData.telefone || configuracao.telefone,
-          endereco: configuracaoData.endereco || configuracao.endereco,
-          cidade: configuracaoData.cidade || configuracao.cidade,
-          bairro: configuracaoData.bairro || configuracao.bairro,
-          cep: configuracaoData.cep || configuracao.cep,
-          modoConfirmacao: configuracaoData.modoConfirmacao || configuracao.modoConfirmacao || 'hibrido',
-          horarioFuncionamento: configuracao.horarioFuncionamento,
-          politicaCancelamento: configuracao.politicaCancelamento,
-          linkAgendamento: configuracao.linkAgendamento,
-          paginaPublica: configuracao.paginaPublica,
-        });
-        console.log('✅ Configuração carregada do banco:', configuracaoData);
-      }
-      
-      // Atualizar estado com os dados carregados
-      const totalClientes = clientesTransformados.length;
-      const totalProfissionais = profissionaisTransformados.length;
-      const totalServicos = servicosData?.length || 0;
-      const totalAgendamentos = agendamentosTransformados.length;
-      
-      console.log('✅ [CARREGAR DADOS] ==========================================');
-      console.log('✅ [CARREGAR DADOS] Todos os dados foram carregados do banco de dados com sucesso!');
-      console.log('✅ [CARREGAR DADOS] Resumo final:');
-      console.log(`   - Profissionais: ${totalProfissionais}`);
-      console.log(`   - Clientes: ${totalClientes}`);
-      console.log(`   - Serviços: ${totalServicos}`);
-      console.log(`   - Agendamentos: ${totalAgendamentos}`);
-      console.log('✅ [CARREGAR DADOS] ==========================================');
-    } catch (error: any) {
-      console.error('❌ [CARREGAR DADOS] ==========================================');
-      console.error('❌ [CARREGAR DADOS] Erro ao carregar dados do banco:', error);
-      console.error('❌ [CARREGAR DADOS] Mensagem:', error?.message);
-      console.error('❌ [CARREGAR DADOS] Stack:', error?.stack);
-      console.error('❌ [CARREGAR DADOS] ==========================================');
-      
-      // Não mostrar toast de erro para não incomodar o usuário em caso de erro temporário
-      // toast.error('Erro ao carregar dados do painel. Verifique sua conexão.');
-      
-      // Em caso de erro, define arrays vazios (não dados mockados)
-      setProfissionais([]);
-      setClientes([]);
-      setAgendamentos([]);
-    } finally {
-      setLoading(false);
-      console.log('🔚 [CARREGAR DADOS] Carregamento finalizado. Loading:', false);
+    // Agora carregarDados apenas dispara a invalidação do React Query
+    if (barbeariaId) {
+      queryClient.invalidateQueries({ queryKey: [barbeariaId] });
     }
   };
 
@@ -713,6 +1044,25 @@ export function DonoProvider({ children }: { children: ReactNode }) {
 
       // Adicionar novo agendamento à lista local (otimização: não recarregar todos os dados)
       if (novoAgendamento.agendamento) {
+        // Converter data para timezone de Brasília corretamente
+        const dataFormatada = converterDataParaBrasilia(novoAgendamento.agendamento.data);
+        
+        // Para o horário, usar o horário salvo ou extrair do campo data
+        let horarioFormatado = novoAgendamento.agendamento.horario;
+        if (!horarioFormatado && novoAgendamento.agendamento.data) {
+          // Extrair horário no timezone de Brasília
+          const dataObj = typeof novoAgendamento.agendamento.data === 'string' 
+            ? new Date(novoAgendamento.agendamento.data) 
+            : novoAgendamento.agendamento.data;
+          const formatterHora = new Intl.DateTimeFormat('pt-BR', {
+            timeZone: 'America/Sao_Paulo',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+          });
+          horarioFormatado = formatterHora.format(dataObj);
+        }
+        
         const agendamentoTransformado: AgendamentoDono = {
           id: novoAgendamento.agendamento.id,
           clienteId: novoAgendamento.agendamento.clienteId || '',
@@ -722,8 +1072,8 @@ export function DonoProvider({ children }: { children: ReactNode }) {
           profissionalNome: novoAgendamento.agendamento.profissionais?.[0]?.profissional?.nome || 'Não atribuído',
           servicoId: novoAgendamento.agendamento.servicoId,
           servicoNome: novoAgendamento.agendamento.servico?.nome || '',
-          data: novoAgendamento.agendamento.data.split('T')[0],
-          horario: novoAgendamento.agendamento.horario || new Date(novoAgendamento.agendamento.data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+          data: dataFormatada,
+          horario: horarioFormatado || '00:00',
           duracao: novoAgendamento.agendamento.servico?.duracao || 40,
           valor: novoAgendamento.agendamento.servico?.preco || 0,
           status: novoAgendamento.agendamento.status,
@@ -732,30 +1082,57 @@ export function DonoProvider({ children }: { children: ReactNode }) {
         };
         
         setAgendamentos(prev => [...prev, agendamentoTransformado]);
+
+        // Salvar no Firestore para atualização em tempo real
+        if (barbeariaId) {
+          firestoreUtils.addAgendamento(barbeariaId, agendamentoTransformado).catch(err =>
+            console.error('❌ Erro ao salvar agendamento no Firestore:', err)
+          );
+        }
       } else {
         // Fallback: recarregar apenas agendamentos se formato não for o esperado
         const agendamentosData = await apiGet<any[]>(`/agendamentos/barbearia/${barbeariaId}`).catch(() => []);
-        const agendamentosTransformados: AgendamentoDono[] = agendamentosData.map((ag: any) => ({
-          id: ag.id,
-          clienteId: ag.clienteId || '',
-          clienteNome: ag.clienteRel?.nome || ag.cliente || 'Cliente não cadastrado',
-          clienteTelefone: ag.clienteRel?.telefone || ag.telefone,
-          profissionalId: ag.profissionais?.[0]?.profissionalId || '',
-          profissionalNome: ag.profissionais?.[0]?.profissional?.nome || 'Não atribuído',
-          servicoId: ag.servicoId,
-          servicoNome: ag.servico?.nome || '',
-          data: ag.data.split('T')[0],
-          horario: ag.horario || new Date(ag.data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-          duracao: ag.servico?.duracao || 40,
-          valor: ag.servico?.preco || 0,
-          status: ag.status,
-          observacoes: ag.observacao,
-          dataCriacao: ag.createdAt,
-        }));
+        const agendamentosTransformados: AgendamentoDono[] = agendamentosData.map((ag: any) => {
+          // Converter data para timezone de Brasília corretamente
+          const dataFormatada = converterDataParaBrasilia(ag.data);
+          
+          // Para o horário, usar o horário salvo ou extrair do campo data
+          let horarioFormatado = ag.horario;
+          if (!horarioFormatado && ag.data) {
+            // Extrair horário no timezone de Brasília
+            const dataObj = typeof ag.data === 'string' ? new Date(ag.data) : ag.data;
+            const formatterHora = new Intl.DateTimeFormat('pt-BR', {
+              timeZone: 'America/Sao_Paulo',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+            });
+            horarioFormatado = formatterHora.format(dataObj);
+          }
+          
+          return {
+            id: ag.id,
+            clienteId: ag.clienteId || '',
+            clienteNome: ag.clienteRel?.nome || ag.cliente || 'Cliente não cadastrado',
+            clienteTelefone: ag.clienteRel?.telefone || ag.telefone,
+            profissionalId: ag.profissionais?.[0]?.profissionalId || '',
+            profissionalNome: ag.profissionais?.[0]?.profissional?.nome || 'Não atribuído',
+            servicoId: ag.servicoId,
+            servicoNome: ag.servico?.nome || '',
+            data: dataFormatada,
+            horario: horarioFormatado || '00:00',
+            duracao: ag.servico?.duracao || 40,
+            valor: ag.servico?.preco || 0,
+            status: ag.status,
+            observacoes: ag.observacao,
+            dataCriacao: ag.createdAt,
+          };
+        });
         setAgendamentos(agendamentosTransformados);
       }
       
-      toast.success('Agendamento criado com sucesso!');
+      queryClient.invalidateQueries({ queryKey: ['agendamentos'] });
+      toast.success('Agendamento criado com sucesso');
     } catch (error: any) {
       console.error('Erro ao criar agendamento:', error);
       toast.error(error.message || 'Erro ao criar agendamento');
@@ -765,8 +1142,9 @@ export function DonoProvider({ children }: { children: ReactNode }) {
 
   const atualizarAgendamento = async (id: string, dados: Partial<AgendamentoDono>) => {
     try {
-      // Se precisar atualizar via API, adicionar endpoint
-      setAgendamentos(agendamentos.map((a) => (a.id === id ? { ...a, ...dados } : a)));
+      await apiPut(`/agendamentos/${id}`, dados);
+      queryClient.invalidateQueries({ queryKey: ['agendamentos'] });
+      toast.success('Agendamento atualizado com sucesso');
     } catch (error) {
       console.error('Erro ao atualizar agendamento:', error);
       toast.error('Erro ao atualizar agendamento');
@@ -776,7 +1154,15 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   const cancelarAgendamento = async (id: string) => {
     try {
       await apiPut(`/agendamentos/${id}/cancelar`, {});
-      await carregarDados();
+      queryClient.invalidateQueries({ queryKey: ['agendamentos'] });
+
+      // Atualizar no Firestore
+      if (barbeariaId) {
+        firestoreUtils.updateAgendamento(barbeariaId, id, { status: 'cancelado' }).catch(err =>
+          console.error('❌ Erro ao cancelar agendamento no Firestore:', err)
+        );
+      }
+
       toast.success('Agendamento cancelado');
     } catch (error: any) {
       console.error('Erro ao cancelar agendamento:', error);
@@ -787,7 +1173,15 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   const confirmarAgendamento = async (id: string) => {
     try {
       await apiPut(`/agendamentos/${id}/confirmar`, {});
-      await carregarDados();
+      queryClient.invalidateQueries({ queryKey: ['agendamentos'] });
+
+      // Atualizar no Firestore
+      if (barbeariaId) {
+        firestoreUtils.updateAgendamento(barbeariaId, id, { status: 'confirmado' }).catch(err =>
+          console.error('❌ Erro ao confirmar agendamento no Firestore:', err)
+        );
+      }
+
       toast.success('Agendamento confirmado!');
     } catch (error: any) {
       console.error('Erro ao confirmar agendamento:', error);
@@ -799,7 +1193,7 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   const recusarAgendamento = async (id: string, motivo?: string) => {
     try {
       await apiPut(`/agendamentos/${id}/recusar`, { motivo });
-      await carregarDados();
+      queryClient.invalidateQueries({ queryKey: ['agendamentos'] });
       toast.success('Agendamento recusado');
     } catch (error: any) {
       console.error('Erro ao recusar agendamento:', error);
@@ -812,7 +1206,7 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   const adicionarProfissional = async (profissional: Omit<ProfissionalDono, "id" | "dataAdmissao" | "avaliacaoMedia" | "totalAvaliacoes" | "faturamentoTotal" | "faltas">) => {
     try {
       console.log('➕ Adicionando profissional ao banco de dados:', profissional.nome);
-      const resultado = await apiPost('/dono/profissionais', {
+      const novoProfissional = await apiPost<ProfissionalDono>('/dono/profissionais', {
         nome: profissional.nome,
         email: profissional.email,
         telefone: profissional.telefone,
@@ -822,14 +1216,16 @@ export function DonoProvider({ children }: { children: ReactNode }) {
         comissaoValor: profissional.comissao.valor,
       });
       
-      console.log('✅ Profissional adicionado ao banco:', resultado);
-      
-      // SEMPRE recarregar dados do banco após adicionar
-      console.log('🔄 Recarregando dados do banco após adicionar profissional...');
-      await carregarDados(true);
-      
-      console.log('✅ Dados recarregados do banco com sucesso');
-      toast.success('Profissional adicionado com sucesso!');
+      console.log('✅ Profissional adicionado:', novoProfissional);
+
+      queryClient.invalidateQueries({ queryKey: ['profissionais'] });
+      toast.success('Profissional adicionado com sucesso');
+      if (barbeariaId) {
+        firestoreUtils.addProfissional(barbeariaId, novoProfissional).catch(err =>
+          console.error('❌ Erro ao salvar profissional no Firestore:', err)
+        );
+      }
+
     } catch (error: any) {
       console.error('❌ Erro ao adicionar profissional:', error);
       toast.error(error.message || 'Erro ao adicionar profissional');
@@ -854,7 +1250,15 @@ export function DonoProvider({ children }: { children: ReactNode }) {
 
       await apiPut(`/dono/profissionais/${id}`, updateData);
       console.log('✅ Profissional atualizado no banco, recarregando dados...');
-      await carregarDados(true);
+      queryClient.invalidateQueries({ queryKey: ['profissionais'] });
+
+      // Atualizar no Firestore
+      if (barbeariaId) {
+        firestoreUtils.updateProfissional(barbeariaId, id, updateData).catch(err =>
+          console.error('❌ Erro ao atualizar profissional no Firestore:', err)
+        );
+      }
+
       toast.success('Profissional atualizado!');
     } catch (error: any) {
       console.error('❌ Erro ao atualizar profissional:', error);
@@ -867,7 +1271,15 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       console.log('🗑️ Removendo profissional do banco:', id);
       await apiDelete(`/dono/profissionais/${id}`);
       console.log('✅ Profissional removido do banco, recarregando dados...');
-      await carregarDados(true);
+      queryClient.invalidateQueries({ queryKey: ['profissionais'] });
+
+      // Remover do Firestore
+      if (barbeariaId) {
+        firestoreUtils.deleteProfissional(barbeariaId, id).catch(err =>
+          console.error('❌ Erro ao remover profissional no Firestore:', err)
+        );
+      }
+
       toast.success('Profissional removido');
     } catch (error: any) {
       console.error('❌ Erro ao remover profissional:', error);
@@ -879,10 +1291,6 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   const adicionarCliente = async (cliente: Omit<ClienteDono, "id" | "dataCadastro" | "totalAgendamentos" | "ticketMedio" | "frequencia">) => {
     try {
       console.log('➕ [ADICIONAR CLIENTE] Iniciando...');
-      console.log('➕ [ADICIONAR CLIENTE] Dados:', cliente);
-      console.log('➕ [ADICIONAR CLIENTE] Token:', localStorage.getItem('token') ? 'Presente' : 'Ausente');
-      console.log('➕ [ADICIONAR CLIENTE] BarbeariaId:', barbeariaId);
-      
       const resultado = await apiPost<any>('/dono/clientes', {
         nome: cliente.nome,
         email: cliente.email,
@@ -893,7 +1301,6 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       
       console.log('✅ [ADICIONAR CLIENTE] Cliente adicionado ao banco:', resultado);
       
-      // Adicionar cliente temporariamente à lista enquanto recarrega
       if (resultado && resultado.id) {
         const novoCliente: ClienteDono = {
           id: resultado.id,
@@ -909,38 +1316,21 @@ export function DonoProvider({ children }: { children: ReactNode }) {
           dataCadastro: resultado.createdAt ? (typeof resultado.createdAt === 'string' ? resultado.createdAt.split('T')[0] : new Date(resultado.createdAt).toISOString().split('T')[0]) : new Date().toISOString().split('T')[0],
         };
         
-        // Adicionar à lista imediatamente
-        setClientes(prev => {
-          // Verificar se já não existe (evitar duplicatas)
-          const existe = prev.find(c => c.id === novoCliente.id);
-          if (existe) return prev;
-          return [...prev, novoCliente];
-        });
-        
-        console.log('✅ [ADICIONAR CLIENTE] Cliente adicionado temporariamente à lista');
-      }
-      
-      console.log('🔄 [ADICIONAR CLIENTE] Iniciando recarregamento forçado de dados...');
-      
-      // Guardar ID do cliente criado para verificar depois
-      const clienteIdCriado = resultado?.id;
-      
-      // Forçar recarregamento após delay maior para garantir que o banco commitou
-      setTimeout(async () => {
-        try {
-          await carregarDados(true);
-          console.log('✅ [ADICIONAR CLIENTE] Dados recarregados');
-        } catch (error) {
-          console.error('❌ [ADICIONAR CLIENTE] Erro ao recarregar dados:', error);
-          // Em caso de erro, manter o cliente temporário na lista
+        queryClient.invalidateQueries({ queryKey: ['clientes'] });
+
+        // Salvar no Firestore
+        if (barbeariaId) {
+          firestoreUtils.addCliente(barbeariaId, novoCliente).catch(err =>
+            console.error('❌ Erro ao salvar cliente no Firestore:', err)
+          );
         }
-      }, 1500); // Aumentar delay para 1.5 segundos para dar tempo ao banco
+
+        console.log('✅ [ADICIONAR CLIENTE] Cliente adicionado à lista local');
+      }
       
       toast.success('Cliente adicionado com sucesso!');
     } catch (error: any) {
-      console.error('❌ [ADICIONAR CLIENTE] Erro completo:', error);
-      console.error('❌ [ADICIONAR CLIENTE] Mensagem:', error.message);
-      console.error('❌ [ADICIONAR CLIENTE] Stack:', error.stack);
+      console.error('❌ [ADICIONAR CLIENTE] Erro:', error);
       toast.error(error.message || 'Erro ao adicionar cliente');
       throw error;
     }
@@ -958,7 +1348,15 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       if ((dados as any).ativo !== undefined) updateData.ativo = (dados as any).ativo;
 
       await apiPut(`/dono/clientes/${id}`, updateData);
-      await carregarDados(true);
+      queryClient.invalidateQueries({ queryKey: ['clientes'] });
+
+      // Atualizar no Firestore
+      if (barbeariaId) {
+        firestoreUtils.updateCliente(barbeariaId, id, updateData).catch(err =>
+          console.error('❌ Erro ao atualizar cliente no Firestore:', err)
+        );
+      }
+
       toast.success('Cliente atualizado!');
     } catch (error: any) {
       console.error('Erro ao atualizar cliente:', error);
@@ -975,15 +1373,19 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       console.log('🗑️ [REMOVER CLIENTE] Token:', localStorage.getItem('token') ? 'Presente' : 'Ausente');
       console.log('🗑️ [REMOVER CLIENTE] BarbeariaId:', barbeariaId);
       console.log('🗑️ [REMOVER CLIENTE] API_URL:', API_URL);
-      
+
       const resultado = await apiDelete(`/dono/clientes/${id}`);
       console.log('✅ [REMOVER CLIENTE] Cliente removido com sucesso:', resultado);
-      
-      // Remover cliente da lista local imediatamente (otimização)
-      setClientes(prev => prev.filter(c => c.id !== id));
-      
-      // Recarregar dados do banco para garantir sincronização
-      await carregarDados(true);
+
+      queryClient.invalidateQueries({ queryKey: ['clientes'] });
+
+      // Remover do Firestore
+      if (barbeariaId) {
+        firestoreUtils.deleteCliente(barbeariaId, id).catch(err =>
+          console.error('❌ Erro ao remover cliente no Firestore:', err)
+        );
+      }
+
       toast.success('Cliente removido com sucesso!');
     } catch (error: any) {
       console.error('❌ [REMOVER CLIENTE] Erro completo:', error);
@@ -991,7 +1393,7 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       console.error('❌ [REMOVER CLIENTE] Status:', error.status);
       console.error('❌ [REMOVER CLIENTE] URL:', error.url);
       console.error('❌ [REMOVER CLIENTE] Stack:', error.stack);
-      
+
       // Mensagens de erro mais específicas
       let mensagemErro = 'Erro ao remover cliente';
       if (error.status === 404 || error.message?.includes('404') || error.message?.includes('Rota não encontrada')) {
@@ -1003,7 +1405,7 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       } else if (error.message) {
         mensagemErro = error.message;
       }
-      
+
       toast.error(mensagemErro);
       throw error;
     }
@@ -1018,10 +1420,18 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   const adicionarServico = async (servico: { nome: string; descricao?: string; preco: number; duracao: number; tipo?: string; ordem?: number; ativo?: boolean }) => {
     try {
       console.log('➕ Adicionando serviço ao banco de dados:', servico.nome);
-      await apiPost('/dono/servicos', servico);
-      console.log('✅ Serviço adicionado ao banco, recarregando dados...');
-      await carregarDados(true);
-      toast.success('Serviço adicionado com sucesso!');
+      const novoServico = await apiPost('/dono/servicos', servico);
+
+      console.log('✅ Serviço adicionado:', novoServico);
+
+      queryClient.invalidateQueries({ queryKey: ['servicos'] });
+      toast.success('Serviço adicionado com sucesso');
+      if (barbeariaId) {
+        firestoreUtils.addServico(barbeariaId, novoServico).catch(err =>
+          console.error('❌ Erro ao salvar serviço no Firestore:', err)
+        );
+      }
+
     } catch (error: any) {
       console.error('❌ Erro ao adicionar serviço:', error);
       toast.error(error.message || 'Erro ao adicionar serviço');
@@ -1035,6 +1445,14 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       await apiPut(`/dono/servicos/${id}`, dados);
       console.log('✅ Serviço atualizado no banco, recarregando dados...');
       await carregarDados(true);
+
+      // Atualizar no Firestore
+      if (barbeariaId) {
+        firestoreUtils.updateServico(barbeariaId, id, dados).catch(err =>
+          console.error('❌ Erro ao atualizar serviço no Firestore:', err)
+        );
+      }
+
       toast.success('Serviço atualizado!');
     } catch (error: any) {
       console.error('❌ Erro ao atualizar serviço:', error);
@@ -1048,6 +1466,14 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       await apiDelete(`/dono/servicos/${id}`);
       console.log('✅ Serviço removido do banco, recarregando dados...');
       await carregarDados(true);
+
+      // Remover do Firestore
+      if (barbeariaId) {
+        firestoreUtils.deleteServico(barbeariaId, id).catch(err =>
+          console.error('❌ Erro ao remover serviço no Firestore:', err)
+        );
+      }
+
       toast.success('Serviço removido');
     } catch (error: any) {
       console.error('❌ Erro ao remover serviço:', error);
@@ -1061,6 +1487,17 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       await apiPut(`/dono/servicos/${id}/toggle`, {});
       console.log('✅ Status do serviço alterado, recarregando dados...');
       await carregarDados(true);
+
+      // Atualizar no Firestore (precisa saber o novo status, mas o toggle do backend não retorna)
+      // O hook do Firestore vai pegar a mudança se o backend atualizar o Firestore, 
+      // mas aqui estamos fazendo do frontend para garantir.
+      const servico = servicos.find(s => s.id === id);
+      if (barbeariaId && servico) {
+        firestoreUtils.updateServico(barbeariaId, id, { ativo: !servico.ativo }).catch(err =>
+          console.error('❌ Erro ao alterar status do serviço no Firestore:', err)
+        );
+      }
+
       toast.success('Status do serviço alterado');
     } catch (error: any) {
       console.error('❌ Erro ao alterar status do serviço:', error);
@@ -1073,28 +1510,93 @@ export function DonoProvider({ children }: { children: ReactNode }) {
     // Pagamentos são criados automaticamente quando um agendamento é confirmado/concluído
     // Esta função pode ser usada para criar pagamentos manuais se necessário
     console.log('💰 Registrando pagamento:', pagamento);
-    // Recarregar dados para obter o pagamento criado
-    await carregarDados(true);
+    queryClient.invalidateQueries({ queryKey: [barbeariaId] });
+  };
+
+  // Registrar pagamento manual/presencial
+  const registrarPagamentoManual = async (
+    agendamentoId: string, 
+    valor: number, 
+    metodo: 'dinheiro' | 'pix' | 'cartao_credito' | 'cartao_debito',
+    observacao?: string
+  ): Promise<void> => {
+    try {
+      if (!barbeariaId) {
+        toast.error('Barbearia não identificada');
+        throw new Error('Barbearia não identificada');
+      }
+
+      console.log('💰 Registrando pagamento manual:', { agendamentoId, valor, metodo });
+
+      const response = await apiPost<any>('/dono/financeiro/pagamentos/manual', {
+        agendamentoId,
+        valor,
+        metodo,
+        observacao,
+      });
+
+      if (response.success && response.pagamento) {
+        // Adicionar pagamento imediatamente ao estado (otimista)
+        const novoPagamento: PagamentoDono = {
+          id: response.pagamento.id,
+          agendamentoId: response.pagamento.agendamentoId,
+          valor: response.pagamento.valor,
+          metodo: response.pagamento.metodo,
+          status: response.pagamento.status || 'pago',
+          taxaGateway: response.pagamento.taxaGateway || 0,
+          dataPagamento: response.pagamento.dataPagamento 
+            ? (typeof response.pagamento.dataPagamento === 'string' 
+                ? response.pagamento.dataPagamento 
+                : new Date(response.pagamento.dataPagamento).toISOString())
+            : new Date().toISOString(),
+          dataVencimento: response.pagamento.dataVencimento 
+            ? (typeof response.pagamento.dataVencimento === 'string'
+                ? response.pagamento.dataVencimento
+                : new Date(response.pagamento.dataVencimento).toISOString())
+            : undefined,
+        };
+        
+        // Adicionar ao início da lista para aparecer imediatamente
+        setPagamentos(prev => {
+          // Verificar se já existe para evitar duplicatas
+          const existe = prev.find(p => p.id === novoPagamento.id);
+          if (existe) return prev;
+          return [novoPagamento, ...prev];
+        });
+        
+        // Invalidar queries para garantir sincronização completa
+        queryClient.invalidateQueries({ queryKey: ['agendamentos', barbeariaId] });
+        queryClient.invalidateQueries({ queryKey: ['pagamentos', barbeariaId] });
+        queryClient.invalidateQueries({ queryKey: ['kpis', barbeariaId] });
+        
+        // Forçar refetch imediato da query de pagamentos
+        queryClient.refetchQueries({ queryKey: ['pagamentos', barbeariaId] });
+        
+        toast.success('Pagamento registrado com sucesso!');
+      } else {
+        throw new Error(response.error || 'Erro ao registrar pagamento');
+      }
+    } catch (error: any) {
+      console.error('❌ Erro ao registrar pagamento manual:', error);
+      toast.error(error.message || 'Erro ao registrar pagamento');
+      throw error;
+    }
   };
 
   // Funções de promoção
   const criarPromocao = async (promocao: Omit<PromocaoDono, "id">) => {
     try {
       console.log('🎁 Criando promoção no banco de dados:', promocao.nome);
-      await apiPost('/dono/promocoes', {
-        nome: promocao.nome,
-        tipo: promocao.tipo,
-        valor: promocao.valor,
-        validoDe: promocao.validoDe,
-        validoAte: promocao.validoAte,
-        ativo: promocao.ativo,
-        aplicavelA: promocao.aplicavelA,
-        servicoId: promocao.servicoId,
-        horarioInicio: promocao.horarioInicio,
-        horarioFim: promocao.horarioFim,
-      });
-      console.log('✅ Promoção criada no banco, recarregando dados...');
-      await carregarDados(true);
+      await apiPost('/dono/promocoes', promocao);
+      queryClient.invalidateQueries({ queryKey: ['promocoes'] });
+
+      // Salvar no Firestore
+      if (barbeariaId) {
+        firestoreUtils.addPromocao(barbeariaId, promocao).catch(err =>
+          console.error('❌ Erro ao salvar promoção no Firestore:', err)
+        );
+      }
+
       toast.success('Promoção criada com sucesso!');
     } catch (error: any) {
       console.error('❌ Erro ao criar promoção:', error);
@@ -1107,8 +1609,15 @@ export function DonoProvider({ children }: { children: ReactNode }) {
     try {
       console.log('✏️ Atualizando promoção no banco:', id);
       await apiPut(`/dono/promocoes/${id}`, dados);
-      console.log('✅ Promoção atualizada no banco, recarregando dados...');
-      await carregarDados(true);
+      queryClient.invalidateQueries({ queryKey: ['promocoes'] });
+
+      // Atualizar no Firestore
+      if (barbeariaId) {
+        firestoreUtils.updatePromocao(barbeariaId, id, dados).catch(err =>
+          console.error('❌ Erro ao atualizar promoção no Firestore:', err)
+        );
+      }
+
       toast.success('Promoção atualizada!');
     } catch (error: any) {
       console.error('❌ Erro ao atualizar promoção:', error);
@@ -1121,8 +1630,7 @@ export function DonoProvider({ children }: { children: ReactNode }) {
     try {
       console.log('⭐ Respondendo avaliação no banco:', id);
       await apiPut(`/dono/avaliacoes/${id}/responder`, { resposta });
-      console.log('✅ Avaliação respondida no banco, recarregando dados...');
-      await carregarDados(true);
+      queryClient.invalidateQueries({ queryKey: ['avaliacoes'] });
       toast.success('Avaliação respondida!');
     } catch (error: any) {
       console.error('❌ Erro ao responder avaliação:', error);
@@ -1134,18 +1642,20 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   const adicionarProduto = async (produto: Omit<ProdutoDono, "id">) => {
     try {
       console.log('📦 Adicionando produto ao banco de dados:', produto.nome);
-      await apiPost('/dono/produtos', {
-        nome: produto.nome,
-        descricao: produto.descricao,
-        categoria: produto.categoria,
-        preco: produto.preco,
-        estoque: produto.estoque,
-        estoqueMinimo: produto.estoqueMinimo,
-        ativo: produto.ativo,
-        foto: produto.foto,
-      });
-      console.log('✅ Produto adicionado ao banco, recarregando dados...');
-      await carregarDados(true);
+      const novoProduto = await apiPost<ProdutoDono>('/dono/produtos', produto);
+
+      console.log('✅ Produto adicionado com sucesso:', novoProduto);
+
+      // Atualizar estado localmente sem recarregar tudo
+      queryClient.invalidateQueries({ queryKey: ['produtos'] });
+
+      // Salvar no Firestore
+      if (barbeariaId) {
+        firestoreUtils.addProduto(barbeariaId, novoProduto).catch(err =>
+          console.error('❌ Erro ao salvar produto no Firestore:', err)
+        );
+      }
+
       toast.success('Produto adicionado com sucesso!');
     } catch (error: any) {
       console.error('❌ Erro ao adicionar produto:', error);
@@ -1158,8 +1668,15 @@ export function DonoProvider({ children }: { children: ReactNode }) {
     try {
       console.log('✏️ Atualizando produto no banco:', id);
       await apiPut(`/dono/produtos/${id}`, dados);
-      console.log('✅ Produto atualizado no banco, recarregando dados...');
-      await carregarDados(true);
+      queryClient.invalidateQueries({ queryKey: ['produtos'] });
+
+      // Atualizar no Firestore
+      if (barbeariaId) {
+        firestoreUtils.updateProduto(barbeariaId, id, dados).catch(err =>
+          console.error('❌ Erro ao atualizar produto no Firestore:', err)
+        );
+      }
+
       toast.success('Produto atualizado!');
     } catch (error: any) {
       console.error('❌ Erro ao atualizar produto:', error);
@@ -1171,8 +1688,15 @@ export function DonoProvider({ children }: { children: ReactNode }) {
     try {
       console.log('📊 Atualizando estoque no banco:', id, quantidade);
       await apiPut(`/dono/produtos/${id}/estoque`, { quantidade });
-      console.log('✅ Estoque atualizado no banco, recarregando dados...');
-      await carregarDados(true);
+      queryClient.invalidateQueries({ queryKey: ['produtos'] });
+
+      // Atualizar no Firestore
+      if (barbeariaId) {
+        firestoreUtils.updateProduto(barbeariaId, id, { estoque: quantidade }).catch(err =>
+          console.error('❌ Erro ao atualizar estoque no Firestore:', err)
+        );
+      }
+
       toast.success('Estoque atualizado!');
     } catch (error: any) {
       console.error('❌ Erro ao atualizar estoque:', error);
@@ -1185,17 +1709,70 @@ export function DonoProvider({ children }: { children: ReactNode }) {
     try {
       console.log('🔔 Marcando notificação como lida no banco:', id);
       await apiPut(`/dono/notificacoes/${id}/lida`, {});
-      console.log('✅ Notificação marcada como lida, recarregando dados...');
-      await carregarDados(true);
+      queryClient.invalidateQueries({ queryKey: ['notificacoes'] });
     } catch (error: any) {
       console.error('❌ Erro ao marcar notificação como lida:', error);
-      toast.error(error.message || 'Erro ao marcar notificação como lida');
     }
   };
 
   // Funções de configuração
-  const atualizarConfiguracao = (dados: Partial<ConfiguracaoBarbearia>) => {
-    setConfiguracao({ ...configuracao, ...dados });
+  const atualizarConfiguracao = async (dados: Partial<ConfiguracaoBarbearia>) => {
+    try {
+      console.log('💾 [CONFIG] Atualizando configuração:', { 
+        campos: Object.keys(dados),
+        temFoto: !!dados.foto,
+        tamanhoFoto: dados.foto ? dados.foto.length : 0
+      });
+
+      // Se há foto, verificar tamanho antes de enviar
+      if (dados.foto && dados.foto.length > 2000000) { // 2MB em base64
+        throw new Error('Foto muito grande. Por favor, use uma imagem menor.');
+      }
+
+      // Verificar token antes de fazer requisição
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Token não encontrado. Faça login novamente.');
+      }
+      
+      console.log('💾 [CONFIG] Enviando requisição PUT para /dono/configuracao');
+      console.log('💾 [CONFIG] Token presente:', !!token);
+      
+      const response = await apiPut('/dono/configuracao', dados);
+      console.log('✅ [CONFIG] Configuração atualizada com sucesso');
+      
+      queryClient.invalidateQueries({ queryKey: ['configuracao'] });
+      queryClient.invalidateQueries({ queryKey: [barbeariaId] });
+
+      // Atualizar no Firestore (opcional, não crítico)
+      if (barbeariaId) {
+        firestoreUtils.setBarbeariaConfig(barbeariaId, dados).catch(err =>
+          console.warn('⚠️ Erro ao atualizar configuração no Firestore (não crítico):', err)
+        );
+      }
+      
+      toast.success('Configurações atualizadas com sucesso!');
+      return response;
+    } catch (error: any) {
+      console.error('❌ [CONFIG] Erro ao atualizar config:', error);
+      console.error('❌ [CONFIG] Detalhes do erro:', {
+        message: error?.message,
+        status: error?.status,
+        endpoint: error?.endpoint,
+        stack: error?.stack
+      });
+      
+      // Se for erro 401, mensagem mais específica
+      if (error?.status === 401) {
+        const errorMessage = error?.message || 'Token inválido ou expirado. Faça login novamente.';
+        toast.error(errorMessage);
+        throw error;
+      }
+      
+      const errorMessage = error?.message || error?.error || 'Erro ao salvar configurações';
+      toast.error(errorMessage);
+      throw error; // Re-lançar para que o componente possa tratar
+    }
   };
 
   // Funções de relatório
@@ -1223,6 +1800,8 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   return (
     <DonoContext.Provider
       value={{
+        loading,
+        barbeariaId,
         kpi,
         agendamentos,
         profissionais,
@@ -1251,6 +1830,7 @@ export function DonoProvider({ children }: { children: ReactNode }) {
         removerServico,
         toggleServicoAtivo,
         registrarPagamento,
+        registrarPagamentoManual,
         criarPromocao,
         atualizarPromocao,
         responderAvaliacao,

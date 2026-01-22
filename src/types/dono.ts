@@ -137,6 +137,7 @@ export interface ConfiguracaoBarbearia {
   nome: string;
   cnpjCpf: string;
   logo?: string;
+  foto?: string;
   endereco?: string;
   cidade?: string;
   bairro?: string;

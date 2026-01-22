@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDono } from "@/context/DonoContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,13 +20,120 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Lock, CheckCircle, Clock, Settings } from "lucide-react";
+import { Loader2, Lock, CheckCircle, Clock, Settings, Upload, Image as ImageIcon, X } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ConfiguracaoBarbearia } from "@/types/dono";
+
+// Função para comprimir imagem (reduz tamanho para evitar problemas)
+const compressImage = (file: File, maxWidth: number = 600, maxHeight: number = 600, quality: number = 0.7): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        // Calcular novas dimensões mantendo proporção
+        if (width > height) {
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = (width * maxHeight) / height;
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Não foi possível criar contexto do canvas'));
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error('Erro ao comprimir imagem'));
+            }
+          },
+          file.type,
+          quality
+        );
+      };
+      img.onerror = () => reject(new Error('Erro ao carregar imagem'));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
+    reader.readAsDataURL(file);
+  });
+};
+
+// Configuração padrão segura
+const configuracaoPadrao: ConfiguracaoBarbearia = {
+  id: "",
+  nome: "",
+  cnpjCpf: "",
+  modoConfirmacao: "hibrido",
+  horarioFuncionamento: {
+    segunda: { aberto: true, inicio: "09:00", fim: "18:00" },
+    terca: { aberto: true, inicio: "09:00", fim: "18:00" },
+    quarta: { aberto: true, inicio: "09:00", fim: "18:00" },
+    quinta: { aberto: true, inicio: "09:00", fim: "18:00" },
+    sexta: { aberto: true, inicio: "09:00", fim: "19:00" },
+    sabado: { aberto: true, inicio: "08:00", fim: "17:00" },
+    domingo: { aberto: false, inicio: "09:00", fim: "13:00" },
+  },
+  politicaCancelamento: {
+    prazoMinimo: 2,
+    permitirReagendamento: true,
+  },
+  linkAgendamento: "",
+  paginaPublica: true,
+};
 
 export default function ConfiguracoesBarbearia() {
   const { configuracao, atualizarConfiguracao } = useDono();
   const { toast } = useToast();
-  const [formData, setFormData] = useState(configuracao);
+  
+  // Função para garantir que temos uma configuração válida
+  const getConfiguracaoSegura = (config: ConfiguracaoBarbearia | undefined | null): ConfiguracaoBarbearia => {
+    if (!config) return configuracaoPadrao;
+    
+    return {
+      ...configuracaoPadrao,
+      ...config,
+      horarioFuncionamento: {
+        ...configuracaoPadrao.horarioFuncionamento,
+        ...(config.horarioFuncionamento || {}),
+      },
+      politicaCancelamento: {
+        ...configuracaoPadrao.politicaCancelamento,
+        ...(config.politicaCancelamento || {}),
+      },
+    };
+  };
+
+  const [formData, setFormData] = useState<ConfiguracaoBarbearia>(() => 
+    getConfiguracaoSegura(configuracao)
+  );
+
+  // Atualizar formData quando configuracao mudar
+  useEffect(() => {
+    if (configuracao) {
+      setFormData(getConfiguracaoSegura(configuracao));
+    }
+  }, [configuracao]);
   const [showAlterarSenha, setShowAlterarSenha] = useState(false);
   const [senhaForm, setSenhaForm] = useState({
     senhaAtual: "",
@@ -37,35 +144,90 @@ export default function ConfiguracoesBarbearia() {
 
   const handleSubmit = async () => {
     try {
-      // Atualizar configuração local
-      atualizarConfiguracao(formData);
+      // Verificar token antes de tentar salvar
+      const token = localStorage.getItem('token');
+      const userType = localStorage.getItem('userType');
       
-      // Se houver mudança no modo de confirmação, atualizar no backend
-      if (formData.modoConfirmacao) {
-        const token = localStorage.getItem('token');
-        const apiUrl = import.meta.env.VITE_API_URL || '/api';
-        const barbeariaId = configuracao.id; // Assumindo que o ID da barbearia está no configuracao
-        
-        await fetch(`${apiUrl}/agendamentos/barbearia/${barbeariaId}/configuracao`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            modoConfirmacao: formData.modoConfirmacao,
-          }),
+      if (!token) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Token não encontrado. Por favor, faça login novamente.",
+          variant: "destructive",
         });
+        // Redirecionar para login após 2 segundos
+        setTimeout(() => {
+          window.location.href = '/login?tab=owner';
+        }, 2000);
+        return;
+      }
+
+      if (userType !== 'dono') {
+        toast({
+          title: "Erro de autenticação",
+          description: "Tipo de usuário incorreto. Por favor, faça login novamente.",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = '/login?tab=owner';
+        }, 2000);
+        return;
+      }
+
+      // Preparar dados para envio (sem campos que não devem ser enviados)
+      const dadosParaEnvio: Partial<ConfiguracaoBarbearia> = {
+        nome: formData.nome,
+        cnpjCpf: formData.cnpjCpf,
+        email: formData.email,
+        telefone: formData.telefone,
+        endereco: formData.endereco,
+        cidade: formData.cidade,
+        bairro: formData.bairro,
+        cep: formData.cep,
+        modoConfirmacao: formData.modoConfirmacao,
+        foto: formData.foto, // Incluir foto se existir
+      };
+
+      // Se a foto for muito grande (mais de 2MB em base64), avisar
+      if (formData.foto && formData.foto.length > 2000000) {
+        toast({
+          title: "Foto muito grande",
+          description: "A foto é muito grande (mais de 2MB). Por favor, use uma imagem menor.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('💾 [CONFIG PÁGINA] Salvando configurações...', {
+        temFoto: !!dadosParaEnvio.foto,
+        tamanhoFoto: dadosParaEnvio.foto ? dadosParaEnvio.foto.length : 0,
+        tokenPresente: !!token,
+        userType: userType
+      });
+
+      // Atualizar configuração no backend (aguardar a promise)
+      await atualizarConfiguracao(dadosParaEnvio);
+      
+      // Toast de sucesso já é mostrado pela função atualizarConfiguracao
+    } catch (error: any) {
+      console.error('❌ [CONFIG PÁGINA] Erro ao salvar configurações:', error);
+      
+      // Se for erro 401, redirecionar para login
+      if (error?.status === 401) {
+        toast({
+          title: "Sessão expirada",
+          description: "Sua sessão expirou. Por favor, faça login novamente.",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = '/login?tab=owner';
+        }, 2000);
+        return;
       }
       
-      toast({
-        title: "Configurações salvas",
-        description: "As configurações foram atualizadas com sucesso.",
-      });
-    } catch (error) {
+      // Outros erros
       toast({
         title: "Erro ao salvar",
-        description: "Não foi possível salvar as configurações.",
+        description: error?.message || "Não foi possível salvar as configurações. Verifique os dados e tente novamente.",
         variant: "destructive",
       });
     }
@@ -234,6 +396,116 @@ export default function ConfiguracoesBarbearia() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Foto da Barbearia</CardTitle>
+          <CardDescription>
+            Adicione uma foto da sua barbearia. Esta foto aparecerá no painel dos clientes.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-4">
+            <Avatar className="h-24 w-24 border-2 border-primary/20">
+              <AvatarImage src={formData.foto || undefined} alt={formData.nome || "Barbearia"} />
+              <AvatarFallback className="bg-primary/10 text-primary text-2xl font-bold">
+                {formData.nome ? formData.nome.charAt(0).toUpperCase() : "B"}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 space-y-2">
+              <div className="flex gap-2">
+                <Label htmlFor="foto-upload" className="cursor-pointer">
+                  <Button type="button" variant="outline" asChild>
+                    <span>
+                      <Upload className="h-4 w-4 mr-2" />
+                      {formData.foto ? "Alterar Foto" : "Adicionar Foto"}
+                    </span>
+                  </Button>
+                </Label>
+                <Input
+                  id="foto-upload"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      // Validar tamanho (máximo 2MB para evitar problemas)
+                      if (file.size > 2 * 1024 * 1024) {
+                        toast({
+                          title: "Erro",
+                          description: "A imagem deve ter no máximo 2MB. Por favor, comprima a imagem antes de enviar.",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      
+                      // Validar tipo
+                      if (!file.type.startsWith('image/')) {
+                        toast({
+                          title: "Erro",
+                          description: "Por favor, selecione uma imagem válida.",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      
+                      try {
+                        // Comprimir e redimensionar a imagem antes de converter para base64
+                        const compressedImage = await compressImage(file);
+                        
+                        // Converter para base64
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          const base64String = reader.result as string;
+                          setFormData({ ...formData, foto: base64String });
+                          toast({
+                            title: "Foto carregada",
+                            description: "Foto pronta para salvar. Clique em 'Salvar Configurações'.",
+                          });
+                        };
+                        reader.onerror = () => {
+                          toast({
+                            title: "Erro",
+                            description: "Erro ao ler a imagem. Tente novamente.",
+                            variant: "destructive",
+                          });
+                        };
+                        reader.readAsDataURL(compressedImage);
+                      } catch (error) {
+                        console.error('Erro ao processar imagem:', error);
+                        toast({
+                          title: "Erro",
+                          description: "Erro ao processar a imagem. Tente novamente.",
+                          variant: "destructive",
+                        });
+                      }
+                    }
+                  }}
+                />
+                {formData.foto && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setFormData({ ...formData, foto: undefined });
+                      // Limpar input file
+                      const input = document.getElementById('foto-upload') as HTMLInputElement;
+                      if (input) input.value = '';
+                    }}
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Remover
+                  </Button>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Formatos aceitos: JPG, PNG, GIF. Tamanho máximo: 5MB
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Dados da Empresa</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -241,7 +513,7 @@ export default function ConfiguracoesBarbearia() {
             <Label htmlFor="nome">Nome da Barbearia</Label>
             <Input
               id="nome"
-              value={formData.nome}
+              value={formData.nome || ""}
               onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
             />
           </div>
@@ -249,7 +521,7 @@ export default function ConfiguracoesBarbearia() {
             <Label htmlFor="cnpj">CNPJ/CPF</Label>
             <Input
               id="cnpj"
-              value={formData.cnpjCpf}
+              value={formData.cnpjCpf || ""}
               onChange={(e) => setFormData({ ...formData, cnpjCpf: e.target.value })}
             />
           </div>
@@ -261,58 +533,63 @@ export default function ConfiguracoesBarbearia() {
           <CardTitle>Horário de Funcionamento</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {Object.entries(formData.horarioFuncionamento).map(([dia, horario]) => (
-            <div key={dia} className="flex items-center justify-between">
-              <div className="flex items-center gap-4 flex-1">
-                <Label className="w-24 capitalize">{dia}</Label>
-                <Switch
-                  checked={horario.aberto}
-                  onCheckedChange={(checked) =>
-                    setFormData({
-                      ...formData,
-                      horarioFuncionamento: {
-                        ...formData.horarioFuncionamento,
-                        [dia]: { ...horario, aberto: checked },
-                      },
-                    })
-                  }
-                />
-                {horario.aberto && (
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="time"
-                      value={horario.inicio}
-                      onChange={(e) =>
+          {formData.horarioFuncionamento && Object.entries(formData.horarioFuncionamento)
+            .filter(([_, horario]) => horario && typeof horario === 'object')
+            .map(([dia, horario]) => {
+              const horarioSeguro = horario || { aberto: false, inicio: "09:00", fim: "18:00" };
+              return (
+                <div key={dia} className="flex items-center justify-between">
+                  <div className="flex items-center gap-4 flex-1">
+                    <Label className="w-24 capitalize">{dia}</Label>
+                    <Switch
+                      checked={horarioSeguro.aberto || false}
+                      onCheckedChange={(checked) =>
                         setFormData({
                           ...formData,
                           horarioFuncionamento: {
                             ...formData.horarioFuncionamento,
-                            [dia]: { ...horario, inicio: e.target.value },
+                            [dia]: { ...horarioSeguro, aberto: checked },
                           },
                         })
                       }
-                      className="w-32"
                     />
-                    <span>até</span>
-                    <Input
-                      type="time"
-                      value={horario.fim}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          horarioFuncionamento: {
-                            ...formData.horarioFuncionamento,
-                            [dia]: { ...horario, fim: e.target.value },
-                          },
-                        })
-                      }
-                      className="w-32"
-                    />
+                    {horarioSeguro.aberto && (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="time"
+                          value={horarioSeguro.inicio || "09:00"}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              horarioFuncionamento: {
+                                ...formData.horarioFuncionamento,
+                                [dia]: { ...horarioSeguro, inicio: e.target.value },
+                              },
+                            })
+                          }
+                          className="w-32"
+                        />
+                        <span>até</span>
+                        <Input
+                          type="time"
+                          value={horarioSeguro.fim || "18:00"}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              horarioFuncionamento: {
+                                ...formData.horarioFuncionamento,
+                                [dia]: { ...horarioSeguro, fim: e.target.value },
+                              },
+                            })
+                          }
+                          className="w-32"
+                        />
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            </div>
-          ))}
+                </div>
+              );
+            })}
         </CardContent>
       </Card>
 
@@ -326,7 +603,7 @@ export default function ConfiguracoesBarbearia() {
             <Input
               id="prazoMinimo"
               type="number"
-              value={formData.politicaCancelamento.prazoMinimo}
+              value={formData.politicaCancelamento?.prazoMinimo || 2}
               onChange={(e) =>
                 setFormData({
                   ...formData,
@@ -342,7 +619,7 @@ export default function ConfiguracoesBarbearia() {
             <Label htmlFor="permitirReagendamento">Permitir Reagendamento</Label>
             <Switch
               id="permitirReagendamento"
-              checked={formData.politicaCancelamento.permitirReagendamento}
+              checked={formData.politicaCancelamento?.permitirReagendamento ?? true}
               onCheckedChange={(checked) =>
                 setFormData({
                   ...formData,
@@ -364,7 +641,7 @@ export default function ConfiguracoesBarbearia() {
         <CardContent>
           <div className="space-y-2">
             <Label>URL Pública</Label>
-            <Input value={formData.linkAgendamento} readOnly />
+            <Input value={formData.linkAgendamento || ""} readOnly />
             <p className="text-xs text-muted-foreground">
               Este é o link que seus clientes usarão para agendar
             </p>

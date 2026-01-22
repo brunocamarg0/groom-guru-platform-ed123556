@@ -35,9 +35,14 @@ export interface Agendamento {
   clienteId: string;
   barbeariaId: string;
   servicoId: string;
-  servico: Servico;
+  servico?: Servico;
+  servicoNome?: string;
+  profissionalId?: string;
+  profissionalNome?: string;
   data: string; // ISO date string
   hora: string; // HH:mm format
+  horario?: string; // Alternative field for time
+  valor?: number;
   status: StatusAgendamento;
   observacoes?: string;
   createdAt: string;
@@ -77,5 +82,27 @@ export interface NovoAgendamento {
   data: string;
   hora: string;
   observacoes?: string;
+  profissionalId?: string;
+}
+
+// Tipos de serviço disponíveis
+export type TipoServico =
+  | "corte"
+  | "barba"
+  | "combo"
+  | "hidratacao"
+  | "alisamento"
+  | "progressiva"
+  | "luzes"
+  | "coloring"
+  | "manicure"
+  | "pedicure"
+  | "sobrancelha"
+  | "bigode"
+  | "outro";
+
+// Interface de Agendamento com pagamento opcional
+export interface AgendamentoComPagamento extends Agendamento {
+  pagamento?: Pagamento;
 }
 

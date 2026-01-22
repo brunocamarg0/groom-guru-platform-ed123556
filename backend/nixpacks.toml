@@ -13,7 +13,7 @@ cmds = [
 cmds = [
   "npx prisma generate",
   "npm run build",
-  "npx prisma db push --accept-data-loss || true"
+  "npx prisma migrate deploy || npx prisma db push --accept-data-loss || true"
 ]
 
 # Executar migrações após build (apenas se necessário)

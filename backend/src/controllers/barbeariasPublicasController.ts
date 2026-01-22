@@ -144,6 +144,7 @@ export async function listarBarbeariasPublicas(req: Request, res: Response) {
       cidade: b.cidade,
       bairro: b.bairro,
       cep: b.cep,
+      foto: b.foto,
       servicos: b.servicos.map((s) => ({
         id: s.id,
         nome: s.nome,
@@ -226,6 +227,7 @@ export async function buscarBarbeariaPublica(req: Request, res: Response) {
       cidade: barbearia.cidade,
       bairro: barbearia.bairro,
       cep: barbearia.cep,
+      foto: barbearia.foto,
       servicos: barbearia.servicos.map((s) => ({
         id: s.id,
         nome: s.nome,
@@ -243,6 +245,108 @@ export async function buscarBarbeariaPublica(req: Request, res: Response) {
   } catch (error) {
     console.error('Erro ao buscar barbearia pública:', error);
     res.status(500).json({ error: 'Erro ao buscar barbearia' });
+  }
+}
+
+/**
+ * Buscar horários ocupados de uma barbearia em uma data específica
+ * Retorna todos os horários que já estão agendados (confirmados ou pendentes)
+ */
+export async function buscarHorariosOcupados(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    const { data } = req.query;
+
+    if (!data || typeof data !== 'string') {
+      return res.status(400).json({ error: 'Data é obrigatória (formato: YYYY-MM-DD)' });
+    }
+
+    console.log(`🔧 [HORARIOS] Buscando horários ocupados para barbearia ${id} na data ${data}`);
+
+    // Criar datas de início e fim do dia usando UTC
+    // Isso garante consistência com o armazenamento ao meio-dia UTC
+    const dataInicio = new Date(`${data}T00:00:00.000Z`);
+    const dataFim = new Date(`${data}T23:59:59.999Z`);
+    
+    console.log(`🔧 [HORARIOS] Range de busca: ${dataInicio.toISOString()} até ${dataFim.toISOString()}`);
+
+    // Buscar agendamentos confirmados ou pendentes para esta barbearia na data
+    const agendamentos = await prisma.agendamento.findMany({
+      where: {
+        barbeariaId: id,
+        data: {
+          gte: dataInicio,
+          lte: dataFim,
+        },
+        status: {
+          in: ['confirmado', 'pendente', 'concluido'],
+        },
+      },
+      include: {
+        servico: {
+          select: {
+            duracao: true,
+          },
+        },
+      },
+    });
+
+    console.log(`🔧 [HORARIOS] Agendamentos encontrados: ${agendamentos.length}`);
+    agendamentos.forEach((a, i) => {
+      console.log(`   ${i + 1}. Horário: ${a.horario}, Status: ${a.status}, Duração serviço: ${a.servico?.duracao || 40}min`);
+    });
+
+    // Extrair apenas os horários ocupados
+    // Para cada agendamento, calcular os slots de tempo ocupados baseado na duração do serviço
+    const horariosOcupados: string[] = [];
+    
+    for (const agendamento of agendamentos) {
+      if (!agendamento.horario) continue;
+      
+      // Adicionar o horário inicial
+      if (!horariosOcupados.includes(agendamento.horario)) {
+        horariosOcupados.push(agendamento.horario);
+      }
+      
+      // Pegar duração do serviço
+      const duracao = agendamento.servico?.duracao || 40;
+      
+      // Se o serviço dura mais que 40 minutos, bloquear slots adicionais
+      if (duracao > 40) {
+        const [hora, minuto] = agendamento.horario.split(':').map(Number);
+        let minutoAtual = hora * 60 + minuto;
+        const minutoFim = minutoAtual + duracao;
+        
+        // Avançar de 40 em 40 minutos e bloquear cada slot
+        minutoAtual += 40;
+        while (minutoAtual < minutoFim) {
+          const novaHora = Math.floor(minutoAtual / 60);
+          const novoMinuto = minutoAtual % 60;
+          const horarioSlot = `${novaHora.toString().padStart(2, '0')}:${novoMinuto.toString().padStart(2, '0')}`;
+          
+          if (!horariosOcupados.includes(horarioSlot)) {
+            horariosOcupados.push(horarioSlot);
+          }
+          
+          minutoAtual += 40;
+        }
+      }
+    }
+
+    // Ordenar horários
+    horariosOcupados.sort();
+
+    console.log(`✅ [HORARIOS] ${horariosOcupados.length} horário(s) ocupado(s): ${horariosOcupados.join(', ')}`);
+
+    res.json({
+      barbeariaId: id,
+      data,
+      horariosOcupados,
+      totalAgendamentos: agendamentos.length,
+    });
+  } catch (error) {
+    console.error('Erro ao buscar horários ocupados:', error);
+    res.status(500).json({ error: 'Erro ao buscar horários ocupados' });
   }
 }
 

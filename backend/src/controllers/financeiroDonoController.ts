@@ -7,12 +7,20 @@ import { AuthRequest } from '../middleware/auth';
  */
 export async function listarPagamentos(req: AuthRequest, res: Response) {
   try {
+    console.log('💰 [LISTAR PAGAMENTOS] Iniciando...');
+    console.log('   userId:', req.userId);
+    console.log('   userType:', req.userType);
+    console.log('   barbeariaId:', req.barbeariaId);
+    
     const { barbeariaId } = req;
     const { dataInicio, dataFim, metodo, status } = req.query;
 
     if (!barbeariaId) {
+      console.error('❌ [LISTAR PAGAMENTOS] Barbearia não identificada');
       return res.status(401).json({ error: 'Barbearia não identificada' });
     }
+    
+    console.log('✅ [LISTAR PAGAMENTOS] Barbearia identificada:', barbeariaId);
 
     const where: any = {
       agendamento: {
@@ -131,6 +139,137 @@ export async function obterEstatisticasFinanceiras(req: AuthRequest, res: Respon
   } catch (error) {
     console.error('Erro ao obter estatísticas financeiras:', error);
     res.status(500).json({ error: 'Erro ao obter estatísticas financeiras' });
+  }
+}
+
+/**
+ * Registrar pagamento manual/presencial na barbearia
+ * Permite ao dono registrar pagamentos feitos presencialmente (dinheiro, PIX, cartão)
+ */
+export async function registrarPagamentoManual(req: AuthRequest, res: Response) {
+  try {
+    const { barbeariaId } = req;
+    const { agendamentoId, valor, metodo, observacao } = req.body;
+
+    if (!barbeariaId) {
+      return res.status(401).json({ error: 'Barbearia não identificada' });
+    }
+
+    // Validações
+    if (!agendamentoId || !valor || !metodo) {
+      return res.status(400).json({ 
+        error: 'Campos obrigatórios: agendamentoId, valor, metodo' 
+      });
+    }
+
+    // Validar método de pagamento
+    const metodosValidos = ['dinheiro', 'pix', 'cartao_credito', 'cartao_debito'];
+    if (!metodosValidos.includes(metodo)) {
+      return res.status(400).json({ 
+        error: `Método inválido. Métodos válidos: ${metodosValidos.join(', ')}` 
+      });
+    }
+
+    // Verificar se o agendamento existe e pertence à barbearia
+    const agendamento = await prisma.agendamento.findFirst({
+      where: {
+        id: agendamentoId,
+        barbeariaId,
+      },
+      include: {
+        servico: true,
+        pagamento: true,
+        clienteRel: {
+          select: {
+            id: true,
+            nome: true,
+            telefone: true,
+          },
+        },
+      },
+    });
+
+    if (!agendamento) {
+      return res.status(404).json({ 
+        error: 'Agendamento não encontrado ou não pertence a esta barbearia' 
+      });
+    }
+
+    // Verificar se já existe pagamento para este agendamento
+    if (agendamento.pagamento) {
+      return res.status(400).json({ 
+        error: 'Este agendamento já possui um pagamento registrado' 
+      });
+    }
+
+    // Calcular taxa de gateway (apenas para cartões, não para dinheiro ou PIX presencial)
+    let taxaGateway = 0;
+    if (metodo === 'cartao_credito' || metodo === 'cartao_debito') {
+      // Taxa padrão de 3.9% para cartões (pode ser configurável)
+      taxaGateway = valor * 0.039;
+    }
+
+    // Criar pagamento no banco de dados
+    const pagamento = await prisma.pagamento.create({
+      data: {
+        agendamentoId,
+        valor: parseFloat(valor.toString()),
+        metodo,
+        status: 'pago', // Pagamentos presenciais são sempre marcados como pagos
+        taxaGateway,
+        dataPagamento: new Date(),
+        // Observação pode ser armazenada em um campo adicional se necessário
+        // Por enquanto, vamos usar o campo observacao do agendamento se necessário
+      },
+      include: {
+        agendamento: {
+          include: {
+            servico: true,
+            clienteRel: {
+              select: {
+                id: true,
+                nome: true,
+                telefone: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Atualizar status do agendamento para confirmado (se ainda não estiver)
+    if (agendamento.status !== 'confirmado' && agendamento.status !== 'concluido') {
+      await prisma.agendamento.update({
+        where: { id: agendamentoId },
+        data: { status: 'confirmado' },
+      });
+    }
+
+    // Se houver observação, podemos adicionar ao agendamento
+    if (observacao) {
+      await prisma.agendamento.update({
+        where: { id: agendamentoId },
+        data: { 
+          observacao: agendamento.observacao 
+            ? `${agendamento.observacao}\n[Pagamento] ${observacao}`
+            : `[Pagamento] ${observacao}`
+        },
+      });
+    }
+
+    console.log(`✅ Pagamento manual registrado: R$ ${valor} via ${metodo} para agendamento ${agendamentoId}`);
+
+    res.status(201).json({
+      success: true,
+      pagamento,
+      message: 'Pagamento registrado com sucesso',
+    });
+  } catch (error: any) {
+    console.error('Erro ao registrar pagamento manual:', error);
+    res.status(500).json({ 
+      error: 'Erro ao registrar pagamento',
+      details: error.message 
+    });
   }
 }
 

@@ -68,12 +68,27 @@ import Funcionalidades from "./pages/Funcionalidades";
 import Cadastro from "./pages/Cadastro";
 import EsqueciSenha from "./pages/EsqueciSenha";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: (failureCount, error: any) => {
+        // Não tentar novamente se for erro 401 (token inválido)
+        if (error?.status === 401 || error?.message?.includes('401')) {
+          return false;
+        }
+        // Tentar no máximo 2 vezes para outros erros
+        return failureCount < 2;
+      },
+      refetchOnWindowFocus: false, // Não refazer requisição ao focar na janela
+      refetchOnReconnect: true, // Refazer apenas ao reconectar
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <BarbeariasProvider>
+    <TooltipProvider>
+      <BarbeariasProvider>
         <PlanosProvider>
           <FinanceiroProvider>
             <UsuariosProvider>
@@ -84,79 +99,77 @@ const App = () => (
                       <SuporteProvider>
                         <ConfiguracaoProvider>
                           <ClienteProvider>
-                            <DonoProvider>
-                              <Toaster />
-                              <Sonner />
-                              <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/cadastro" element={<Cadastro />} />
-            <Route path="/esqueci-senha" element={<EsqueciSenha />} />
-            <Route path="/auth/callback" element={<AuthCallback />} />
-            <Route path="/ativar-conta" element={<AtivarConta />} />
-            <Route path="/funcionalidades" element={<Funcionalidades />} />
-            <Route path="/admin" element={<AdminLayout />}>
-              <Route index element={<AdminDashboard />} />
-              <Route path="barbearias/nova" element={<CadastrarBarbearia />} />
-              <Route path="barbearias/:id" element={<DetalhesBarbearia />} />
-              <Route path="barbearias/:id/editar" element={<EditarBarbearia />} />
-              <Route path="barbearias/:id/servicos" element={<ServicosBarbearia />} />
-              <Route path="planos" element={<Planos />} />
-              <Route path="assinaturas" element={<Assinaturas />} />
-              <Route path="assinaturas/:id" element={<DetalhesAssinatura />} />
-              <Route path="financeiro" element={<FinanceiroDashboard />} />
-              <Route path="usuarios" element={<Usuarios />} />
-              <Route path="monitoramento" element={<Monitoramento />} />
-              <Route path="notificacoes" element={<Notificacoes />} />
-              <Route path="integracoes-globais" element={<IntegracoesGlobais />} />
-              <Route path="seguranca" element={<Seguranca />} />
-              <Route path="suporte" element={<Suporte />} />
-              <Route path="configuracoes" element={<Configuracoes />} />
-            </Route>
-            <Route path="/cliente" element={
-              <ErrorBoundary>
-                <ClienteLayout />
-              </ErrorBoundary>
-            }>
-              <Route index element={<ErrorBoundary><ClienteDashboard /></ErrorBoundary>} />
-              <Route path="barbearias" element={<ErrorBoundary><BuscarBarbearias /></ErrorBoundary>} />
-              <Route path="agendar" element={<ErrorBoundary><AgendamentoOnline /></ErrorBoundary>} />
-              <Route path="pagamentos" element={<ErrorBoundary><PagamentoIntegrado /></ErrorBoundary>} />
-              <Route path="historico" element={<ErrorBoundary><HistoricoAgendamentos /></ErrorBoundary>} />
-              <Route path="avaliacoes" element={<ErrorBoundary><Avaliacoes /></ErrorBoundary>} />
-              <Route path="perfil" element={<ErrorBoundary><PerfilCliente /></ErrorBoundary>} />
-              <Route path="notificacoes" element={<ErrorBoundary><NotificacoesCliente /></ErrorBoundary>} />
-              <Route path="fidelidade" element={<ErrorBoundary><Fidelidade /></ErrorBoundary>} />
-              <Route path="suporte" element={<ErrorBoundary><SuporteCliente /></ErrorBoundary>} />
-              <Route path="configuracoes" element={<ErrorBoundary><ConfiguracoesCliente /></ErrorBoundary>} />
-              {/* Catch-all para rotas do cliente não encontradas */}
-              <Route path="*" element={<NotFound />} />
-            </Route>
-            <Route path="/dono" element={
-              <ErrorBoundary>
-                <DonoLayout />
-              </ErrorBoundary>
-            }>
-              <Route index element={<ErrorBoundary><DonoDashboard /></ErrorBoundary>} />
-              <Route path="agenda" element={<ErrorBoundary><AgendaInteligente /></ErrorBoundary>} />
-              <Route path="servicos" element={<ErrorBoundary><GestaoServicos /></ErrorBoundary>} />
-              <Route path="profissionais" element={<ErrorBoundary><GestaoProfissionais /></ErrorBoundary>} />
-              <Route path="clientes" element={<ErrorBoundary><GestaoClientes /></ErrorBoundary>} />
-              <Route path="financeiro" element={<ErrorBoundary><FinanceiroPagamentos /></ErrorBoundary>} />
-              <Route path="comissoes" element={<ErrorBoundary><ComissoesBarbeiros /></ErrorBoundary>} />
-              <Route path="fidelidade" element={<ErrorBoundary><FidelidadePromocoes /></ErrorBoundary>} />
-              <Route path="avaliacoes" element={<ErrorBoundary><AvaliacoesReputacao /></ErrorBoundary>} />
-              <Route path="produtos" element={<ErrorBoundary><ProdutosEstoque /></ErrorBoundary>} />
-              <Route path="notificacoes" element={<ErrorBoundary><ComunicacaoNotificacoes /></ErrorBoundary>} />
-              <Route path="configuracoes" element={<ErrorBoundary><ConfiguracoesBarbearia /></ErrorBoundary>} />
-              <Route path="relatorios" element={<ErrorBoundary><RelatoriosAvancados /></ErrorBoundary>} />
-            </Route>
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-                            </DonoProvider>
+                            <Toaster />
+                            <Sonner />
+                            <BrowserRouter>
+                              <DonoProvider>
+                                <Routes>
+                                  <Route path="/" element={<Index />} />
+                                  <Route path="/login" element={<Login />} />
+                                  <Route path="/cadastro" element={<Cadastro />} />
+                                  <Route path="/esqueci-senha" element={<EsqueciSenha />} />
+                                  <Route path="/auth/callback" element={<AuthCallback />} />
+                                  <Route path="/ativar-conta" element={<AtivarConta />} />
+                                  <Route path="/funcionalidades" element={<Funcionalidades />} />
+                                  <Route path="/admin" element={<AdminLayout />}>
+                                    <Route index element={<AdminDashboard />} />
+                                    <Route path="barbearias/nova" element={<CadastrarBarbearia />} />
+                                    <Route path="barbearias/:id" element={<DetalhesBarbearia />} />
+                                    <Route path="barbearias/:id/editar" element={<EditarBarbearia />} />
+                                    <Route path="barbearias/:id/servicos" element={<ServicosBarbearia />} />
+                                    <Route path="planos" element={<Planos />} />
+                                    <Route path="assinaturas" element={<Assinaturas />} />
+                                    <Route path="assinaturas/:id" element={<DetalhesAssinatura />} />
+                                    <Route path="financeiro" element={<FinanceiroDashboard />} />
+                                    <Route path="usuarios" element={<Usuarios />} />
+                                    <Route path="monitoramento" element={<Monitoramento />} />
+                                    <Route path="notificacoes" element={<Notificacoes />} />
+                                    <Route path="integracoes-globais" element={<IntegracoesGlobais />} />
+                                    <Route path="seguranca" element={<Seguranca />} />
+                                    <Route path="suporte" element={<Suporte />} />
+                                    <Route path="configuracoes" element={<Configuracoes />} />
+                                  </Route>
+                                  <Route path="/cliente" element={
+                                    <ErrorBoundary>
+                                      <ClienteLayout />
+                                    </ErrorBoundary>
+                                  }>
+                                    <Route index element={<ErrorBoundary><ClienteDashboard /></ErrorBoundary>} />
+                                    <Route path="barbearias" element={<ErrorBoundary><BuscarBarbearias /></ErrorBoundary>} />
+                                    <Route path="agendar" element={<ErrorBoundary><AgendamentoOnline /></ErrorBoundary>} />
+                                    <Route path="pagamentos" element={<ErrorBoundary><PagamentoIntegrado /></ErrorBoundary>} />
+                                    <Route path="historico" element={<ErrorBoundary><HistoricoAgendamentos /></ErrorBoundary>} />
+                                    <Route path="avaliacoes" element={<ErrorBoundary><Avaliacoes /></ErrorBoundary>} />
+                                    <Route path="perfil" element={<ErrorBoundary><PerfilCliente /></ErrorBoundary>} />
+                                    <Route path="notificacoes" element={<ErrorBoundary><NotificacoesCliente /></ErrorBoundary>} />
+                                    <Route path="fidelidade" element={<ErrorBoundary><Fidelidade /></ErrorBoundary>} />
+                                    <Route path="suporte" element={<ErrorBoundary><SuporteCliente /></ErrorBoundary>} />
+                                    <Route path="configuracoes" element={<ErrorBoundary><ConfiguracoesCliente /></ErrorBoundary>} />
+                                    <Route path="*" element={<NotFound />} />
+                                  </Route>
+                                  <Route path="/dono" element={
+                                    <ErrorBoundary>
+                                      <DonoLayout />
+                                    </ErrorBoundary>
+                                  }>
+                                    <Route index element={<ErrorBoundary><DonoDashboard /></ErrorBoundary>} />
+                                    <Route path="agenda" element={<ErrorBoundary><AgendaInteligente /></ErrorBoundary>} />
+                                    <Route path="servicos" element={<ErrorBoundary><GestaoServicos /></ErrorBoundary>} />
+                                    <Route path="profissionais" element={<ErrorBoundary><GestaoProfissionais /></ErrorBoundary>} />
+                                    <Route path="clientes" element={<ErrorBoundary><GestaoClientes /></ErrorBoundary>} />
+                                    <Route path="financeiro" element={<ErrorBoundary><FinanceiroPagamentos /></ErrorBoundary>} />
+                                    <Route path="comissoes" element={<ErrorBoundary><ComissoesBarbeiros /></ErrorBoundary>} />
+                                    <Route path="fidelidade" element={<ErrorBoundary><FidelidadePromocoes /></ErrorBoundary>} />
+                                    <Route path="avaliacoes" element={<ErrorBoundary><AvaliacoesReputacao /></ErrorBoundary>} />
+                                    <Route path="produtos" element={<ErrorBoundary><ProdutosEstoque /></ErrorBoundary>} />
+                                    <Route path="notificacoes" element={<ErrorBoundary><ComunicacaoNotificacoes /></ErrorBoundary>} />
+                                    <Route path="configuracoes" element={<ErrorBoundary><ConfiguracoesBarbearia /></ErrorBoundary>} />
+                                    <Route path="relatorios" element={<ErrorBoundary><RelatoriosAvancados /></ErrorBoundary>} />
+                                  </Route>
+                                  <Route path="*" element={<NotFound />} />
+                                </Routes>
+                              </DonoProvider>
+                            </BrowserRouter>
                           </ClienteProvider>
                         </ConfiguracaoProvider>
                       </SuporteProvider>
@@ -167,8 +180,8 @@ const App = () => (
             </UsuariosProvider>
           </FinanceiroProvider>
         </PlanosProvider>
-        </BarbeariasProvider>
-      </TooltipProvider>
+      </BarbeariasProvider>
+    </TooltipProvider>
   </QueryClientProvider>
 );
 

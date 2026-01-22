@@ -8,7 +8,8 @@ import { AuthRequest } from '../middleware/auth';
 export async function calcularComissoesProfissional(req: AuthRequest, res: Response) {
   try {
     const { barbeariaId } = req;
-    const { profissionalId, mes, ano } = req.query;
+    const { profissionalId } = req.params;
+    const { mes, ano } = req.query;
 
     if (!barbeariaId) {
       return res.status(401).json({ error: 'Barbearia não identificada' });
@@ -19,8 +20,9 @@ export async function calcularComissoesProfissional(req: AuthRequest, res: Respo
     }
 
     const mesReferencia = `${ano}-${String(mes).padStart(2, '0')}`;
-    const dataInicio = new Date(Number(ano), Number(mes) - 1, 1);
-    const dataFim = new Date(Number(ano), Number(mes), 0, 23, 59, 59);
+    const dataInicio = new Date(`${ano}-${String(mes).padStart(2, '0')}-01T00:00:00.000Z`);
+    const dataFim = new Date(Number(ano), Number(mes), 0, 23, 59, 59, 999);
+    console.log(`📊 [COMISSÕES] Buscando para profissional ${profissionalId} no período ${dataInicio.toISOString()} - ${dataFim.toISOString()}`);
 
     // Buscar agendamentos do profissional no mês
     const agendamentosRaw = await prisma.agendamento.findMany({
@@ -38,9 +40,6 @@ export async function calcularComissoesProfissional(req: AuthRequest, res: Respo
         status: {
           in: ['confirmado', 'concluido'],
         },
-        pagamento: {
-          isNot: null,
-        },
       },
       include: {
         servico: true,
@@ -56,10 +55,10 @@ export async function calcularComissoesProfissional(req: AuthRequest, res: Respo
       },
     });
 
-    // Filtrar apenas agendamentos com pagamento pago
-    const agendamentos = agendamentosRaw.filter(
-      (a) => a.pagamento && a.pagamento.status === 'pago'
-    );
+    console.log(`   Encontrados ${agendamentosRaw.length} agendamentos vinculados.`);
+
+    // Usar todos agendamentos validos
+    const agendamentos = agendamentosRaw;
 
     // Buscar profissional para obter configuração de comissão
     const profissional = await prisma.profissional.findUnique({
@@ -75,42 +74,52 @@ export async function calcularComissoesProfissional(req: AuthRequest, res: Respo
       .filter((a) => a.servico !== null)
       .map((agendamento) => {
         const valorTotal = agendamento.servico!.preco;
-      let valorComissao = 0;
-      let porcentagem = 0;
+        let valorComissao = 0;
+        let porcentagem = 0;
 
-      if (profissional.comissaoTipo === 'percentual') {
-        porcentagem = profissional.comissaoValor;
-        valorComissao = (valorTotal * porcentagem) / 100;
+        if (profissional.comissaoTipo === 'percentual') {
+          porcentagem = profissional.comissaoValor;
+          valorComissao = (valorTotal * porcentagem) / 100;
+        } else {
+          // Comissão fixa
+          valorComissao = profissional.comissaoValor;
+          porcentagem = 0;
+        }
+
+        return {
+          agendamentoId: agendamento.id,
+          data: agendamento.data,
+          horario: agendamento.horario,
+          cliente: agendamento.cliente,
+          servico: agendamento.servico!.nome,
+          valorTotal,
+          valorComissao,
+          porcentagem,
+          pago: false, // Será verificado depois
+        };
+      });
+
+    // Verificar quais já foram pagos (com fallback se tabela não existir)
+    let comissoesPagas: any[] = [];
+    try {
+      comissoesPagas = await prisma.comissaoPaga.findMany({
+        where: {
+          profissionalId: String(profissionalId),
+          mesReferencia,
+          pago: true,
+        },
+        select: {
+          agendamentoId: true,
+        },
+      });
+    } catch (error: any) {
+      if (error?.code === 'P2021' || error?.message?.includes('does not exist')) {
+        console.warn(`⚠️ Tabela ComissaoPaga não encontrada em calcularComissoesProfissional.`);
+        comissoesPagas = [];
       } else {
-        // Comissão fixa
-        valorComissao = profissional.comissaoValor;
-        porcentagem = 0;
+        throw error;
       }
-
-      return {
-        agendamentoId: agendamento.id,
-        data: agendamento.data,
-        horario: agendamento.horario,
-        cliente: agendamento.cliente,
-        servico: agendamento.servico!.nome,
-        valorTotal,
-        valorComissao,
-        porcentagem,
-        pago: false, // Será verificado depois
-      };
-    });
-
-    // Verificar quais já foram pagos
-    const comissoesPagas = await prisma.comissaoPaga.findMany({
-      where: {
-        profissionalId: String(profissionalId),
-        mesReferencia,
-        pago: true,
-      },
-      select: {
-        agendamentoId: true,
-      },
-    });
+    }
 
     const idsPagos = new Set(comissoesPagas.map((c) => c.agendamentoId));
 
@@ -176,8 +185,8 @@ export async function listarResumoComissoes(req: AuthRequest, res: Response) {
     console.log('   anoAtual:', anoAtual);
     console.log('   mesReferencia:', mesReferencia);
 
-    const dataInicio = new Date(anoAtual, mesAtual - 1, 1);
-    const dataFim = new Date(anoAtual, mesAtual, 0, 23, 59, 59);
+    const dataInicio = new Date(`${anoAtual}-${String(mesAtual).padStart(2, '0')}-01T00:00:00.000Z`);
+    const dataFim = new Date(anoAtual, mesAtual, 0, 23, 59, 59, 999);
 
     console.log('   dataInicio:', dataInicio);
     console.log('   dataFim:', dataFim);
@@ -212,9 +221,6 @@ export async function listarResumoComissoes(req: AuthRequest, res: Response) {
               status: {
                 in: ['confirmado', 'concluido'],
               },
-              pagamento: {
-                isNot: null,
-              },
             },
             include: {
               servico: true,
@@ -222,10 +228,8 @@ export async function listarResumoComissoes(req: AuthRequest, res: Response) {
             },
           });
 
-          // Filtrar apenas agendamentos com pagamento pago
-          const agendamentos = agendamentosRaw.filter(
-            (a) => a.pagamento && a.pagamento.status === 'pago'
-          );
+          // Usar todos os agendamentos confirmados/concluidos, independente de pagamento
+          const agendamentos = agendamentosRaw;
 
           // Calcular comissões
           let totalComissao = 0;
@@ -325,7 +329,7 @@ export async function listarResumoComissoes(req: AuthRequest, res: Response) {
   } catch (error: any) {
     console.error('❌ [COMISSÕES] Erro ao listar resumo de comissões:', error);
     console.error('   Stack:', error?.stack);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Erro ao listar resumo de comissões',
       message: error?.message || 'Erro desconhecido'
     });
@@ -463,9 +467,6 @@ export async function marcarTodasComissoesComoPagas(req: AuthRequest, res: Respo
         status: {
           in: ['confirmado', 'concluido'],
         },
-        pagamento: {
-          isNot: null,
-        },
         comissoes: {
           none: {
             profissionalId: String(profissionalId),
@@ -487,10 +488,8 @@ export async function marcarTodasComissoesComoPagas(req: AuthRequest, res: Respo
       },
     });
 
-    // Filtrar apenas agendamentos com pagamento pago
-    const agendamentos = agendamentosRaw.filter(
-      (a) => a.pagamento && a.pagamento.status === 'pago'
-    );
+    // Usar todos os agendamentos qualificados
+    const agendamentos = agendamentosRaw;
 
     // Buscar profissional
     const profissional = await prisma.profissional.findUnique({
@@ -507,41 +506,41 @@ export async function marcarTodasComissoesComoPagas(req: AuthRequest, res: Respo
         .filter((a) => a.servico !== null)
         .map(async (agendamento) => {
           const valorTotal = agendamento.servico!.preco;
-        let valorComissao = 0;
-        let porcentagem = 0;
+          let valorComissao = 0;
+          let porcentagem = 0;
 
-        if (profissional.comissaoTipo === 'percentual') {
-          porcentagem = profissional.comissaoValor;
-          valorComissao = (valorTotal * porcentagem) / 100;
-        } else {
-          valorComissao = profissional.comissaoValor;
-          porcentagem = 0;
-        }
+          if (profissional.comissaoTipo === 'percentual') {
+            porcentagem = profissional.comissaoValor;
+            valorComissao = (valorTotal * porcentagem) / 100;
+          } else {
+            valorComissao = profissional.comissaoValor;
+            porcentagem = 0;
+          }
 
-        return prisma.comissaoPaga.upsert({
-          where: {
-            agendamentoId_profissionalId: {
-              agendamentoId: agendamento.id,
-              profissionalId: String(profissionalId),
+          return prisma.comissaoPaga.upsert({
+            where: {
+              agendamentoId_profissionalId: {
+                agendamentoId: agendamento.id,
+                profissionalId: String(profissionalId),
+              },
             },
-          },
-          update: {
-            pago: true,
-            dataPagamento: new Date(),
-          },
-          create: {
-            profissionalId: String(profissionalId),
-            agendamentoId: agendamento.id,
-            barbeariaId,
-            valorComissao,
-            valorTotal,
-            porcentagem,
-            mesReferencia,
-            pago: true,
-            dataPagamento: new Date(),
-          },
-        });
-      })
+            update: {
+              pago: true,
+              dataPagamento: new Date(),
+            },
+            create: {
+              profissionalId: String(profissionalId),
+              agendamentoId: agendamento.id,
+              barbeariaId,
+              valorComissao,
+              valorTotal,
+              porcentagem,
+              mesReferencia,
+              pago: true,
+              dataPagamento: new Date(),
+            },
+          });
+        })
     );
 
     res.json({
