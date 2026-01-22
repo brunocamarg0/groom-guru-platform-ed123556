@@ -283,7 +283,7 @@ export default function Fidelidade() {
               </p>
             </div>
             <Button asChild>
-              <Link to="/cliente/barbearias">
+              <Link to="/cliente/agendar">
                 Agendar Agora
               </Link>
             </Button>

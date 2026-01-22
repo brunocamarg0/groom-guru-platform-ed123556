@@ -80,7 +80,7 @@ export default function PagamentoSucesso() {
                   <Link to="/cliente">Ver Meus Agendamentos</Link>
                 </Button>
                 <Button variant="outline" asChild className="flex-1">
-                  <Link to="/cliente/barbearias">Agendar Outro Serviço</Link>
+                  <Link to="/cliente/agendar">Agendar Outro Serviço</Link>
                 </Button>
               </div>
             </>

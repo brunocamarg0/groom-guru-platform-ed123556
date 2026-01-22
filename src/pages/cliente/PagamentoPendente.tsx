@@ -28,7 +28,7 @@ export default function PagamentoPendente() {
               <Link to="/cliente">Ver Meus Agendamentos</Link>
             </Button>
             <Button variant="outline" asChild className="flex-1">
-              <Link to="/cliente/barbearias">
+              <Link to="/cliente/agendar">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Voltar
               </Link>

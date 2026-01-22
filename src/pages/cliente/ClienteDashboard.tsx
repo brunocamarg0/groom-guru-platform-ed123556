@@ -248,7 +248,7 @@ export default function ClienteDashboard() {
           </CardHeader>
           <CardContent>
             <Button asChild>
-              <Link to="/cliente/barbearias">
+              <Link to="/cliente/agendar">
                 <Calendar className="h-4 w-4 mr-2" />
                 Agendar Agora
               </Link>
@@ -259,7 +259,7 @@ export default function ClienteDashboard() {
 
       {/* Atalhos Rápidos */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Link to="/cliente/barbearias">
+        <Link to="/cliente/agendar">
           <Card className="cursor-pointer hover:bg-accent transition-colors">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -362,7 +362,7 @@ export default function ClienteDashboard() {
               Escolha uma barbearia para agendar seu serviço
             </p>
           </div>
-          <Button variant="outline" onClick={() => navigate('/cliente/barbearias')}>
+          <Button variant="outline" onClick={() => navigate('/cliente/agendar')}>
             <Search className="h-4 w-4 mr-2" />
             Buscar Mais
           </Button>
@@ -376,7 +376,7 @@ export default function ClienteDashboard() {
               </p>
               <Button 
                 className="mt-4" 
-                onClick={() => navigate('/cliente/barbearias')}
+                onClick={() => navigate('/cliente/agendar')}
               >
                 Buscar Barbearias
               </Button>
@@ -488,7 +488,7 @@ export default function ClienteDashboard() {
 
         {barbearias.length > 6 && (
           <div className="mt-4 text-center">
-            <Button variant="outline" onClick={() => navigate('/cliente/barbearias')}>
+            <Button variant="outline" onClick={() => navigate('/cliente/agendar')}>
               Ver Todas as {barbearias.length} Barbearias
             </Button>
           </div>
