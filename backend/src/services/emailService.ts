@@ -1065,17 +1065,18 @@ export async function enviarEmailBoasVindas(params: EnviarEmailBoasVindasParams)
           background: #ffffff;
         }
         .header {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          background: linear-gradient(135deg, #3b4db8 0%, #4a2d7a 100%);
           color: #ffffff;
           padding: 40px 30px;
           text-align: center;
         }
         .header h1 {
           margin: 0;
-          font-size: 28px;
+          font-size: 32px;
           color: #ffffff !important;
-          font-weight: bold;
-          text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+          font-weight: 900 !important;
+          text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6) !important;
+          letter-spacing: 1px;
         }
         .content {
           padding: 40px 30px;
@@ -1140,7 +1141,7 @@ export async function enviarEmailBoasVindas(params: EnviarEmailBoasVindasParams)
     <body>
       <div class="container">
         <div class="header">
-          <h1>✂️ Barber Maestro</h1>
+          <h1 style="color: #ffffff !important; font-weight: 900 !important; text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6) !important; letter-spacing: 1px !important;">✂️ Barber Maestro</h1>
         </div>
         <div class="content">
           <div class="greeting">
