@@ -1028,6 +1028,285 @@ export async function enviarEmailRecuperacaoSenha(params: EnviarRecuperacaoSenha
 }
 
 /**
+ * Envia email de boas-vindas para dono da barbearia
+ */
+interface EnviarEmailBoasVindasParams {
+  email: string;
+  nomeBarbearia: string;
+  linkFormulario?: string;
+}
+
+export async function enviarEmailBoasVindas(params: EnviarEmailBoasVindasParams) {
+  const { email, nomeBarbearia, linkFormulario } = params;
+  
+  // Link padrão do formulário (pode ser configurado via variável de ambiente)
+  const formularioLink = linkFormulario || process.env.FORMULARIO_BARBEARIA_LINK || 'https://forms.gle/seu-formulario-aqui';
+  
+  const assunto = 'Bem-vindo ao Barber Maestro – A nova era da sua barbearia';
+  
+  // HTML do email
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          line-height: 1.8;
+          color: #333;
+          margin: 0;
+          padding: 0;
+          background-color: #f5f5f5;
+        }
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+          background: #ffffff;
+        }
+        .header {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 40px 30px;
+          text-align: center;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 28px;
+        }
+        .content {
+          padding: 40px 30px;
+        }
+        .greeting {
+          font-size: 18px;
+          margin-bottom: 20px;
+        }
+        .section {
+          margin: 30px 0;
+        }
+        .section-title {
+          font-size: 20px;
+          font-weight: bold;
+          color: #667eea;
+          margin-bottom: 15px;
+        }
+        .features {
+          background: #f8f9fa;
+          padding: 20px;
+          border-radius: 8px;
+          margin: 20px 0;
+        }
+        .features ul {
+          margin: 10px 0;
+          padding-left: 20px;
+        }
+        .features li {
+          margin: 10px 0;
+        }
+        .button {
+          display: inline-block;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 15px 30px;
+          text-decoration: none;
+          border-radius: 5px;
+          font-weight: bold;
+          margin: 20px 0;
+          text-align: center;
+        }
+        .button:hover {
+          opacity: 0.9;
+        }
+        .footer {
+          background: #f8f9fa;
+          padding: 30px;
+          text-align: center;
+          color: #666;
+          font-size: 14px;
+        }
+        .signature {
+          margin-top: 30px;
+          padding-top: 20px;
+          border-top: 2px solid #eee;
+        }
+        .emoji {
+          font-size: 20px;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>✂️ Barber Maestro</h1>
+        </div>
+        <div class="content">
+          <div class="greeting">
+            <p>Olá, <strong>${nomeBarbearia}</strong>!</p>
+            <p>Seja muito bem-vindo à nova era da sua barbearia. ✂️</p>
+          </div>
+          
+          <p>Meu nome é <strong>Bernardo Strabelli</strong>, sou um dos fundadores do Barber Maestro, e faço questão de te dar as boas-vindas pessoalmente.</p>
+          
+          <p>Criamos o Barber Maestro para barbearias que buscam mais organização, controle e crescimento profissional, tudo isso sem complicação. Nosso objetivo é transformar a gestão do seu negócio em algo simples, claro e estratégico.</p>
+          
+          <div class="section">
+            <p>A partir de agora, você contará com um único sistema para gerenciar toda a sua barbearia, incluindo:</p>
+            <div class="features">
+              <ul>
+                <li>Agendamentos inteligentes</li>
+                <li>Gestão financeira e fluxo de caixa</li>
+                <li>Controle de estoque</li>
+                <li>Gestão de profissionais</li>
+                <li>Visão clara e estratégica do seu negócio</li>
+              </ul>
+            </div>
+          </div>
+          
+          <p>Quero te acompanhar de perto nesse início 🤝</p>
+          
+          <div class="section">
+            <div class="section-title">📋 Formulário de Conhecimento da Barbearia</div>
+            <p>Para que possamos personalizar ao máximo a sua experiência com o Barber Maestro, preparamos um formulário rápido onde você poderá nos contar mais sobre a sua barbearia, sua rotina, seus objetivos e desafios atuais.</p>
+            <p>Essas informações são essenciais para que possamos configurar o sistema da melhor forma possível e entregar uma solução realmente alinhada à realidade do seu negócio.</p>
+            <p>É só clicar no link abaixo e preencher. É super rápido e leva menos de 10 minutos!</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${formularioLink}" class="button">Preencher Formulário</a>
+            </div>
+          </div>
+          
+          <div class="section">
+            <div class="section-title">🎓 Treinamento Inicial</div>
+            <p>Após o preenchimento do formulário, gostaria de agendar com você o nosso <strong>Treinamento Inicial</strong>, onde vou te apresentar todos os detalhes do sistema, auxiliar nas configurações iniciais e entender ainda mais a fundo o seu negócio, garantindo uma experiência completa e personalizada desde o primeiro acesso.</p>
+          </div>
+          
+          <p>Fico no aguardo da sua resposta para seguirmos juntos nessa jornada.</p>
+          <p>Seja muito bem-vindo a essa nova era.</p>
+          <p><strong>Agora, sua barbearia tem um maestro. ✂️</strong></p>
+          
+          <div class="signature">
+            <p>Atenciosamente,<br>
+            <strong>Bernardo Strabelli</strong></p>
+          </div>
+        </div>
+        <div class="footer">
+          <p>Este é um email automático, por favor não responda.</p>
+          <p>Barber Maestro - Transformando a gestão da sua barbearia</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+  
+  // Versão texto do email
+  const textoContent = `
+Bem-vindo ao Barber Maestro – A nova era da sua barbearia
+
+Olá, ${nomeBarbearia}!
+Seja muito bem-vindo à nova era da sua barbearia. ✂️
+
+Meu nome é Bernardo Strabelli, sou um dos fundadores do Barber Maestro, e faço questão de te dar as boas-vindas pessoalmente.
+
+Criamos o Barber Maestro para barbearias que buscam mais organização, controle e crescimento profissional, tudo isso sem complicação. Nosso objetivo é transformar a gestão do seu negócio em algo simples, claro e estratégico.
+
+A partir de agora, você contará com um único sistema para gerenciar toda a sua barbearia, incluindo:
+- Agendamentos inteligentes
+- Gestão financeira e fluxo de caixa
+- Controle de estoque
+- Gestão de profissionais
+- Visão clara e estratégica do seu negócio
+
+Quero te acompanhar de perto nesse início 🤝
+
+📋 Formulário de Conhecimento da Barbearia
+Para que possamos personalizar ao máximo a sua experiência com o Barber Maestro, preparamos um formulário rápido onde você poderá nos contar mais sobre a sua barbearia, sua rotina, seus objetivos e desafios atuais.
+
+Essas informações são essenciais para que possamos configurar o sistema da melhor forma possível e entregar uma solução realmente alinhada à realidade do seu negócio.
+
+É só clicar no link abaixo e preencher. É super rápido e leva menos de 10 minutos!
+
+${formularioLink}
+
+🎓 Treinamento Inicial
+Após o preenchimento do formulário, gostaria de agendar com você o nosso Treinamento Inicial, onde vou te apresentar todos os detalhes do sistema, auxiliar nas configurações iniciais e entender ainda mais a fundo o seu negócio, garantindo uma experiência completa e personalizada desde o primeiro acesso.
+
+Fico no aguardo da sua resposta para seguirmos juntos nessa jornada.
+Seja muito bem-vindo a essa nova era.
+Agora, sua barbearia tem um maestro. ✂️
+
+Atenciosamente,
+Bernardo Strabelli
+  `;
+  
+  try {
+    // Tentar enviar via Resend primeiro
+    if (isResendConfigured() && resendClient) {
+      console.log('📧 [EMAIL BOAS-VINDAS] Tentando enviar via Resend...');
+      console.log('📧 [EMAIL BOAS-VINDAS] Enviando para:', email);
+      console.log('📧 [EMAIL BOAS-VINDAS] Barbearia:', nomeBarbearia);
+      
+      let emailFrom = process.env.EMAIL_FROM || 'Barber Maestro <onboarding@resend.dev>';
+      
+      // Se estiver em modo de teste, usar email de teste do Resend
+      if (process.env.RESEND_FORCE_TEST_FROM === 'true') {
+        console.warn('⚠️ [EMAIL BOAS-VINDAS] RESEND_FORCE_TEST_FROM=true — usando onboarding@resend.dev');
+        emailFrom = 'Barber Maestro <onboarding@resend.dev>';
+      }
+      
+      const result = await resendClient.emails.send({
+        from: emailFrom,
+        to: email,
+        subject: assunto,
+        html: htmlContent,
+        text: textoContent,
+      });
+      
+      console.log('✅ [EMAIL BOAS-VINDAS] Email enviado via Resend:', result.id);
+      return { sucesso: true, metodo: 'resend', messageId: result.id };
+    }
+    
+    // Fallback para nodemailer
+    console.log('📧 [EMAIL BOAS-VINDAS] Resend não disponível, usando nodemailer...');
+    const transporter = await createTransporter();
+    
+    const info = await transporter.sendMail({
+      from: process.env.EMAIL_FROM || '"Barber Maestro" <noreply@barbermaster.com>',
+      to: email,
+      subject: assunto,
+      html: htmlContent,
+      text: textoContent,
+    });
+    
+    console.log('✅ [EMAIL BOAS-VINDAS] Email enviado via nodemailer:', info.messageId);
+    
+    // Se for Ethereal (teste), mostrar preview URL
+    if (process.env.SMTP_HOST?.includes('ethereal') || !process.env.SMTP_HOST) {
+      const previewUrl = nodemailer.getTestMessageUrl(info);
+      if (previewUrl) {
+        console.log('📧 [EMAIL BOAS-VINDAS] Preview do email:', previewUrl);
+        console.log('   Acesse este link para ver o email enviado');
+      }
+    }
+    
+    return {
+      sucesso: true,
+      metodo: 'nodemailer',
+      messageId: info.messageId,
+      previewUrl: nodemailer.getTestMessageUrl ? nodemailer.getTestMessageUrl(info) : null,
+    };
+  } catch (error: any) {
+    console.error('❌ [EMAIL BOAS-VINDAS] Erro ao enviar email:', error);
+    console.error('❌ [EMAIL BOAS-VINDAS] Detalhes:', {
+      email,
+      nomeBarbearia,
+      erro: error.message,
+    });
+    // Não lançar erro para não quebrar o fluxo de cadastro
+    // Apenas logar o erro
+    return { sucesso: false, erro: error.message };
+  }
+}
+
+/**
  * Gera credenciais Ethereal para desenvolvimento
  */
 export async function gerarCredenciaisEthereal() {

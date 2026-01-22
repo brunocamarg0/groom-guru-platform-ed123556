@@ -262,6 +262,19 @@ export async function cadastroDiretoDono(req: Request, res: Response) {
       barbeariaId: resultado.dono.barbeariaId,
     });
 
+    // Enviar email de boas-vindas (não bloqueia o cadastro se falhar)
+    try {
+      const { enviarEmailBoasVindas } = await import('../services/emailService');
+      await enviarEmailBoasVindas({
+        email: resultado.dono.email,
+        nomeBarbearia: resultado.barbearia.nome,
+      });
+      console.log('✅ [CADASTRO] Email de boas-vindas enviado com sucesso');
+    } catch (emailError: any) {
+      // Não falhar o cadastro se o email não for enviado
+      console.error('⚠️ [CADASTRO] Erro ao enviar email de boas-vindas (não crítico):', emailError.message);
+    }
+
     res.status(201).json({
       sucesso: true,
       mensagem: 'Cadastro realizado com sucesso!',
@@ -376,6 +389,19 @@ export async function registrarDono(req: Request, res: Response) {
       tipo: 'dono',
       barbeariaId: dono.barbeariaId,
     });
+
+    // Enviar email de boas-vindas (não bloqueia o cadastro se falhar)
+    try {
+      const { enviarEmailBoasVindas } = await import('../services/emailService');
+      await enviarEmailBoasVindas({
+        email: dono.email,
+        nomeBarbearia: barbearia.nome,
+      });
+      console.log('✅ [REGISTRO DONO] Email de boas-vindas enviado com sucesso');
+    } catch (emailError: any) {
+      // Não falhar o cadastro se o email não for enviado
+      console.error('⚠️ [REGISTRO DONO] Erro ao enviar email de boas-vindas (não crítico):', emailError.message);
+    }
 
     res.status(201).json({
       sucesso: true,
