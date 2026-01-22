@@ -1260,8 +1260,16 @@ Bernardo Strabelli
         text: textoContent,
       });
       
-      console.log('✅ [EMAIL BOAS-VINDAS] Email enviado via Resend:', result.id);
-      return { sucesso: true, metodo: 'resend', messageId: result.id };
+      const { data, error } = result || {};
+      
+      // Verificar se houve erro
+      if (error || !data || !data.id) {
+        console.error('❌ [EMAIL BOAS-VINDAS] Erro ao enviar via Resend:', error);
+        throw new Error(error?.message || 'Erro ao enviar email via Resend');
+      }
+      
+      console.log('✅ [EMAIL BOAS-VINDAS] Email enviado via Resend:', data.id);
+      return { sucesso: true, metodo: 'resend', messageId: data.id };
     }
     
     // Fallback para nodemailer
