@@ -21,6 +21,7 @@
     "criar-cliente-teste": "tsx scripts/criar-cliente-teste.ts",
     "listar-barbearias": "tsx scripts/listar-barbearias.ts",
     "testar-emailjs": "tsx scripts/testar-emailjs.ts",
+    "testar-email-boas-vindas": "tsx scripts/testar-email-boas-vindas.ts",
     "corrigir-admin": "tsx scripts/corrigir-usuarios-admin.ts"
   },
   "keywords": [],

@@ -31,6 +31,7 @@ import clientePanelRoutes from './routes/cliente/panel';
 import barbeariasPublicasRoutes from './routes/barbeariasPublicas';
 import emergencyRoutes from './routes/emergency';
 import pagamentosRoutes from './routes/pagamentos';
+import testEmailRoutes from './routes/test-email';
 // Carregar configuração do Passport (pode falhar se OAuth não estiver configurado)
 try {
   require('./config/passport');
@@ -157,6 +158,9 @@ app.get('/api/health', (req, res) => {
     port: process.env.PORT || '3001'
   });
 });
+
+// Rota temporária para testar envio de emails
+app.use('/api/test-email', testEmailRoutes);
 
 // Configuração de sessão para OAuth
 app.use(
