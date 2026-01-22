@@ -412,9 +412,27 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
 
       return agendamento;
     } catch (error: any) {
-      console.error('Erro ao criar agendamento:', error);
-      toast.error(error.message || 'Erro ao criar agendamento');
-      throw error;
+      console.error('❌ [CLIENTE CONTEXT] Erro ao criar agendamento:', error);
+      console.error('   Status:', error.status);
+      console.error('   Mensagem:', error.message);
+      
+      // Extrair mensagem de erro mais específica
+      let mensagemErro = 'Erro ao criar agendamento';
+      
+      if (error.status === 401) {
+        mensagemErro = 'Você precisa estar logado para criar um agendamento. Faça login novamente.';
+      } else if (error.status === 400) {
+        mensagemErro = error.message || 'Dados inválidos. Verifique os campos preenchidos.';
+      } else if (error.status === 404) {
+        mensagemErro = error.message || 'Barbearia, serviço ou profissional não encontrado.';
+      } else if (error.error) {
+        mensagemErro = error.error;
+      } else if (error.message) {
+        mensagemErro = error.message;
+      }
+      
+      toast.error(mensagemErro);
+      throw new Error(mensagemErro);
     }
   };
 

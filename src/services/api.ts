@@ -119,6 +119,15 @@ export async function apiRequest<T>(
         throw erroCompleto;
       }
       
+      // Para erros 400 (Bad Request), incluir mensagem específica
+      if (response.status === 400) {
+        const mensagemErro = error.error || error.message || 'Dados inválidos';
+        const erroCompleto = new Error(mensagemErro);
+        (erroCompleto as any).status = 400;
+        (erroCompleto as any).error = error;
+        throw erroCompleto;
+      }
+      
       // Para erros 404, incluir mais informações
       if (response.status === 404) {
         const mensagemErro = error.error || error.message || 'Rota não encontrada';
@@ -128,7 +137,21 @@ export async function apiRequest<T>(
         throw erroCompleto;
       }
       
-      throw new Error(error.error || error.message || 'Erro na requisição');
+      // Para erros 500, incluir mensagem do servidor
+      if (response.status === 500) {
+        const mensagemErro = error.error || error.message || 'Erro interno do servidor';
+        const erroCompleto = new Error(mensagemErro);
+        (erroCompleto as any).status = 500;
+        (erroCompleto as any).error = error;
+        throw erroCompleto;
+      }
+      
+      // Outros erros
+      const mensagemErro = error.error || error.message || 'Erro na requisição';
+      const erroCompleto = new Error(mensagemErro);
+      (erroCompleto as any).status = response.status;
+      (erroCompleto as any).error = error;
+      throw erroCompleto;
     }
 
     return response.json();

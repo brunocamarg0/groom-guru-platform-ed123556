@@ -213,15 +213,29 @@ export async function buscarMeuAgendamento(req: AuthRequestCliente, res: Respons
  */
 export async function criarMeuAgendamento(req: AuthRequestCliente, res: Response) {
   try {
+    console.log('📅 [CLIENTE PANEL] Criando agendamento...');
+    console.log('   Cliente ID:', req.userId);
+    console.log('   Body:', JSON.stringify(req.body, null, 2));
+
     const clienteId = req.userId;
     const { barbeariaId, servicoId, data, horario, observacoes, profissionalId } = req.body;
 
     if (!clienteId) {
-      return res.status(401).json({ error: 'Cliente não autenticado' });
+      console.error('❌ [CLIENTE PANEL] Cliente não autenticado');
+      return res.status(401).json({ error: 'Cliente não autenticado. Faça login novamente.' });
     }
 
     if (!barbeariaId || !servicoId || !data || !horario) {
-      return res.status(400).json({ error: 'Campos obrigatórios: barbeariaId, servicoId, data, horario' });
+      const camposFaltando = [];
+      if (!barbeariaId) camposFaltando.push('barbeariaId');
+      if (!servicoId) camposFaltando.push('servicoId');
+      if (!data) camposFaltando.push('data');
+      if (!horario) camposFaltando.push('horario');
+      
+      console.error('❌ [CLIENTE PANEL] Campos obrigatórios faltando:', camposFaltando);
+      return res.status(400).json({ 
+        error: `Campos obrigatórios faltando: ${camposFaltando.join(', ')}` 
+      });
     }
 
     // Buscar dados do cliente
@@ -230,19 +244,80 @@ export async function criarMeuAgendamento(req: AuthRequestCliente, res: Response
     });
 
     if (!cliente) {
-      return res.status(404).json({ error: 'Cliente não encontrado' });
+      console.error('❌ [CLIENTE PANEL] Cliente não encontrado no banco:', clienteId);
+      return res.status(404).json({ error: 'Cliente não encontrado. Verifique sua conta.' });
+    }
+
+    // Verificar se barbearia existe
+    const barbearia = await prisma.barbearia.findUnique({
+      where: { id: barbeariaId },
+      select: { id: true, nome: true },
+    });
+
+    if (!barbearia) {
+      console.error('❌ [CLIENTE PANEL] Barbearia não encontrada:', barbeariaId);
+      return res.status(404).json({ error: 'Barbearia não encontrada' });
+    }
+
+    // Verificar se serviço existe
+    const servico = await prisma.servico.findUnique({
+      where: { id: servicoId },
+      select: { id: true, nome: true, ativo: true },
+    });
+
+    if (!servico) {
+      console.error('❌ [CLIENTE PANEL] Serviço não encontrado:', servicoId);
+      return res.status(404).json({ error: 'Serviço não encontrado' });
+    }
+
+    if (!servico.ativo) {
+      console.error('❌ [CLIENTE PANEL] Serviço inativo:', servicoId);
+      return res.status(400).json({ error: 'Este serviço não está mais disponível' });
+    }
+
+    // Verificar se profissional existe (se informado)
+    if (profissionalId) {
+      const profissional = await prisma.profissional.findUnique({
+        where: { id: profissionalId },
+        select: { id: true, nome: true, ativo: true, barbeariaId: true },
+      });
+
+      if (!profissional) {
+        console.error('❌ [CLIENTE PANEL] Profissional não encontrado:', profissionalId);
+        return res.status(404).json({ error: 'Profissional não encontrado' });
+      }
+
+      if (!profissional.ativo) {
+        console.error('❌ [CLIENTE PANEL] Profissional inativo:', profissionalId);
+        return res.status(400).json({ error: 'Este profissional não está mais disponível' });
+      }
+
+      if (profissional.barbeariaId !== barbeariaId) {
+        console.error('❌ [CLIENTE PANEL] Profissional não pertence à barbearia');
+        return res.status(400).json({ error: 'Profissional não pertence a esta barbearia' });
+      }
     }
 
     // Usar meio-dia UTC para evitar problemas de timezone
     // O horário real é armazenado no campo 'horario' separadamente
     const dataHora = new Date(`${data}T12:00:00.000Z`);
 
+    console.log('✅ [CLIENTE PANEL] Dados validados, criando agendamento...');
+
+    // Validar telefone (campo obrigatório no schema)
+    if (!cliente.telefone || cliente.telefone.trim() === '') {
+      console.error('❌ [CLIENTE PANEL] Cliente sem telefone cadastrado');
+      return res.status(400).json({ 
+        error: 'Telefone não cadastrado. Por favor, atualize seu perfil com um número de telefone.' 
+      });
+    }
+
     // Criar agendamento
     const agendamento = await prisma.agendamento.create({
       data: {
         clienteId,
         cliente: cliente.nome,
-        telefone: cliente.telefone || '',
+        telefone: cliente.telefone,
         barbeariaId,
         servicoId,
         data: dataHora,
@@ -252,14 +327,22 @@ export async function criarMeuAgendamento(req: AuthRequestCliente, res: Response
       },
     });
 
+    console.log('✅ [CLIENTE PANEL] Agendamento criado:', agendamento.id);
+
     // Se houver profissional, associar
     if (profissionalId) {
-      await prisma.agendamentoProfissional.create({
-        data: {
-          agendamentoId: agendamento.id,
-          profissionalId,
-        },
-      });
+      try {
+        await prisma.agendamentoProfissional.create({
+          data: {
+            agendamentoId: agendamento.id,
+            profissionalId,
+          },
+        });
+        console.log('✅ [CLIENTE PANEL] Profissional associado ao agendamento');
+      } catch (profError: any) {
+        console.error('⚠️ [CLIENTE PANEL] Erro ao associar profissional:', profError);
+        // Não falha o agendamento se não conseguir associar o profissional
+      }
     }
 
     // Buscar agendamento completo
@@ -275,10 +358,29 @@ export async function criarMeuAgendamento(req: AuthRequestCliente, res: Response
       },
     });
 
+    console.log('✅ [CLIENTE PANEL] Agendamento retornado com sucesso');
     res.status(201).json(agendamentoCompleto);
-  } catch (error) {
-    console.error('Erro ao criar agendamento do cliente:', error);
-    res.status(500).json({ error: 'Erro ao criar agendamento' });
+  } catch (error: any) {
+    console.error('❌ [CLIENTE PANEL] Erro ao criar agendamento:', error);
+    console.error('   Tipo:', error.name);
+    console.error('   Mensagem:', error.message);
+    console.error('   Stack:', error.stack);
+    
+    // Retornar mensagem de erro mais específica
+    let mensagemErro = 'Erro ao criar agendamento';
+    
+    if (error.code === 'P2002') {
+      mensagemErro = 'Já existe um agendamento com estes dados';
+    } else if (error.code === 'P2003') {
+      mensagemErro = 'Dados inválidos. Verifique se a barbearia e serviço existem.';
+    } else if (error.message) {
+      mensagemErro = error.message;
+    }
+    
+    res.status(500).json({ 
+      error: mensagemErro,
+      detalhes: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 }
 

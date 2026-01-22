@@ -48,7 +48,7 @@ async function criarAdmins() {
             nome: admin.nome,
             email: admin.email,
             senha: senhaHash,
-            cargo: 'superadmin',
+            role: 'admin',
             ativo: true,
           },
         });

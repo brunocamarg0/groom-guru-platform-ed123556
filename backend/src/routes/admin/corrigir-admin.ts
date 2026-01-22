@@ -38,7 +38,7 @@ const ADMIN_USERS: AdminUser[] = [
 async function corrigirUsuariosAdmin(req: Request, res: Response) {
   try {
     // Pegar senha do query ou body
-    const senha = (req.query.senha as string) || (req.body.senha as string) || 'Admin123!@#';
+    const senha = (req.query.senha as string) || (req.body.senha as string) || 'Squaredadmin';
     
     console.log('🔐 Iniciando correção de usuários admin via API...');
     
