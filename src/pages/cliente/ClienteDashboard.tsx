@@ -372,29 +372,35 @@ export default function ClienteDashboard() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {barbearias.slice(0, 6).map((barbearia: any) => (
-              <Card
-                key={barbearia.id}
-                className="cursor-pointer hover:shadow-lg transition-shadow"
-                onClick={() => navigate(`/cliente/agendar?barbearia=${barbearia.id}`)}
-              >
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      {barbearia.foto ? (
-                        <Avatar className="h-12 w-12 border-2 border-primary/20">
-                          <AvatarImage src={barbearia.foto} alt={barbearia.nome} />
-                          <AvatarFallback className="bg-primary/10 text-primary font-bold">
-                            {barbearia.nome.charAt(0).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                      ) : (
-                        <div className="bg-primary p-2 rounded-full">
-                          <Scissors className="h-5 w-5 text-primary-foreground" />
-                        </div>
-                      )}
-                      <div className="flex-1">
-                        <CardTitle className="text-lg">{barbearia.nome}</CardTitle>
+            {barbearias
+              .filter((barbearia: any) => barbearia && barbearia.id && barbearia.nome)
+              .slice(0, 6)
+              .map((barbearia: any) => {
+                const nomeBarbearia = barbearia.nome || 'Barbearia sem nome';
+                const inicial = nomeBarbearia.charAt(0).toUpperCase();
+                return (
+                  <Card
+                    key={barbearia.id}
+                    className="cursor-pointer hover:shadow-lg transition-shadow"
+                    onClick={() => navigate(`/cliente/agendar?barbearia=${barbearia.id}`)}
+                  >
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          {barbearia.foto ? (
+                            <Avatar className="h-12 w-12 border-2 border-primary/20">
+                              <AvatarImage src={barbearia.foto} alt={nomeBarbearia} />
+                              <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                                {inicial}
+                              </AvatarFallback>
+                            </Avatar>
+                          ) : (
+                            <div className="bg-primary p-2 rounded-full">
+                              <Scissors className="h-5 w-5 text-primary-foreground" />
+                            </div>
+                          )}
+                          <div className="flex-1">
+                            <CardTitle className="text-lg">{nomeBarbearia}</CardTitle>
                         {(barbearia.endereco || barbearia.cidade || barbearia.bairro) && (
                           <CardDescription className="flex items-center gap-1 mt-1">
                             <MapPin className="h-3 w-3" />
@@ -449,11 +455,14 @@ export default function ClienteDashboard() {
                         Serviços:
                       </p>
                       <div className="flex flex-wrap gap-1">
-                        {barbearia.servicos.slice(0, 2).map((servico: any) => (
-                          <Badge key={servico.id} variant="secondary" className="text-xs">
-                            {servico.nome}
-                          </Badge>
-                        ))}
+                        {barbearia.servicos
+                          .filter((s: any) => s && s.id && s.nome)
+                          .slice(0, 2)
+                          .map((servico: any) => (
+                            <Badge key={servico.id} variant="secondary" className="text-xs">
+                              {servico.nome || 'Serviço sem nome'}
+                            </Badge>
+                          ))}
                         {barbearia.servicos.length > 2 && (
                           <Badge variant="outline" className="text-xs">
                             +{barbearia.servicos.length - 2} mais
@@ -470,7 +479,8 @@ export default function ClienteDashboard() {
                   </Button>
                 </CardContent>
               </Card>
-            ))}
+                );
+              })}
           </div>
         )}
 

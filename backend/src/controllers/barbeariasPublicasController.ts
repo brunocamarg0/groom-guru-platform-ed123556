@@ -15,6 +15,10 @@ export async function listarBarbeariasPublicas(req: Request, res: Response) {
       // Não filtrar por status por enquanto - mostrar todas as barbearias
       // Se houver campo status, pode ser 'ativa', 'pendente', null, etc.
       // Vamos mostrar todas e deixar o frontend filtrar se necessário
+      // Filtrar apenas barbearias com nome válido
+      nome: {
+        not: null,
+      },
     };
 
     // Busca geral (nome, cidade, bairro ou endereço)
@@ -135,9 +139,11 @@ export async function listarBarbeariasPublicas(req: Request, res: Response) {
     }
     
     // Formatar resposta para o frontend
-    const barbeariasFormatadas = barbearias.map((b) => ({
-      id: b.id,
-      nome: b.nome,
+    const barbeariasFormatadas = barbearias
+      .filter((b) => b && b.id && b.nome) // Filtrar barbearias sem nome ou id
+      .map((b) => ({
+        id: b.id,
+        nome: b.nome || 'Barbearia sem nome', // Garantir que sempre tenha um nome
       email: b.email,
       telefone: b.telefone,
       endereco: b.endereco,
@@ -213,14 +219,14 @@ export async function buscarBarbeariaPublica(req: Request, res: Response) {
       },
     });
 
-    if (!barbearia) {
+    if (!barbearia || !barbearia.id || !barbearia.nome) {
       return res.status(404).json({ error: 'Barbearia não encontrada ou não está disponível' });
     }
 
     // Formatar resposta
     const barbeariaFormatada = {
       id: barbearia.id,
-      nome: barbearia.nome,
+      nome: barbearia.nome || 'Barbearia sem nome',
       email: barbearia.email,
       telefone: barbearia.telefone,
       endereco: barbearia.endereco,

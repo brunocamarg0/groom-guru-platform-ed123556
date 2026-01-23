@@ -188,24 +188,29 @@ export default function BuscarBarbearias() {
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {barbearias.map((barbearia) => (
-              <Card
-                key={barbearia.id}
-                className="cursor-pointer hover:shadow-xl transition-all duration-300 hover:scale-105 border-2 hover:border-primary/50"
-                onClick={() => handleSelecionarBarbearia(barbearia.id)}
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-start gap-3">
-                    <Avatar className="h-16 w-16 border-2 border-primary/20">
-                      <AvatarImage src={barbearia.foto || undefined} alt={barbearia.nome} />
-                      <AvatarFallback className="bg-primary/10 text-primary text-lg font-bold">
-                        {barbearia.nome.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <CardTitle className="text-lg leading-tight mb-1 line-clamp-2">
-                        {barbearia.nome}
-                      </CardTitle>
+            {barbearias
+              .filter((barbearia) => barbearia && barbearia.id && barbearia.nome)
+              .map((barbearia) => {
+                const nomeBarbearia = barbearia.nome || 'Barbearia sem nome';
+                const inicial = nomeBarbearia.charAt(0).toUpperCase();
+                return (
+                  <Card
+                    key={barbearia.id}
+                    className="cursor-pointer hover:shadow-xl transition-all duration-300 hover:scale-105 border-2 hover:border-primary/50"
+                    onClick={() => handleSelecionarBarbearia(barbearia.id)}
+                  >
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start gap-3">
+                        <Avatar className="h-16 w-16 border-2 border-primary/20">
+                          <AvatarImage src={barbearia.foto || undefined} alt={nomeBarbearia} />
+                          <AvatarFallback className="bg-primary/10 text-primary text-lg font-bold">
+                            {inicial}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <CardTitle className="text-lg leading-tight mb-1 line-clamp-2">
+                            {nomeBarbearia}
+                          </CardTitle>
                       {(barbearia.bairro || barbearia.cidade) && (
                         <CardDescription className="flex items-center gap-1 mt-1 text-xs">
                           <MapPin className="h-3 w-3 flex-shrink-0" />
@@ -255,11 +260,14 @@ export default function BuscarBarbearias() {
                         Serviços:
                       </p>
                       <div className="flex flex-wrap gap-1">
-                        {barbearia.servicos.slice(0, 2).map((servico: any) => (
-                          <Badge key={servico.id} variant="secondary" className="text-xs">
-                            {servico.nome}
-                          </Badge>
-                        ))}
+                        {barbearia.servicos
+                          .filter((s: any) => s && s.id && s.nome)
+                          .slice(0, 2)
+                          .map((servico: any) => (
+                            <Badge key={servico.id} variant="secondary" className="text-xs">
+                              {servico.nome || 'Serviço sem nome'}
+                            </Badge>
+                          ))}
                         {barbearia.servicos.length > 2 && (
                           <Badge variant="outline" className="text-xs">
                             +{barbearia.servicos.length - 2}
@@ -281,7 +289,8 @@ export default function BuscarBarbearias() {
                   </Button>
                 </CardContent>
               </Card>
-            ))}
+                );
+              })}
           </div>
         </>
       )}

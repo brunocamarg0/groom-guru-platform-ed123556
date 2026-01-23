@@ -401,11 +401,14 @@ export default function AgendamentoOnline() {
                           Serviços:
                         </p>
                         <div className="flex flex-wrap gap-1">
-                          {barbeariaItem.servicos.slice(0, 2).map((servico: any) => (
-                            <Badge key={servico.id} variant="secondary" className="text-xs">
-                              {servico.nome}
-                            </Badge>
-                          ))}
+                          {barbeariaItem.servicos
+                            .filter((s: any) => s && s.id && s.nome)
+                            .slice(0, 2)
+                            .map((servico: any) => (
+                              <Badge key={servico.id} variant="secondary" className="text-xs">
+                                {servico.nome || 'Serviço sem nome'}
+                              </Badge>
+                            ))}
                           {barbeariaItem.servicos.length > 2 && (
                             <Badge variant="outline" className="text-xs">
                               +{barbeariaItem.servicos.length - 2}
@@ -452,7 +455,7 @@ export default function AgendamentoOnline() {
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Agendar Serviço</h2>
           <p className="text-muted-foreground">
-            {barbearia.nome}
+            {barbearia?.nome || 'Barbearia sem nome'}
           </p>
         </div>
       </div>
@@ -462,7 +465,7 @@ export default function AgendamentoOnline() {
         <CardContent className="pt-6">
           <div className="flex items-start justify-between">
             <div className="space-y-2">
-              <h3 className="font-semibold text-lg">{barbearia.nome}</h3>
+              <h3 className="font-semibold text-lg">{barbearia?.nome || 'Barbearia sem nome'}</h3>
               {barbearia.endereco && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <MapPin className="h-4 w-4" />
@@ -526,8 +529,8 @@ export default function AgendamentoOnline() {
                     <div className="flex items-center gap-3">
                       <Scissors className="h-5 w-5" />
                       <div>
-                        <p className="font-medium">{servico.nome}</p>
-                        {servico.descricao && (
+                        <p className="font-medium">{servico?.nome || 'Serviço sem nome'}</p>
+                        {servico?.descricao && (
                           <p className="text-sm text-muted-foreground">
                             {servico.descricao}
                           </p>
@@ -727,7 +730,7 @@ export default function AgendamentoOnline() {
             <div className="space-y-3">
               <div className="flex items-center justify-between p-3 border rounded-lg">
                 <span className="text-muted-foreground">Barbearia:</span>
-                <span className="font-medium">{barbearia.nome}</span>
+                <span className="font-medium">{barbearia?.nome || 'Barbearia sem nome'}</span>
               </div>
               <div className="flex items-center justify-between p-3 border rounded-lg">
                 <span className="text-muted-foreground">Serviço:</span>
