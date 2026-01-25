@@ -87,17 +87,51 @@ const Login = () => {
       // Salvar token e dados do usuário
       if (data.token) {
         console.log('✅ [LOGIN] Token recebido, salvando no localStorage...');
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('userType', activeTab === 'owner' ? 'dono' : activeTab === 'client' ? 'cliente' : 'admin');
+        console.log('   Token recebido (primeiros 50 chars):', data.token.substring(0, 50) + '...');
+        console.log('   Token recebido (tamanho):', data.token.length);
+        
+        try {
+          // Limpar localStorage antes de salvar (para evitar problemas)
+          console.log('🧹 [LOGIN] Limpando localStorage antigo...');
+          localStorage.removeItem('token');
+          localStorage.removeItem('userType');
+          localStorage.removeItem('user');
+          localStorage.removeItem('barbearia');
+          
+          // Aguardar um pouco antes de salvar
+          await new Promise(resolve => setTimeout(resolve, 50));
+          
+          // Salvar token
+          const userTypeValue = activeTab === 'owner' ? 'dono' : activeTab === 'client' ? 'cliente' : 'admin';
+          console.log('💾 [LOGIN] Salvando token...');
+          localStorage.setItem('token', data.token);
+          console.log('💾 [LOGIN] Salvando userType:', userTypeValue);
+          localStorage.setItem('userType', userTypeValue);
+          
+          // Verificar imediatamente após salvar
+          const tokenTeste = localStorage.getItem('token');
+          const userTypeTeste = localStorage.getItem('userType');
+          console.log('✅ [LOGIN] Verificação imediata após salvar:');
+          console.log('   Token salvo:', !!tokenTeste);
+          console.log('   UserType salvo:', userTypeTeste);
+          console.log('   Token (primeiros 30 chars):', tokenTeste ? tokenTeste.substring(0, 30) + '...' : 'N/A');
+          
+          if (!tokenTeste) {
+            throw new Error('Token não foi salvo no localStorage!');
+          }
 
-        if (data.usuario) {
-          console.log('✅ [LOGIN] Salvando dados do usuário:', data.usuario);
-          localStorage.setItem('user', JSON.stringify(data.usuario));
-        }
+          if (data.usuario) {
+            console.log('✅ [LOGIN] Salvando dados do usuário:', data.usuario);
+            localStorage.setItem('user', JSON.stringify(data.usuario));
+          }
 
-        if (data.barbearia) {
-          console.log('✅ [LOGIN] Salvando dados da barbearia:', data.barbearia);
-          localStorage.setItem('barbearia', JSON.stringify(data.barbearia));
+          if (data.barbearia) {
+            console.log('✅ [LOGIN] Salvando dados da barbearia:', data.barbearia);
+            localStorage.setItem('barbearia', JSON.stringify(data.barbearia));
+          }
+        } catch (storageError: any) {
+          console.error('❌ [LOGIN] Erro ao salvar no localStorage:', storageError);
+          throw new Error(`Erro ao salvar dados: ${storageError.message}`);
         }
 
         toast.success('Login realizado com sucesso!');
