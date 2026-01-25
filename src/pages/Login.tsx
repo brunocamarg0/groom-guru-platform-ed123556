@@ -51,7 +51,13 @@ const Login = () => {
         redirectPath = '/admin';
       }
 
-      console.log('🔐 [LOGIN] Iniciando login...', { endpoint, activeTab });
+      console.log('═══════════════════════════════════════════════════════════');
+      console.log('🔐 [LOGIN] ========== INICIANDO LOGIN ==========');
+      console.log('   Endpoint:', endpoint);
+      console.log('   ActiveTab:', activeTab);
+      console.log('   API_URL:', API_URL);
+      console.log('   Email:', formData[activeTab as keyof typeof formData].email);
+      console.log('═══════════════════════════════════════════════════════════');
       
       const response = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
