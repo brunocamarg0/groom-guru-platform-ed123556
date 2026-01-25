@@ -401,13 +401,13 @@ export default function ClienteDashboard() {
                           )}
                           <div className="flex-1">
                             <CardTitle className="text-lg">{nomeBarbearia}</CardTitle>
-                        {(barbearia.endereco || barbearia.cidade || barbearia.bairro) && (
+                        {(barbearia?.endereco || barbearia?.cidade || barbearia?.bairro) && (
                           <CardDescription className="flex items-center gap-1 mt-1">
                             <MapPin className="h-3 w-3" />
                             {[
-                              barbearia.endereco,
-                              barbearia.bairro,
-                              barbearia.cidade
+                              barbearia?.endereco,
+                              barbearia?.bairro,
+                              barbearia?.cidade
                             ].filter(Boolean).join(', ')}
                           </CardDescription>
                         )}
@@ -418,13 +418,13 @@ export default function ClienteDashboard() {
                 <CardContent className="space-y-3">
                   {/* Informações de contato */}
                   <div className="space-y-1 text-sm">
-                    {barbearia.telefone && (
+                    {barbearia?.telefone && (
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Phone className="h-3 w-3" />
                         {barbearia.telefone}
                       </div>
                     )}
-                    {barbearia.email && (
+                    {barbearia?.email && (
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Mail className="h-3 w-3" />
                         {barbearia.email}
@@ -434,13 +434,13 @@ export default function ClienteDashboard() {
 
                   {/* Estatísticas */}
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    {barbearia.totalServicos > 0 && (
+                    {barbearia?.totalServicos && barbearia.totalServicos > 0 && (
                       <div className="flex items-center gap-1">
                         <Scissors className="h-3 w-3" />
                         {barbearia.totalServicos} serviços
                       </div>
                     )}
-                    {barbearia.profissionais && barbearia.profissionais.length > 0 && (
+                    {barbearia?.profissionais && barbearia.profissionais.length > 0 && (
                       <div className="flex items-center gap-1">
                         <User className="h-3 w-3" />
                         {barbearia.profissionais.length} profissionais
@@ -449,7 +449,7 @@ export default function ClienteDashboard() {
                   </div>
 
                   {/* Serviços disponíveis (primeiros 2) */}
-                  {barbearia.servicos && barbearia.servicos.length > 0 && (
+                  {barbearia?.servicos && barbearia.servicos.length > 0 && (
                     <div className="space-y-2">
                       <p className="text-xs font-medium text-muted-foreground">
                         Serviços:

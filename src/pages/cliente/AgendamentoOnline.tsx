@@ -446,6 +446,25 @@ export default function AgendamentoOnline() {
     );
   }
 
+  // Verificação de segurança: se não houver barbearia, voltar para lista
+  if (!barbearia) {
+    console.warn('⚠️ [AGENDAMENTO] Barbearia não encontrada, voltando para lista');
+    return (
+      <div className="space-y-6 max-w-7xl mx-auto p-4">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Agendar Serviço</h2>
+          <p className="text-muted-foreground">
+            Barbearia não encontrada. Por favor, selecione uma barbearia.
+          </p>
+        </div>
+        <Button onClick={handleVoltarParaLista} variant="default">
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Voltar para Lista de Barbearias
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div className="flex items-center gap-4">
@@ -466,13 +485,13 @@ export default function AgendamentoOnline() {
           <div className="flex items-start justify-between">
             <div className="space-y-2">
               <h3 className="font-semibold text-lg">{barbearia?.nome || 'Barbearia sem nome'}</h3>
-              {barbearia.endereco && (
+              {barbearia?.endereco && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <MapPin className="h-4 w-4" />
                   {barbearia.endereco}
                 </div>
               )}
-              {barbearia.telefone && (
+              {barbearia?.telefone && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Phone className="h-4 w-4" />
                   {barbearia.telefone}

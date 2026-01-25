@@ -211,14 +211,14 @@ export default function BuscarBarbearias() {
                           <CardTitle className="text-lg leading-tight mb-1 line-clamp-2">
                             {nomeBarbearia}
                           </CardTitle>
-                      {(barbearia.bairro || barbearia.cidade) && (
-                        <CardDescription className="flex items-center gap-1 mt-1 text-xs">
-                          <MapPin className="h-3 w-3 flex-shrink-0" />
-                          <span className="truncate">
-                            {[barbearia.bairro, barbearia.cidade].filter(Boolean).join(', ')}
-                          </span>
-                        </CardDescription>
-                      )}
+                      {(barbearia?.bairro || barbearia?.cidade) && (
+                          <CardDescription className="flex items-center gap-1 mt-1 text-xs">
+                            <MapPin className="h-3 w-3 flex-shrink-0" />
+                            <span className="truncate">
+                              {[barbearia?.bairro, barbearia?.cidade].filter(Boolean).join(', ')}
+                            </span>
+                          </CardDescription>
+                        )}
                     </div>
                   </div>
                 </CardHeader>
