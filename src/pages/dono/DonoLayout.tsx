@@ -67,22 +67,38 @@ function DonoLayoutContent() {
         barbearia: !!localStorage.getItem('barbearia'),
       });
       
+      // Verificar se há barbeariaId (indica que houve login anterior)
+      const barbeariaStr = localStorage.getItem('barbearia');
+      const barbeariaId = barbeariaStr ? JSON.parse(barbeariaStr).id : null;
+      
       // Se não há token ou userType não é 'dono'
       if (!token || userType !== 'dono') {
-        // Se ainda não atingiu o máximo de tentativas, tentar novamente
-        if (attempts < maxAttempts) {
-          console.log(`⏳ [DONO LAYOUT] Token ainda não encontrado, tentando novamente em 500ms...`);
+        // Se há barbeariaId mas não há token, pode ser que o token foi perdido
+        // Mas ainda assim precisamos do token para fazer requisições
+        if (barbeariaId && attempts < maxAttempts) {
+          console.log(`⏳ [DONO LAYOUT] Token não encontrado mas barbeariaId existe, tentando novamente em 500ms...`);
+          console.log(`   BarbeariaId: ${barbeariaId}`);
           setTimeout(checkAuth, 500);
           return;
         }
         
         // Se atingiu o máximo de tentativas, redirecionar para login
-        console.warn('⚠️ [DONO LAYOUT] Token não encontrado após múltiplas tentativas. Redirecionando...');
-        console.warn('   Token:', token);
-        console.warn('   UserType:', userType);
+        console.warn('═══════════════════════════════════════════════════════════');
+        console.warn('⚠️ [DONO LAYOUT] Token não encontrado após múltiplas tentativas.');
+        console.warn('   Token:', token ? 'Presente' : 'Ausente');
+        console.warn('   UserType:', userType || 'null');
+        console.warn('   BarbeariaId:', barbeariaId || 'null');
         console.warn('   Tentativas:', attempts);
+        console.warn('   ⚠️ IMPORTANTE: O token não está sendo salvo durante o login!');
+        console.warn('   ⚠️ Por favor, faça login novamente.');
+        console.warn('   ⚠️ Se o problema persistir, verifique os logs do console durante o login.');
+        console.warn('═══════════════════════════════════════════════════════════');
         setIsCheckingAuth(false);
-        window.location.href = '/login?tab=owner';
+        
+        // Redirecionar para login com mensagem
+        setTimeout(() => {
+          window.location.href = '/login?tab=owner';
+        }, 1000);
         return;
       }
       
