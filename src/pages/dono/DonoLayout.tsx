@@ -129,21 +129,21 @@ function DonoLayoutContent() {
       setIsCheckingAuth(false);
     };
 
-    // Aguardar um pouco antes de começar a verificação (dar tempo para o token ser salvo após o login)
-    const initialDelay = setTimeout(() => {
-      checkAuth(); // Primeira verificação após delay inicial
-      const timer = setInterval(() => {
-        if (attempts < maxAttempts) {
-          checkAuth();
-        } else {
-          clearInterval(timer);
-        }
-      }, 500); // Verificar a cada 500ms
-      
-      return () => {
+    // Verificar imediatamente (sem delay) para pegar token que já está salvo
+    checkAuth(); // Primeira verificação imediata
+    
+    // Continuar verificando periodicamente
+    const timer = setInterval(() => {
+      if (attempts < maxAttempts) {
+        checkAuth();
+      } else {
         clearInterval(timer);
-      };
-    }, 1000); // Aguardar 1 segundo antes de começar
+      }
+    }, 500); // Verificar a cada 500ms
+    
+    return () => {
+      clearInterval(timer);
+    };
     
     return () => {
       clearTimeout(initialDelay);

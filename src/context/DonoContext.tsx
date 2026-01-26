@@ -405,12 +405,17 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   // Log para debug - FORÇAR LOG VISÍVEL
   useEffect(() => {
     const tokenPresent = typeof window !== 'undefined' && !!localStorage.getItem('token');
+    const userTypePresent = typeof window !== 'undefined' && localStorage.getItem('userType') === 'dono';
+    const shouldHaveToken = tokenPresent && userTypePresent;
+    
     console.log('═══════════════════════════════════════════════════════════');
     console.log('🔍 [DONO CONTEXT] Estado atual:');
     console.log('   barbeariaId:', barbeariaId);
     console.log('   hasToken (state):', hasToken);
     console.log('   token presente (localStorage):', tokenPresent);
     console.log('   userType:', localStorage.getItem('userType'));
+    console.log('   userType === "dono":', userTypePresent);
+    console.log('   shouldHaveToken:', shouldHaveToken);
     console.log('   Query habilitada (profissionais):', !!barbeariaId && hasToken);
     console.log('   Query habilitada (clientes):', !!barbeariaId && hasToken);
     console.log('   Query habilitada (serviços):', !!barbeariaId && hasToken);
@@ -418,12 +423,43 @@ export function DonoProvider({ children }: { children: ReactNode }) {
     console.log('   Query habilitada (pagamentos):', !!barbeariaId && hasToken);
     console.log('═══════════════════════════════════════════════════════════');
     
-    // Se hasToken está false mas o token está presente, forçar atualização
-    if (!hasToken && tokenPresent) {
+    // Se hasToken está false mas o token está presente E userType é 'dono', forçar atualização
+    if (!hasToken && shouldHaveToken) {
       console.warn('⚠️ [DONO CONTEXT] hasToken está false mas token está presente! Forçando atualização...');
+      console.warn('   Token:', localStorage.getItem('token') ? localStorage.getItem('token')!.substring(0, 30) + '...' : 'null');
+      console.warn('   UserType:', localStorage.getItem('userType'));
       setHasToken(true);
     }
+    
+    // Se hasToken está true mas o token não está presente, forçar atualização
+    if (hasToken && !shouldHaveToken) {
+      console.warn('⚠️ [DONO CONTEXT] hasToken está true mas token não está presente! Forçando atualização...');
+      setHasToken(false);
+    }
   }, [barbeariaId, hasToken]);
+  
+  // Verificação adicional: se o token está presente mas hasToken é false, forçar atualização
+  // Isso é necessário porque pode haver um problema de timing
+  useEffect(() => {
+    const checkAndFix = () => {
+      if (typeof window === 'undefined') return;
+      
+      const token = localStorage.getItem('token');
+      const userType = localStorage.getItem('userType');
+      const shouldHaveToken = !!token && userType === 'dono';
+      
+      if (shouldHaveToken && !hasToken) {
+        console.warn('🔧 [DONO CONTEXT] CORREÇÃO: Token presente mas hasToken é false. Corrigindo...');
+        setHasToken(true);
+      }
+    };
+    
+    // Verificar imediatamente e depois periodicamente
+    checkAndFix();
+    const interval = setInterval(checkAndFix, 500);
+    
+    return () => clearInterval(interval);
+  }, [hasToken]);
   
   // Hook para buscar KPIs
   const { data: kpisData, isLoading: loadingKpi, error: errorKpi } = useQuery({
