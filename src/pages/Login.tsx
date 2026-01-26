@@ -15,7 +15,22 @@ const Login = () => {
   useEffect(() => {
     console.log('🔐 [LOGIN COMPONENT] Componente Login montado');
     console.log('   API_URL:', API_URL);
+    
+    // Listener para erros JavaScript
+    const errorHandler = (event: ErrorEvent) => {
+      console.error('❌ [LOGIN COMPONENT] Erro JavaScript capturado:', event.error);
+      console.error('   Mensagem:', event.message);
+      console.error('   Arquivo:', event.filename);
+      console.error('   Linha:', event.lineno);
+    };
+    
+    window.addEventListener('error', errorHandler);
+    
+    return () => {
+      window.removeEventListener('error', errorHandler);
+    };
   }, []);
+  
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -58,7 +73,16 @@ const Login = () => {
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    console.log('🔐 [LOGIN] handleSubmit chamado!');
+    console.log('   Event type:', e.type);
+    console.log('   Event target:', e.target);
+    
+    try {
+      e.preventDefault();
+    } catch (preventError) {
+      console.error('❌ [LOGIN] Erro ao prevenir default:', preventError);
+    }
+    
     setIsLoading(true);
     
     console.log('═══════════════════════════════════════════════════════════');
