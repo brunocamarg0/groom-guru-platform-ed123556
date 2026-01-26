@@ -33,37 +33,22 @@ const Login = () => {
   });
 
   // Listener para detectar quando o localStorage é modificado (debug)
+  // REMOVIDO: A sobrescrita de Storage.prototype pode causar problemas
+  // Em vez disso, vamos usar eventos customizados
   useEffect(() => {
-    const originalSetItem = Storage.prototype.setItem;
-    const originalRemoveItem = Storage.prototype.removeItem;
-    const originalClear = Storage.prototype.clear;
-
-    Storage.prototype.setItem = function(key: string, value: string) {
-      if (key === 'token' || key === 'userType') {
-        console.log(`🔍 [LOCALSTORAGE DEBUG] setItem chamado: ${key} = ${key === 'token' ? value.substring(0, 30) + '...' : value}`);
-        console.trace('Stack trace:');
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'token' || e.key === 'userType') {
+        console.log(`🔍 [LOCALSTORAGE DEBUG] StorageEvent detectado: ${e.key}`, {
+          oldValue: e.oldValue ? (e.key === 'token' ? e.oldValue.substring(0, 30) + '...' : e.oldValue) : null,
+          newValue: e.newValue ? (e.key === 'token' ? e.newValue.substring(0, 30) + '...' : e.newValue) : null,
+        });
       }
-      return originalSetItem.apply(this, [key, value]);
     };
 
-    Storage.prototype.removeItem = function(key: string) {
-      if (key === 'token' || key === 'userType') {
-        console.warn(`⚠️ [LOCALSTORAGE DEBUG] removeItem chamado: ${key}`);
-        console.trace('Stack trace:');
-      }
-      return originalRemoveItem.apply(this, [key]);
-    };
-
-    Storage.prototype.clear = function() {
-      console.error('❌ [LOCALSTORAGE DEBUG] clear() chamado - TODO O LOCALSTORAGE FOI LIMPO!');
-      console.trace('Stack trace:');
-      return originalClear.apply(this);
-    };
-
+    window.addEventListener('storage', handleStorageChange);
+    
     return () => {
-      Storage.prototype.setItem = originalSetItem;
-      Storage.prototype.removeItem = originalRemoveItem;
-      Storage.prototype.clear = originalClear;
+      window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
 

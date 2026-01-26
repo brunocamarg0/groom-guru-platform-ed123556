@@ -432,12 +432,22 @@ export async function registrarDono(req: Request, res: Response) {
  */
 export async function loginDono(req: Request, res: Response) {
   try {
+    console.log('═══════════════════════════════════════════════════════════');
+    console.log('🔐 [LOGIN DONO BACKEND] ========== INICIANDO LOGIN ==========');
+    console.log('   Timestamp:', new Date().toISOString());
+    console.log('   IP:', req.ip);
+    console.log('   Headers:', JSON.stringify(req.headers, null, 2));
+    
     const { email, senha } = req.body;
+    console.log('   Email recebido:', email);
+    console.log('   Senha recebida:', senha ? '***' : 'null');
 
     if (!email || !senha) {
+      console.error('❌ [LOGIN DONO BACKEND] Email ou senha não fornecidos');
       return res.status(400).json({ error: 'Email e senha são obrigatórios' });
     }
 
+    console.log('🔐 [LOGIN DONO BACKEND] Buscando dono no banco...');
     // Buscar dono
     const dono = await prisma.usuarioDono.findUnique({
       where: { email },
@@ -453,27 +463,43 @@ export async function loginDono(req: Request, res: Response) {
     });
 
     if (!dono) {
+      console.error('❌ [LOGIN DONO BACKEND] Dono não encontrado para email:', email);
       return res.status(401).json({ error: 'Email ou senha incorretos' });
     }
+
+    console.log('✅ [LOGIN DONO BACKEND] Dono encontrado:', {
+      id: dono.id,
+      email: dono.email,
+      ativo: dono.ativo,
+      temSenha: !!dono.senha,
+      barbeariaId: dono.barbeariaId,
+    });
 
     // Verificar senha (pode ser null se criado via OAuth)
     if (!dono.senha) {
       let provider = 'OAuth';
       if (dono.googleId) provider = 'Google';
+      console.error('❌ [LOGIN DONO BACKEND] Conta criada via OAuth:', provider);
       return res.status(401).json({ error: `Esta conta foi criada com ${provider}. Use o login com ${provider}.` });
     }
 
+    console.log('🔐 [LOGIN DONO BACKEND] Verificando senha...');
     const senhaValida = await compararSenha(senha, dono.senha);
 
     if (!senhaValida) {
+      console.error('❌ [LOGIN DONO BACKEND] Senha inválida');
       return res.status(401).json({ error: 'Email ou senha incorretos' });
     }
 
+    console.log('✅ [LOGIN DONO BACKEND] Senha válida');
+
     // Verificar se conta está ativa
     if (!dono.ativo) {
+      console.error('❌ [LOGIN DONO BACKEND] Conta inativa');
       return res.status(403).json({ error: 'Conta desativada. Entre em contato com o suporte.' });
     }
 
+    console.log('🔐 [LOGIN DONO BACKEND] Gerando token JWT...');
     // Gerar token JWT
     const token = gerarTokenJWT({
       id: dono.id,
@@ -482,13 +508,15 @@ export async function loginDono(req: Request, res: Response) {
       barbeariaId: dono.barbeariaId,
     });
 
-    console.log('🔐 [LOGIN DONO] Token gerado:', token ? `${token.substring(0, 30)}...` : 'null');
-    console.log('🔐 [LOGIN DONO] Dados do dono:', {
+    console.log('✅ [LOGIN DONO BACKEND] Token gerado:', token ? `${token.substring(0, 30)}...` : 'null');
+    console.log('   Token completo (primeiros 100 chars):', token ? token.substring(0, 100) : 'null');
+    console.log('   Token tamanho:', token ? token.length : 0);
+    console.log('🔐 [LOGIN DONO BACKEND] Dados do dono:', {
       id: dono.id,
       email: dono.email,
       barbeariaId: dono.barbeariaId,
     });
-    console.log('🔐 [LOGIN DONO] Dados da barbearia:', dono.barbearia);
+    console.log('🔐 [LOGIN DONO BACKEND] Dados da barbearia:', dono.barbearia);
 
     const responseData = {
       sucesso: true,
@@ -501,6 +529,15 @@ export async function loginDono(req: Request, res: Response) {
       },
       barbearia: dono.barbearia,
     };
+    
+    console.log('✅ [LOGIN DONO BACKEND] Preparando resposta:', {
+      sucesso: responseData.sucesso,
+      temToken: !!responseData.token,
+      tokenLength: responseData.token ? responseData.token.length : 0,
+      temUsuario: !!responseData.usuario,
+      temBarbearia: !!responseData.barbearia,
+    });
+    console.log('═══════════════════════════════════════════════════════════');
 
     console.log('🔐 [LOGIN DONO] Enviando resposta:', {
       hasToken: !!responseData.token,
@@ -509,10 +546,27 @@ export async function loginDono(req: Request, res: Response) {
       hasBarbearia: !!responseData.barbearia,
     });
 
+    console.log('🔐 [LOGIN DONO BACKEND] Enviando resposta...');
     res.json(responseData);
-  } catch (error) {
-    console.error('Erro ao fazer login do dono:', error);
-    res.status(500).json({ error: 'Erro ao fazer login' });
+    console.log('✅ [LOGIN DONO BACKEND] Resposta enviada com sucesso');
+  } catch (error: any) {
+    console.error('═══════════════════════════════════════════════════════════');
+    console.error('❌ [LOGIN DONO BACKEND] ERRO AO FAZER LOGIN');
+    console.error('   Erro tipo:', error?.name);
+    console.error('   Erro mensagem:', error?.message);
+    console.error('   Erro stack:', error?.stack);
+    if (error) {
+      try {
+        console.error('   Erro completo:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+      } catch (e) {
+        console.error('   Erro (não serializável):', error);
+      }
+    }
+    console.error('═══════════════════════════════════════════════════════════');
+    res.status(500).json({ 
+      error: 'Erro ao fazer login', 
+      details: process.env.NODE_ENV === 'development' ? error?.message : undefined 
+    });
   }
 }
 
