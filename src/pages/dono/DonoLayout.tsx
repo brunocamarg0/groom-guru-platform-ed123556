@@ -48,7 +48,7 @@ function DonoLayoutContent() {
   // Verificar autenticação ao montar o componente (apenas uma vez)
   useEffect(() => {
     let attempts = 0;
-    const maxAttempts = 20; // Aumentado para 10 segundos (20 tentativas x 500ms)
+    const maxAttempts = 40; // Aumentado para 20 segundos (40 tentativas x 500ms) - dar mais tempo após login
     
     const checkAuth = () => {
       attempts++;
@@ -56,18 +56,10 @@ function DonoLayoutContent() {
       let token = localStorage.getItem('token');
       let userType = localStorage.getItem('userType');
       
-      console.log(`🔐 [DONO LAYOUT] Verificando autenticação (tentativa ${attempts}/${maxAttempts})...`);
-      console.log('   Token no localStorage:', !!token);
-      console.log('   UserType no localStorage:', userType);
-      
       // Se não encontrou no localStorage, tentar sessionStorage (backup)
       if (!token) {
-        console.log('   Token não encontrado no localStorage, verificando sessionStorage...');
         token = sessionStorage.getItem('token') || sessionStorage.getItem('token_backup');
         userType = sessionStorage.getItem('userType') || sessionStorage.getItem('userType_backup');
-        
-        console.log('   Token no sessionStorage:', !!token);
-        console.log('   UserType no sessionStorage:', userType);
         
         // Se encontrou no sessionStorage, copiar para localStorage
         if (token && userType) {
@@ -76,11 +68,6 @@ function DonoLayoutContent() {
             localStorage.setItem('token', token);
             localStorage.setItem('userType', userType);
             console.log('✅ [DONO LAYOUT] Token copiado com sucesso!');
-            
-            // Verificar se foi salvo corretamente
-            const tokenVerificado = localStorage.getItem('token');
-            const userTypeVerificado = localStorage.getItem('userType');
-            console.log('   Verificação após copiar - Token:', !!tokenVerificado, 'UserType:', userTypeVerificado);
           } catch (e) {
             console.error('❌ [DONO LAYOUT] Erro ao copiar token do sessionStorage para localStorage:', e);
           }
@@ -89,24 +76,22 @@ function DonoLayoutContent() {
       
       const barbearia = localStorage.getItem('barbearia');
       
-      console.log(`🔐 [DONO LAYOUT] Verificando autenticação (tentativa ${attempts}/${maxAttempts})...`);
-      console.log('   Token presente:', !!token);
-      console.log('   Token valor:', token ? `${token.substring(0, 20)}...` : 'null');
-      console.log('   UserType:', userType);
-      console.log('   Barbearia presente:', !!barbearia);
-      console.log('   Path:', location.pathname);
-      console.log('   localStorage completo:', {
-        token: !!localStorage.getItem('token'),
-        userType: localStorage.getItem('userType'),
-        user: !!localStorage.getItem('user'),
-        barbearia: !!localStorage.getItem('barbearia'),
-      });
+      // Log apenas a cada 5 tentativas para não poluir o console
+      if (attempts === 1 || attempts % 5 === 0 || attempts === maxAttempts) {
+        console.log(`🔐 [DONO LAYOUT] Verificando autenticação (tentativa ${attempts}/${maxAttempts})...`);
+        console.log('   Token presente:', !!token);
+        console.log('   UserType:', userType);
+        console.log('   Barbearia presente:', !!barbearia);
+      }
       
       // Se não há token ou userType não é 'dono'
       if (!token || userType !== 'dono') {
         // Se ainda não atingiu o máximo de tentativas, tentar novamente
         if (attempts < maxAttempts) {
-          console.warn(`⚠️ [DONO LAYOUT] Token não encontrado (tentativa ${attempts}). Tentando novamente em 500ms...`);
+          // Não fazer log a cada tentativa para não poluir o console
+          if (attempts % 5 === 0) {
+            console.warn(`⚠️ [DONO LAYOUT] Token não encontrado (tentativa ${attempts}). Continuando verificação...`);
+          }
           setTimeout(checkAuth, 500);
           return;
         }
@@ -114,19 +99,23 @@ function DonoLayoutContent() {
         // Se atingiu o máximo de tentativas, verificar se há barbearia (pode ser que o token foi perdido mas a sessão ainda é válida)
         const barbeariaFinal = localStorage.getItem('barbearia');
         if (barbeariaFinal) {
-          console.warn('⚠️ [DONO LAYOUT] Token não encontrado mas barbearia presente. Pode ser problema temporário.');
-          console.warn('   Tentando aguardar mais um pouco...');
-          // Aguardar mais 2 segundos antes de redirecionar
+          console.warn('⚠️ [DONO LAYOUT] Token não encontrado mas barbearia presente. Aguardando mais 5 segundos...');
+          // Aguardar mais 5 segundos antes de redirecionar (dar mais tempo após login)
           setTimeout(() => {
-            const tokenFinal = localStorage.getItem('token');
+            const tokenFinal = localStorage.getItem('token') || sessionStorage.getItem('token') || sessionStorage.getItem('token_backup');
             if (!tokenFinal) {
               console.error('❌ [DONO LAYOUT] Token ainda não encontrado após espera adicional. Redirecionando para login...');
               window.location.href = '/login?tab=owner';
             } else {
               console.log('✅ [DONO LAYOUT] Token encontrado após espera adicional!');
+              // Copiar do sessionStorage se necessário
+              if (!localStorage.getItem('token')) {
+                localStorage.setItem('token', tokenFinal);
+                localStorage.setItem('userType', sessionStorage.getItem('userType') || sessionStorage.getItem('userType_backup') || 'dono');
+              }
               setIsCheckingAuth(false);
             }
-          }, 2000);
+          }, 5000);
           return;
         }
         
@@ -143,20 +132,26 @@ function DonoLayoutContent() {
       setIsCheckingAuth(false);
     };
 
-    // Verificar imediatamente (sem delay) para pegar token que já está salvo
-    checkAuth(); // Primeira verificação imediata
-    
-    // Continuar verificando periodicamente
-    const timer = setInterval(() => {
-      if (attempts < maxAttempts) {
-        checkAuth();
-      } else {
+    // Aguardar 1 segundo antes de começar a verificação (dar tempo para o token ser salvo após login)
+    const initialDelay = setTimeout(() => {
+      checkAuth(); // Primeira verificação após delay inicial
+      
+      // Continuar verificando periodicamente
+      const timer = setInterval(() => {
+        if (attempts < maxAttempts) {
+          checkAuth();
+        } else {
+          clearInterval(timer);
+        }
+      }, 500); // Verificar a cada 500ms
+      
+      return () => {
         clearInterval(timer);
-      }
-    }, 500); // Verificar a cada 500ms
+      };
+    }, 1000); // Aguardar 1 segundo antes de começar
     
     return () => {
-      clearInterval(timer);
+      clearTimeout(initialDelay);
     };
   }, [location.pathname]);
 
