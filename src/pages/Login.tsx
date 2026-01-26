@@ -343,7 +343,14 @@ const Login = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form 
+                  onSubmit={(e) => {
+                    console.log('🔐 [LOGIN] Form onSubmit disparado (owner)!');
+                    console.log('   Event:', e);
+                    handleSubmit(e);
+                  }} 
+                  className="space-y-4"
+                >
                   <div className="space-y-2">
                     <Label htmlFor="owner-email">Email</Label>
                     <Input
@@ -371,6 +378,13 @@ const Login = () => {
                     variant="hero"
                     className="w-full"
                     disabled={isLoading}
+                    onClick={(e) => {
+                      console.log('🔐 [LOGIN] Botão "Entrar" clicado (owner)!');
+                      console.log('   Event:', e);
+                      console.log('   isLoading:', isLoading);
+                      console.log('   activeTab:', activeTab);
+                      console.log('   formData.owner:', formData.owner);
+                    }}
                   >
                     {isLoading ? "Entrando..." : "Entrar"}
                   </Button>
