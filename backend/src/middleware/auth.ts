@@ -74,14 +74,31 @@ export async function autenticarDono(
     }
     
     console.log('🔐 autenticarDono: Buscando dono no banco com ID:', userId);
+    console.log('🔐 autenticarDono: Tipo do ID:', typeof userId);
+    console.log('🔐 autenticarDono: ID completo:', userId);
+    
     // Buscar usuário dono (sem include barbearia para evitar erro se coluna foto não existir)
     let dono;
     try {
+      // Primeiro, verificar se existe algum dono com esse ID
+      const donoCount = await prisma.usuarioDono.count({
+        where: { id: userId },
+      });
+      console.log('🔐 autenticarDono: Contagem de donos com esse ID:', donoCount);
+      
+      // Tentar buscar o dono
       dono = await prisma.usuarioDono.findUnique({
         where: { id: userId },
         // Removido include: { barbearia: true } temporariamente
         // pois a coluna foto pode não existir no banco ainda
         // O barbeariaId já está disponível no modelo UsuarioDono
+      });
+      
+      console.log('🔐 autenticarDono: Resultado da busca:', {
+        encontrado: !!dono,
+        id: dono?.id,
+        email: dono?.email,
+        ativo: dono?.ativo,
       });
     } catch (prismaError: any) {
       console.error('❌ autenticarDono: Erro ao buscar dono no Prisma:');
@@ -95,7 +112,30 @@ export async function autenticarDono(
 
     if (!dono) {
       console.error('❌ autenticarDono: Dono não encontrado no banco');
-      return res.status(401).json({ error: 'Usuário não encontrado' });
+      console.error('   ID buscado:', userId);
+      console.error('   Email do token:', decoded.email);
+      console.error('   Tipo do token:', decoded.tipo);
+      
+      // Tentar buscar por email para verificar se o dono existe com outro ID
+      try {
+        const donoPorEmail = await prisma.usuarioDono.findUnique({
+          where: { email: decoded.email },
+          select: { id: true, email: true, ativo: true },
+        });
+        
+        if (donoPorEmail) {
+          console.error('⚠️ autenticarDono: Dono encontrado por email, mas com ID diferente!');
+          console.error('   ID no token:', userId);
+          console.error('   ID no banco:', donoPorEmail.id);
+          console.error('   Isso indica que o token foi gerado com um ID antigo ou incorreto.');
+        } else {
+          console.error('⚠️ autenticarDono: Dono não encontrado nem por ID nem por email.');
+        }
+      } catch (emailError: any) {
+        console.error('❌ autenticarDono: Erro ao buscar dono por email:', emailError.message);
+      }
+      
+      return res.status(401).json({ error: 'Usuário não encontrado. Faça login novamente.' });
     }
 
     if (!dono.ativo) {

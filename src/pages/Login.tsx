@@ -73,16 +73,10 @@ const Login = () => {
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    console.log('🔐 [LOGIN] handleSubmit chamado!');
-    console.log('   Event type:', e.type);
-    console.log('   Event target:', e.target);
-    
-    try {
-      e.preventDefault();
-    } catch (preventError) {
-      console.error('❌ [LOGIN] Erro ao prevenir default:', preventError);
-    }
-    
+    e.preventDefault();
+    console.log('🔐 [LOGIN] ========== INÍCIO DO PROCESSO DE LOGIN ==========');
+    console.log('🔐 [LOGIN] ActiveTab:', activeTab);
+    console.log('🔐 [LOGIN] FormData:', { email: formData[activeTab as keyof typeof formData].email, senha: '***' });
     setIsLoading(true);
     
     console.log('═══════════════════════════════════════════════════════════');
@@ -370,10 +364,17 @@ const Login = () => {
         throw new Error('Token não recebido');
       }
     } catch (error: any) {
-      console.error('Erro ao fazer login:', error);
+      console.error('❌ [LOGIN] ========== ERRO NO PROCESSO DE LOGIN ==========');
+      console.error('❌ [LOGIN] Erro completo:', error);
+      console.error('❌ [LOGIN] Stack:', error?.stack);
+      console.error('❌ [LOGIN] Message:', error?.message);
+      console.error('❌ [LOGIN] Name:', error?.name);
+      console.error('❌ [LOGIN] Status:', error?.status);
+      console.error('❌ [LOGIN] ================================================');
       toast.error(error.message || 'Erro ao fazer login. Verifique suas credenciais.');
     } finally {
       setIsLoading(false);
+      console.log('🔐 [LOGIN] ========== FIM DO PROCESSO DE LOGIN ==========');
     }
   };
 
