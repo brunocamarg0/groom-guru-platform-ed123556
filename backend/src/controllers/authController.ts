@@ -482,7 +482,15 @@ export async function loginDono(req: Request, res: Response) {
       barbeariaId: dono.barbeariaId,
     });
 
-    res.json({
+    console.log('🔐 [LOGIN DONO] Token gerado:', token ? `${token.substring(0, 30)}...` : 'null');
+    console.log('🔐 [LOGIN DONO] Dados do dono:', {
+      id: dono.id,
+      email: dono.email,
+      barbeariaId: dono.barbeariaId,
+    });
+    console.log('🔐 [LOGIN DONO] Dados da barbearia:', dono.barbearia);
+
+    const responseData = {
       sucesso: true,
       token,
       usuario: {
@@ -492,7 +500,16 @@ export async function loginDono(req: Request, res: Response) {
         barbeariaId: dono.barbeariaId,
       },
       barbearia: dono.barbearia,
+    };
+
+    console.log('🔐 [LOGIN DONO] Enviando resposta:', {
+      hasToken: !!responseData.token,
+      tokenLength: responseData.token ? responseData.token.length : 0,
+      hasUsuario: !!responseData.usuario,
+      hasBarbearia: !!responseData.barbearia,
     });
+
+    res.json(responseData);
   } catch (error) {
     console.error('Erro ao fazer login do dono:', error);
     res.status(500).json({ error: 'Erro ao fazer login' });

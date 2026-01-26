@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +31,41 @@ const Login = () => {
     client: { email: "", senha: "" },
     admin: { email: "", senha: "" },
   });
+
+  // Listener para detectar quando o localStorage é modificado (debug)
+  useEffect(() => {
+    const originalSetItem = Storage.prototype.setItem;
+    const originalRemoveItem = Storage.prototype.removeItem;
+    const originalClear = Storage.prototype.clear;
+
+    Storage.prototype.setItem = function(key: string, value: string) {
+      if (key === 'token' || key === 'userType') {
+        console.log(`🔍 [LOCALSTORAGE DEBUG] setItem chamado: ${key} = ${key === 'token' ? value.substring(0, 30) + '...' : value}`);
+        console.trace('Stack trace:');
+      }
+      return originalSetItem.apply(this, [key, value]);
+    };
+
+    Storage.prototype.removeItem = function(key: string) {
+      if (key === 'token' || key === 'userType') {
+        console.warn(`⚠️ [LOCALSTORAGE DEBUG] removeItem chamado: ${key}`);
+        console.trace('Stack trace:');
+      }
+      return originalRemoveItem.apply(this, [key]);
+    };
+
+    Storage.prototype.clear = function() {
+      console.error('❌ [LOCALSTORAGE DEBUG] clear() chamado - TODO O LOCALSTORAGE FOI LIMPO!');
+      console.trace('Stack trace:');
+      return originalClear.apply(this);
+    };
+
+    return () => {
+      Storage.prototype.setItem = originalSetItem;
+      Storage.prototype.removeItem = originalRemoveItem;
+      Storage.prototype.clear = originalClear;
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,14 +126,44 @@ const Login = () => {
         throw new Error(data.error || 'Erro ao fazer login');
       }
 
+      // Verificar se o token está presente na resposta
+      if (!data.token) {
+        console.error('❌ [LOGIN] Token não encontrado na resposta da API!');
+        console.error('   Resposta completa:', JSON.stringify(data, null, 2));
+        throw new Error('Token não recebido do servidor. Tente novamente.');
+      }
+
       // Salvar token e dados do usuário
       if (data.token) {
         console.log('🔐 [LOGIN] Salvando token no localStorage...');
-        localStorage.setItem('token', data.token);
         const userType = activeTab === 'owner' ? 'dono' : activeTab === 'client' ? 'cliente' : 'admin';
-        localStorage.setItem('userType', userType);
-        console.log('🔐 [LOGIN] Token salvo:', !!localStorage.getItem('token'));
-        console.log('🔐 [LOGIN] UserType salvo:', localStorage.getItem('userType'));
+        
+        // Salvar em localStorage
+        try {
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('userType', userType);
+          console.log('🔐 [LOGIN] Token salvo no localStorage:', !!localStorage.getItem('token'));
+          console.log('🔐 [LOGIN] UserType salvo no localStorage:', localStorage.getItem('userType'));
+        } catch (storageError) {
+          console.error('❌ [LOGIN] Erro ao salvar no localStorage:', storageError);
+          // Tentar salvar em sessionStorage como fallback
+          try {
+            sessionStorage.setItem('token', data.token);
+            sessionStorage.setItem('userType', userType);
+            console.log('🔐 [LOGIN] Token salvo no sessionStorage (fallback)');
+          } catch (sessionError) {
+            console.error('❌ [LOGIN] Erro ao salvar no sessionStorage:', sessionError);
+            throw new Error('Não foi possível salvar o token. Verifique as configurações do navegador.');
+          }
+        }
+        
+        // Salvar também em sessionStorage como backup
+        try {
+          sessionStorage.setItem('token_backup', data.token);
+          sessionStorage.setItem('userType_backup', userType);
+        } catch (e) {
+          console.warn('⚠️ [LOGIN] Não foi possível salvar backup no sessionStorage');
+        }
 
         if (data.usuario) {
           localStorage.setItem('user', JSON.stringify(data.usuario));
