@@ -58,25 +58,30 @@ const ClienteContext = createContext<ClienteContextType | undefined>(undefined);
 export function ClienteProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   
-  // Verificar se há token antes de fazer requisições
-  const [hasToken, setHasToken] = useState(() => 
-    typeof window !== 'undefined' && !!localStorage.getItem('token')
-  );
+  // Verificar se há token E se é um cliente antes de fazer requisições
+  const [isClienteLogado, setIsClienteLogado] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const token = localStorage.getItem('token');
+    const userType = localStorage.getItem('userType');
+    return !!token && userType === 'cliente';
+  });
   
-  // Atualizar hasToken quando o token mudar
+  // Atualizar isClienteLogado quando o token ou userType mudar
   useEffect(() => {
     const checkToken = () => {
       const token = localStorage.getItem('token');
-      const newHasToken = !!token;
-      if (newHasToken !== hasToken) {
-        setHasToken(newHasToken);
+      const userType = localStorage.getItem('userType');
+      const shouldBeLogado = !!token && userType === 'cliente';
+      if (shouldBeLogado !== isClienteLogado) {
+        console.log('🔄 [CLIENTE CONTEXT] Estado mudou:', { token: !!token, userType, isClienteLogado: shouldBeLogado });
+        setIsClienteLogado(shouldBeLogado);
       }
     };
     
     checkToken();
     const interval = setInterval(checkToken, 1000);
     return () => clearInterval(interval);
-  }, [hasToken]);
+  }, [isClienteLogado]);
 
   // Estado local para dados que não vêm de queries
   const [clienteLocal, setClienteLocal] = useState<Cliente | null>(null);
@@ -123,15 +128,19 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
       console.log('👤 [QUERY CLIENTE] Buscando perfil...');
       return apiGet<Cliente>('/cliente/perfil');
     },
-    enabled: hasToken,
+    enabled: isClienteLogado,
     staleTime: 1000 * 60 * 5, // 5 minutos de cache
     retry: (failureCount, error: any) => {
       if (error?.status === 401 || error?.message?.includes('401')) {
         console.error('❌ [QUERY CLIENTE] Erro 401, não tentando novamente');
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('userType');
-        window.location.href = '/login?tab=client';
+        // Só limpar e redirecionar se for um cliente tentando acessar
+        const userType = localStorage.getItem('userType');
+        if (userType === 'cliente') {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          localStorage.removeItem('userType');
+          window.location.href = '/login?tab=client';
+        }
         return false;
       }
       return failureCount < 2;
@@ -145,7 +154,7 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
       console.log('📅 [QUERY CLIENTE] Buscando agendamentos...');
       return apiGet<any[]>('/cliente/agendamentos');
     },
-    enabled: hasToken,
+    enabled: isClienteLogado,
     staleTime: 1000 * 60 * 2, // 2 minutos de cache (agendamentos mudam mais frequentemente)
     retry: (failureCount, error: any) => {
       if (error?.status === 401 || error?.message?.includes('401')) {
