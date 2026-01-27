@@ -43,212 +43,42 @@ function DonoLayoutContent() {
   const { notificacoes, configuracao } = useDono();
   const { theme } = useTheme();
   const notificacoesNaoLidas = notificacoes?.filter((n) => !n.lida).length || 0;
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
 
-  // Verificar autenticação ao montar o componente (apenas uma vez)
-  useEffect(() => {
-    // Verificação inicial: se há dados de sessão mas não há token, limpar dados inválidos
-    const barbearia = localStorage.getItem('barbearia');
-    const user = localStorage.getItem('user');
-    const token = localStorage.getItem('token');
-    const userType = localStorage.getItem('userType');
-    
-    if ((barbearia || user) && !token) {
-      console.warn('⚠️ [DONO LAYOUT] Detectado dados de sessão sem token!');
-      console.warn('   Isso indica que houve um problema no login anterior.');
-      console.warn('   Limpando dados de sessão inválidos...');
-      
-      // Limpar dados de sessão inválidos
-      localStorage.removeItem('barbearia');
-      localStorage.removeItem('user');
-      localStorage.removeItem('userType');
-      
-      console.warn('   Dados limpos. Redirecionando para login...');
-      window.location.href = '/login?tab=owner';
-      return;
-    }
-    
-    let attempts = 0;
-    const maxAttempts = 60; // Aumentado para 30 segundos (60 tentativas x 500ms) - dar muito mais tempo após login
-    let intervalId: NodeJS.Timeout | null = null;
-    let timeoutId: NodeJS.Timeout | null = null;
-    
-    const checkAuth = () => {
-      attempts++;
-      // Tentar obter token do localStorage primeiro, depois do sessionStorage como fallback
-      let token = localStorage.getItem('token');
-      let userType = localStorage.getItem('userType');
-      
-      // Se não encontrou no localStorage, tentar sessionStorage (backup)
-      if (!token) {
-        token = sessionStorage.getItem('token') || sessionStorage.getItem('token_backup');
-        userType = sessionStorage.getItem('userType') || sessionStorage.getItem('userType_backup');
-        
-        // Se encontrou no sessionStorage, copiar para localStorage
-        if (token && userType) {
-          console.log('🔄 [DONO LAYOUT] Token encontrado no sessionStorage, copiando para localStorage...');
-          try {
-            localStorage.setItem('token', token);
-            localStorage.setItem('userType', userType);
-            console.log('✅ [DONO LAYOUT] Token copiado com sucesso!');
-          } catch (e) {
-            console.error('❌ [DONO LAYOUT] Erro ao copiar token do sessionStorage para localStorage:', e);
-          }
-        }
-      }
-      
-      const barbearia = localStorage.getItem('barbearia');
-      
-      // Log apenas a cada 5 tentativas para não poluir o console
-      if (attempts === 1 || attempts % 5 === 0 || attempts === maxAttempts) {
-        console.log(`🔐 [DONO LAYOUT] Verificando autenticação (tentativa ${attempts}/${maxAttempts})...`);
-        console.log('   Token presente:', !!token);
-        console.log('   UserType:', userType);
-        console.log('   Barbearia presente:', !!barbearia);
-        console.log('   localStorage.token:', localStorage.getItem('token') ? localStorage.getItem('token')?.substring(0, 30) + '...' : 'null');
-      }
-      
-      // Verificar se o userType está correto (pode ser 'dono' ou 'owner' dependendo de onde foi salvo)
-      const userTypeValido = userType === 'dono' || userType === 'owner';
-      
-      // Se encontrou token e userType válido, autenticação OK
-      if (token && userTypeValido) {
-        console.log('✅ [DONO LAYOUT] Autenticação válida encontrada!');
-        console.log('   Token:', token.substring(0, 30) + '...');
-        console.log('   UserType:', userType);
-        setIsCheckingAuth(false);
-        if (intervalId) {
-          clearInterval(intervalId);
-          intervalId = null;
-        }
-        return;
-      }
-      
-      // Se não há token ou userType não é válido
-      if (!token || !userTypeValido) {
-        // Se ainda não atingiu o máximo de tentativas, tentar novamente
-        if (attempts < maxAttempts) {
-          // Não fazer log a cada tentativa para não poluir o console
-          if (attempts % 5 === 0) {
-            console.warn(`⚠️ [DONO LAYOUT] Token não encontrado ou userType inválido (tentativa ${attempts}/${maxAttempts})`);
-            console.warn(`   Token: ${!!token}, UserType: ${userType}, Esperado: 'dono' ou 'owner'`);
-          }
-          return; // Continuar verificando no intervalo
-        }
-        
-        // Se atingiu o máximo de tentativas, verificar se há dados de sessão
-        const barbeariaFinal = localStorage.getItem('barbearia');
-        const userFinal = localStorage.getItem('user');
-        
-        // Verificar também no sessionStorage antes de redirecionar
-        const tokenSession = sessionStorage.getItem('token') || sessionStorage.getItem('token_backup');
-        const userTypeSession = sessionStorage.getItem('userType') || sessionStorage.getItem('userType_backup');
-        
-        if (tokenSession && (userTypeSession === 'dono' || userTypeSession === 'owner')) {
-          console.log('🔄 [DONO LAYOUT] Token encontrado no sessionStorage! Restaurando...');
-          try {
-            localStorage.setItem('token', tokenSession);
-            localStorage.setItem('userType', 'dono'); // Normalizar para 'dono'
-            console.log('✅ [DONO LAYOUT] Token e userType restaurados do sessionStorage!');
-            setIsCheckingAuth(false);
-            if (intervalId) clearInterval(intervalId);
-            return;
-          } catch (e) {
-            console.error('❌ [DONO LAYOUT] Erro ao restaurar token do sessionStorage:', e);
-          }
-        }
-        
-        if (barbeariaFinal || userFinal) {
-          console.warn('⚠️ [DONO LAYOUT] Token não encontrado mas há dados de sessão presentes.');
-          console.warn('   Tentando aguardar mais um pouco antes de redirecionar...');
-          
-          // Aguardar mais 2 segundos antes de redirecionar
-          if (timeoutId) clearTimeout(timeoutId);
-          timeoutId = setTimeout(() => {
-            const tokenFinal = localStorage.getItem('token') || sessionStorage.getItem('token') || sessionStorage.getItem('token_backup');
-            const userTypeFinal = localStorage.getItem('userType') || sessionStorage.getItem('userType') || sessionStorage.getItem('userType_backup');
-            
-            if (tokenFinal && (userTypeFinal === 'dono' || userTypeFinal === 'owner')) {
-              console.log('✅ [DONO LAYOUT] Token encontrado após espera adicional!');
-              // Normalizar userType para 'dono'
-              if (userTypeFinal !== 'dono') {
-                localStorage.setItem('userType', 'dono');
-              }
-              setIsCheckingAuth(false);
-              if (intervalId) clearInterval(intervalId);
-            } else {
-              console.error('❌ [DONO LAYOUT] Token ainda não encontrado após espera adicional.');
-              console.error('   Limpando dados de sessão e redirecionando para login...');
-              // Limpar dados de sessão antigos para evitar confusão
-              localStorage.removeItem('barbearia');
-              localStorage.removeItem('user');
-              localStorage.removeItem('userType');
-              window.location.href = '/login?tab=owner';
-            }
-          }, 2000);
-          return;
-        }
-        
-        // Se atingiu o máximo de tentativas e não há dados de sessão, redirecionar para login
-        console.error('❌ [DONO LAYOUT] Token não encontrado após múltiplas tentativas. Redirecionando para login...');
-        console.error('   Token final:', !!localStorage.getItem('token'));
-        console.error('   UserType final:', localStorage.getItem('userType'));
-        console.error('   Barbearia final:', !!localStorage.getItem('barbearia'));
-        console.error('   Tentativas:', attempts);
-        console.error('   localStorage completo:', {
-          token: !!localStorage.getItem('token'),
-          userType: localStorage.getItem('userType'),
-          user: !!localStorage.getItem('user'),
-          barbearia: !!localStorage.getItem('barbearia'),
-        });
-        console.error('   sessionStorage completo:', {
-          token: !!sessionStorage.getItem('token'),
-          token_backup: !!sessionStorage.getItem('token_backup'),
-          userType: sessionStorage.getItem('userType'),
-          userType_backup: sessionStorage.getItem('userType_backup'),
-        });
-        // Limpar qualquer dado residual
-        localStorage.removeItem('userType');
-        if (intervalId) clearInterval(intervalId);
-        window.location.href = '/login?tab=owner';
-        return;
-      }
-      if (intervalId) clearInterval(intervalId);
-      if (timeoutId) clearTimeout(timeoutId);
-    };
+  // Verificar autenticação de forma simples e direta (igual ao ClienteLayout)
+  const token = localStorage.getItem('token');
+  const userType = localStorage.getItem('userType');
+  
+  // Verificar se o userType está correto (pode ser 'dono' ou 'owner')
+  const userTypeValido = userType === 'dono' || userType === 'owner';
 
-    // Aguardar 2 segundos antes de começar a verificação (dar mais tempo para o token ser salvo após login)
-    const initialDelay = setTimeout(() => {
-      checkAuth(); // Primeira verificação após delay inicial
-      
-      // Continuar verificando periodicamente
-      intervalId = setInterval(() => {
-        if (attempts < maxAttempts && isCheckingAuth) {
-          checkAuth();
-        } else {
-          if (intervalId) clearInterval(intervalId);
-        }
-      }, 500); // Verificar a cada 500ms
-    }, 2000); // Aguardar 2 segundos antes de começar
-    
-    return () => {
-      if (initialDelay) clearTimeout(initialDelay);
-      if (intervalId) clearInterval(intervalId);
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-  }, [location.pathname, isCheckingAuth]);
-
-  // Se ainda está verificando autenticação, mostrar loading
-  if (isCheckingAuth) {
+  // Se não há token ou userType não é válido, redirecionar para login
+  if (!token || !userTypeValido) {
+    console.warn('⚠️ [DONO LAYOUT] Token não encontrado ou tipo de usuário incorreto. Redirecionando...');
+    console.warn('   Token:', !!token);
+    console.warn('   UserType:', userType);
+    window.location.href = '/login?tab=owner';
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="text-muted-foreground">Verificando autenticação...</p>
+        <div className="text-center">
+          <p className="text-muted-foreground">Redirecionando para login...</p>
         </div>
       </div>
     );
   }
+
+  // Timeout para loading
+  useEffect(() => {
+    if (!configuracao) {
+      const timer = setTimeout(() => {
+        console.warn('⚠️ [DONO] Configuração demorou mais de 3 segundos, usando dados do localStorage');
+        setLoadingTimeout(true);
+      }, 3000);
+      return () => clearTimeout(timer);
+    } else {
+      setLoadingTimeout(false);
+    }
+  }, [configuracao]);
 
   const menuItems = [
     {
@@ -319,15 +149,46 @@ function DonoLayoutContent() {
     },
   ];
 
+  // Se não tem configuração ainda, tentar carregar do localStorage
+  let configuracaoLocal = configuracao;
+  if (!configuracaoLocal || !configuracaoLocal.nome) {
+    const barbeariaStr = localStorage.getItem('barbearia');
+    if (barbeariaStr) {
+      try {
+        const barbeariaData = JSON.parse(barbeariaStr);
+        if (barbeariaData && barbeariaData.nome) {
+          configuracaoLocal = {
+            nome: barbeariaData.nome || 'Barbearia',
+            foto: barbeariaData.foto || null,
+          };
+        }
+      } catch (error) {
+        console.error('Erro ao parsear localStorage:', error);
+      }
+    }
+  }
+
+  if (!configuracaoLocal && !loadingTimeout) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="text-muted-foreground">Carregando painel do dono...</p>
+          <p className="text-sm text-muted-foreground">Aguarde alguns instantes</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="light bg-white min-h-screen light-theme-override" id="dono-panel">
       <SidebarProvider>
         <Sidebar className="bg-sidebar border-r border-sidebar-border">
         <SidebarHeader className="border-b border-sidebar-border bg-sidebar">
           <div className="flex items-center gap-3 px-4 py-3">
-            {configuracao?.foto ? (
+            {configuracaoLocal?.foto ? (
               <Avatar className="h-10 w-10 border-2 border-primary/20">
-                <AvatarImage src={configuracao.foto} alt={configuracao.nome || "Barbearia"} />
+                <AvatarImage src={configuracaoLocal.foto} alt={configuracaoLocal.nome || "Barbearia"} />
                 <AvatarFallback className="bg-primary text-primary-foreground">
                   <Building2 className="h-5 w-5" />
                 </AvatarFallback>
@@ -339,7 +200,7 @@ function DonoLayoutContent() {
             )}
             <div className="flex flex-col">
               <span className="font-semibold text-sm text-sidebar-foreground">
-                {configuracao?.nome || "Painel do Dono"}
+                {configuracaoLocal?.nome || "Painel do Dono"}
               </span>
               <span className="text-xs text-sidebar-foreground/70">
                 Gestão Completa
