@@ -69,14 +69,7 @@ export function BarbeariasProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Verificar se é admin antes de carregar
-  const isAdmin = typeof window !== 'undefined' && localStorage.getItem('userType') === 'admin';
-
   const carregarBarbearias = useCallback(async () => {
-    if (!isAdmin) {
-      setIsLoading(false);
-      return;
-    }
 
     setIsLoading(true);
     setError(null);
@@ -95,7 +88,7 @@ export function BarbeariasProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [isAdmin]);
+  }, []);
 
   useEffect(() => {
     carregarBarbearias();
