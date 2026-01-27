@@ -70,6 +70,7 @@ import AuthCallback from "./pages/AuthCallback";
 import Funcionalidades from "./pages/Funcionalidades";
 import Cadastro from "./pages/Cadastro";
 import EsqueciSenha from "./pages/EsqueciSenha";
+import LoginAdmin from "./pages/admin/LoginAdmin";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -113,6 +114,7 @@ const App = () => (
                                 <Route path="/auth/callback" element={<AuthCallback />} />
                                 <Route path="/ativar-conta" element={<AtivarConta />} />
                                 <Route path="/funcionalidades" element={<Funcionalidades />} />
+                                <Route path="/admin/login" element={<LoginAdmin />} />
                                 <Route path="/cliente/pagamento/sucesso" element={<PagamentoSucesso />} />
                                 <Route path="/cliente/pagamento/falha" element={<PagamentoFalha />} />
                                 <Route path="/cliente/pagamento/pendente" element={<PagamentoPendente />} />

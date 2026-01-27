@@ -47,18 +47,11 @@ export default function CadastrarBarbearia() {
     setIsLoading(true);
 
     try {
-      adicionarBarbearia(formData);
-      toast({
-        title: "Barbearia cadastrada",
-        description: `${formData.nome} foi cadastrada com sucesso.`,
-      });
+      await adicionarBarbearia(formData);
       navigate("/admin");
-    } catch (error) {
-      toast({
-        title: "Erro ao cadastrar",
-        description: "Ocorreu um erro ao cadastrar a barbearia.",
-        variant: "destructive",
-      });
+    } catch (error: any) {
+      // Erro já tratado no contexto com toast
+      console.error('Erro ao cadastrar:', error);
     } finally {
       setIsLoading(false);
     }

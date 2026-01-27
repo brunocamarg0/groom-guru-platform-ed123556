@@ -28,10 +28,17 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, MoreHorizontal, Eye, Edit, Power, Ban, Check, X, Loader2 } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Plus, MoreHorizontal, Eye, Edit, Power, Ban, Check, X, Loader2, Building2, Users, Calendar, RefreshCw, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { StatusBarbearia } from "@/types/barbearia";
 import { useToast } from "@/hooks/use-toast";
+import { listarSolicitacoes, aprovarSolicitacao, rejeitarSolicitacao, SolicitacaoCadastro } from "@/services/adminApi";
 
 const statusConfig: Record<StatusBarbearia, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   ativa: { label: "Ativa", variant: "default" },
@@ -46,27 +53,15 @@ const planoConfig: Record<string, string> = {
   enterprise: "Enterprise",
 };
 
-interface Solicitacao {
-  id: string;
-  nome: string;
-  cnpjCpf: string;
-  responsavel: string;
-  email: string;
-  telefone?: string;
-  endereco?: string;
-  plano: string;
-  status: string;
-  createdAt: string;
-}
-
 export default function AdminDashboard() {
-  const { barbearias, alterarStatus, suspenderPorInadimplencia } = useBarbearias();
+  const { barbearias, isLoading, error, recarregarBarbearias, alterarStatus, suspenderPorInadimplencia, deletarBarbearia } = useBarbearias();
   const { toast } = useToast();
-  const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>([]);
+  const [solicitacoes, setSolicitacoes] = useState<SolicitacaoCadastro[]>([]);
   const [isLoadingSolicitacoes, setIsLoadingSolicitacoes] = useState(false);
-  const [selectedSolicitacao, setSelectedSolicitacao] = useState<Solicitacao | null>(null);
+  const [selectedSolicitacao, setSelectedSolicitacao] = useState<SolicitacaoCadastro | null>(null);
   const [observacoes, setObservacoes] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     carregarSolicitacoes();
@@ -75,11 +70,8 @@ export default function AdminDashboard() {
   const carregarSolicitacoes = async () => {
     setIsLoadingSolicitacoes(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://groom-guru-platform-production.up.railway.app'}/api/solicitacoes/admin?status=pendente`);
-      if (response.ok) {
-        const data = await response.json();
-        setSolicitacoes(data);
-      }
+      const data = await listarSolicitacoes('pendente');
+      setSolicitacoes(data);
     } catch (error) {
       console.error('Erro ao carregar solicitações:', error);
     } finally {
@@ -92,22 +84,7 @@ export default function AdminDashboard() {
     
     setIsProcessing(true);
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL || 'https://groom-guru-platform-production.up.railway.app'}/api/solicitacoes/admin/${selectedSolicitacao.id}/aprovar`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ observacoes }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Erro ao aprovar solicitação');
-      }
+      await aprovarSolicitacao(selectedSolicitacao.id, observacoes);
 
       toast({
         title: "Solicitação aprovada!",
@@ -117,6 +94,7 @@ export default function AdminDashboard() {
       setSelectedSolicitacao(null);
       setObservacoes("");
       carregarSolicitacoes();
+      recarregarBarbearias();
     } catch (error: any) {
       toast({
         title: "Erro ao aprovar",
@@ -133,22 +111,7 @@ export default function AdminDashboard() {
     
     setIsProcessing(true);
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL || 'https://groom-guru-platform-production.up.railway.app'}/api/solicitacoes/admin/${selectedSolicitacao.id}/rejeitar`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ observacoes }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Erro ao rejeitar solicitação');
-      }
+      await rejeitarSolicitacao(selectedSolicitacao.id, observacoes);
 
       toast({
         title: "Solicitação rejeitada",
@@ -169,25 +132,107 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleAlterarStatus = (id: string, status: StatusBarbearia) => {
-    alterarStatus(id, status);
-    toast({
-      title: "Status alterado",
-      description: `Barbearia ${statusConfig[status].label.toLowerCase()} com sucesso.`,
-    });
+  const handleAlterarStatus = async (id: string, status: StatusBarbearia) => {
+    try {
+      await alterarStatus(id, status);
+    } catch (error) {
+      // Erro já tratado no contexto
+    }
   };
 
-  const handleSuspender = (id: string) => {
-    suspenderPorInadimplencia(id);
-    toast({
-      title: "Barbearia suspensa",
-      description: "Barbearia bloqueada por inadimplência.",
-      variant: "destructive",
-    });
+  const handleSuspender = async (id: string) => {
+    try {
+      await suspenderPorInadimplencia(id);
+    } catch (error) {
+      // Erro já tratado no contexto
+    }
+  };
+
+  const handleDeletar = async (id: string, nome: string) => {
+    if (!confirm(`Tem certeza que deseja remover a barbearia "${nome}"? Esta ação não pode ser desfeita.`)) {
+      return;
+    }
+    
+    setDeletingId(id);
+    try {
+      await deletarBarbearia(id);
+    } catch (error) {
+      // Erro já tratado no contexto
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  // Estatísticas
+  const stats = {
+    total: barbearias.length,
+    ativas: barbearias.filter(b => b.status === 'ativa').length,
+    emTeste: barbearias.filter(b => b.status === 'em_teste').length,
+    bloqueadas: barbearias.filter(b => b.status === 'bloqueada').length,
   };
 
   return (
     <div className="space-y-6">
+      {/* Cards de Estatísticas */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total de Barbearias</CardTitle>
+            <Building2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.total}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Cadastradas no sistema
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Ativas</CardTitle>
+            <Check className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.ativas}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Funcionando normalmente
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Em Teste</CardTitle>
+            <Calendar className="h-4 w-4 text-yellow-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-600">
+              {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.emTeste}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Período de avaliação
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Bloqueadas</CardTitle>
+            <Ban className="h-4 w-4 text-red-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">
+              {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.bloqueadas}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Acesso suspenso
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Seção de Solicitações Pendentes */}
       {solicitacoes.length > 0 && (
         <div className="rounded-md border bg-muted/50 p-4">
@@ -238,13 +283,28 @@ export default function AdminDashboard() {
             Gerencie todas as barbearias cadastradas no sistema
           </p>
         </div>
-        <Button asChild>
-          <Link to="/admin/barbearias/nova">
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Barbearia
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={recarregarBarbearias} disabled={isLoading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Atualizar
+          </Button>
+          <Button asChild>
+            <Link to="/admin/barbearias/nova">
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Barbearia
+            </Link>
+          </Button>
+        </div>
       </div>
+
+      {error && (
+        <div className="rounded-md border border-destructive bg-destructive/10 p-4">
+          <p className="text-sm text-destructive">{error}</p>
+          <Button variant="outline" size="sm" className="mt-2" onClick={recarregarBarbearias}>
+            Tentar novamente
+          </Button>
+        </div>
+      )}
 
       <div className="rounded-md border">
         <Table>
@@ -256,12 +316,21 @@ export default function AdminDashboard() {
               <TableHead>Plano</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Vencimento</TableHead>
-              <TableHead>Gateway</TableHead>
+              <TableHead>Email</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {barbearias.length === 0 ? (
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-8">
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span className="text-muted-foreground">Carregando barbearias...</span>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : barbearias.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   Nenhuma barbearia cadastrada
@@ -274,30 +343,28 @@ export default function AdminDashboard() {
                   <TableCell>{barbearia.cnpjCpf}</TableCell>
                   <TableCell>{barbearia.responsavel}</TableCell>
                   <TableCell>
-                    <Badge variant="outline">{planoConfig[barbearia.plano]}</Badge>
+                    <Badge variant="outline">{planoConfig[barbearia.plano] || barbearia.plano}</Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={statusConfig[barbearia.status].variant}>
-                      {statusConfig[barbearia.status].label}
+                    <Badge variant={statusConfig[barbearia.status]?.variant || 'outline'}>
+                      {statusConfig[barbearia.status]?.label || barbearia.status}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {new Date(barbearia.dataVencimento).toLocaleDateString("pt-BR")}
+                    {barbearia.dataVencimento ? new Date(barbearia.dataVencimento).toLocaleDateString("pt-BR") : '-'}
                   </TableCell>
-                  <TableCell>
-                    {barbearia.gatewayPagamento.conectado ? (
-                      <Badge variant="default" className="bg-green-500">
-                        {barbearia.gatewayPagamento.nome}
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline">Não conectado</Badge>
-                    )}
+                  <TableCell className="text-sm text-muted-foreground">
+                    {barbearia.email || '-'}
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
+                          {deletingId === barbearia.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <MoreHorizontal className="h-4 w-4" />
+                          )}
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
@@ -346,11 +413,11 @@ export default function AdminDashboard() {
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
-                          onClick={() => handleSuspender(barbearia.id)}
+                          onClick={() => handleDeletar(barbearia.id, barbearia.nome)}
                           className="text-destructive"
                         >
-                          <Ban className="h-4 w-4 mr-2" />
-                          Suspender por Inadimplência
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Remover Permanentemente
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -399,7 +466,7 @@ export default function AdminDashboard() {
                 )}
                 <div>
                   <Label>Plano</Label>
-                  <Badge variant="outline">{planoConfig[selectedSolicitacao.plano]}</Badge>
+                  <Badge variant="outline">{planoConfig[selectedSolicitacao.plano] || selectedSolicitacao.plano}</Badge>
                 </div>
                 {selectedSolicitacao.endereco && (
                   <div className="col-span-2">
@@ -471,4 +538,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-
