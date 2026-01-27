@@ -284,81 +284,55 @@ const Login = () => {
           }
         }
 
-        // Aguardar um pouco mais para garantir que o localStorage foi atualizado
-        await new Promise(resolve => setTimeout(resolve, 300));
-
-        // Usar window.location.href para garantir que a navegação aconteça
-        // e que o localStorage seja preservado (navigate pode ter problemas)
-        console.log('🔐 [LOGIN] Navegando para:', redirectPath);
-        console.log('🔐 [LOGIN] Token antes de navegar (última verificação):', !!localStorage.getItem('token'));
-        console.log('🔐 [LOGIN] UserType antes de navegar:', localStorage.getItem('userType'));
-        
+<<<<<<< HEAD
         // Verificar uma última vez antes de navegar
-        const tokenAntesNavegar = localStorage.getItem('token');
-        const userTypeAntesNavegar = localStorage.getItem('userType');
-        console.log('🔐 [LOGIN] ÚLTIMA VERIFICAÇÃO antes de navegar:');
-        console.log('   Token:', !!tokenAntesNavegar, tokenAntesNavegar ? tokenAntesNavegar.substring(0, 30) + '...' : 'null');
-        console.log('   UserType:', userTypeAntesNavegar);
-        console.log('   Barbearia:', !!localStorage.getItem('barbearia'));
+        const tokenFinalCheck = localStorage.getItem('token');
+        const userTypeFinalCheck = localStorage.getItem('userType');
+        console.log('🔐 [LOGIN] Verificação final antes de navegar:');
+        console.log('   Token:', !!tokenFinalCheck);
+        console.log('   Token (primeiros 30 chars):', tokenFinalCheck ? tokenFinalCheck.substring(0, 30) + '...' : 'null');
+        console.log('   UserType:', userTypeFinalCheck);
+        console.log('   Esperado:', userType);
+        console.log('   ActiveTab:', activeTab);
+        console.log('   RedirectPath:', redirectPath);
         
-        if (!tokenAntesNavegar || userTypeAntesNavegar !== userType) {
-          console.error('❌ [LOGIN] Token foi perdido ANTES de navegar!');
-          console.error('   Tentando salvar novamente...');
-          if (data.token) {
-            localStorage.setItem('token', data.token);
-            localStorage.setItem('userType', userType);
-            if (data.usuario) localStorage.setItem('user', JSON.stringify(data.usuario));
-            if (data.barbearia) localStorage.setItem('barbearia', JSON.stringify(data.barbearia));
-          }
+        // Se o userType não está correto, corrigir antes de navegar
+        if (userTypeFinalCheck !== userType) {
+          console.warn('⚠️ [LOGIN] UserType incorreto! Corrigindo...');
+          console.warn(`   Era: ${userTypeFinalCheck}, Será: ${userType}`);
+          localStorage.setItem('userType', userType);
         }
         
-        // Usar setTimeout para garantir que o localStorage foi atualizado
-        setTimeout(() => {
-          // Verificar novamente antes de navegar
-          const tokenFinal = localStorage.getItem('token');
-          const userTypeFinal = localStorage.getItem('userType');
-          console.log('🔐 [LOGIN] Verificação FINAL antes de window.location.href:');
-          console.log('   Token:', !!tokenFinal);
-          console.log('   UserType:', userTypeFinal);
-          console.log('   Token completo:', tokenFinal ? tokenFinal.substring(0, 50) + '...' : 'null');
-          
-          if (!tokenFinal || userTypeFinal !== userType) {
-            console.error('❌ [LOGIN] Token foi perdido no setTimeout! Salvando novamente...');
-            if (data.token) {
-              localStorage.setItem('token', data.token);
-              localStorage.setItem('userType', userType);
-              if (data.usuario) localStorage.setItem('user', JSON.stringify(data.usuario));
-              if (data.barbearia) localStorage.setItem('barbearia', JSON.stringify(data.barbearia));
-              
-              // Verificar novamente após salvar
-              const tokenAposSalvar = localStorage.getItem('token');
-              console.log('🔐 [LOGIN] Token após salvar novamente:', !!tokenAposSalvar);
-              if (!tokenAposSalvar) {
-                console.error('❌ [LOGIN] ERRO CRÍTICO: Token não pode ser salvo no localStorage!');
-                toast.error('Erro ao salvar token. Verifique as configurações do navegador.');
-                return;
-              }
-            }
-          }
-          
-          // Verificação final antes de navegar
-          const tokenUltimaVerificacao = localStorage.getItem('token');
-          const userTypeUltimaVerificacao = localStorage.getItem('userType');
-          console.log('🔐 [LOGIN] ÚLTIMA VERIFICAÇÃO antes de navegar:');
-          console.log('   Token:', !!tokenUltimaVerificacao);
-          console.log('   UserType:', userTypeUltimaVerificacao);
-          console.log('   Barbearia:', !!localStorage.getItem('barbearia'));
-          
-          if (!tokenUltimaVerificacao || userTypeUltimaVerificacao !== userType) {
-            console.error('❌ [LOGIN] Token não está presente antes de navegar! Abortando navegação...');
-            toast.error('Erro ao salvar dados de autenticação. Tente novamente.');
-            return;
-          }
-          
-          console.log('🔐 [LOGIN] Navegando para:', redirectPath);
-          console.log('🔐 [LOGIN] Token confirmado antes de navegar:', tokenUltimaVerificacao.substring(0, 30) + '...');
-          window.location.href = redirectPath;
-        }, 500); // Aumentado para 500ms para dar mais tempo
+        // Garantir que o token e userType estão salvos
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('userType', userType);
+        if (data.usuario) localStorage.setItem('user', JSON.stringify(data.usuario));
+        if (data.barbearia) localStorage.setItem('barbearia', JSON.stringify(data.barbearia));
+        
+        // Aguardar um pouco para garantir que tudo foi salvo
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Verificar novamente antes de navegar
+        const tokenUltimaVerificacao = localStorage.getItem('token');
+        const userTypeUltimaVerificacao = localStorage.getItem('userType');
+        
+        console.log('🔐 [LOGIN] Verificação final após salvar:');
+        console.log('   Token:', !!tokenUltimaVerificacao);
+        console.log('   UserType:', userTypeUltimaVerificacao);
+        
+        if (!tokenUltimaVerificacao || userTypeUltimaVerificacao !== userType) {
+          console.error('❌ [LOGIN] Token ou userType foi perdido antes da navegação!');
+          console.error('   Token:', !!tokenUltimaVerificacao);
+          console.error('   UserType:', userTypeUltimaVerificacao, 'Esperado:', userType);
+          throw new Error('Erro ao salvar dados de autenticação. Tente novamente.');
+        }
+        
+        console.log('✅ [LOGIN] Tudo verificado! Navegando para:', redirectPath);
+        
+        // Usar window.location.href para garantir navegação completa e evitar problemas com SPA
+        // O navigate do react-router pode não funcionar corretamente em alguns casos
+        window.location.href = redirectPath;
+>>>>>>> 7e6d4bc (fix: corrigir problema de redirecionamento apÃ³s login do dono)
       } else {
         console.error('❌ [LOGIN] Token não recebido na resposta:', data);
         throw new Error('Token não recebido');

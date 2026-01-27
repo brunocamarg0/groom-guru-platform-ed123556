@@ -117,7 +117,8 @@ function DonoLayoutContent() {
         if (attempts < maxAttempts) {
           // Não fazer log a cada tentativa para não poluir o console
           if (attempts % 5 === 0) {
-            console.warn(`⚠️ [DONO LAYOUT] Token não encontrado (tentativa ${attempts}). Continuando verificação...`);
+            console.warn(`⚠️ [DONO LAYOUT] Token não encontrado ou userType inválido (tentativa ${attempts}/${maxAttempts})`);
+            console.warn(`   Token: ${!!token}, UserType: ${userType}, Esperado: 'dono' ou 'owner'`);
           }
           return; // Continuar verificando no intervalo
         }
@@ -146,13 +147,6 @@ function DonoLayoutContent() {
         
         if (barbeariaFinal || userFinal) {
           console.warn('⚠️ [DONO LAYOUT] Token não encontrado mas há dados de sessão presentes.');
-          console.warn('   Barbearia:', !!barbeariaFinal);
-          console.warn('   User:', !!userFinal);
-          console.warn('   Isso indica que houve um login anterior, mas o token foi perdido.');
-          console.warn('   Possíveis causas:');
-          console.warn('   1. O token não foi salvo durante o login');
-          console.warn('   2. O token foi limpo por algum código');
-          console.warn('   3. Problema com o localStorage do navegador');
           console.warn('   Tentando aguardar mais um pouco antes de redirecionar...');
           
           // Aguardar mais 2 segundos antes de redirecionar
@@ -182,11 +176,13 @@ function DonoLayoutContent() {
           return;
         }
         
-        // Se atingiu o máximo de tentativas e não há barbearia, redirecionar para login
+        // Se atingiu o máximo de tentativas e não há dados de sessão, redirecionar para login
         console.error('❌ [DONO LAYOUT] Token não encontrado após múltiplas tentativas. Redirecionando para login...');
         console.error('   Token final:', !!localStorage.getItem('token'));
         console.error('   UserType final:', localStorage.getItem('userType'));
         console.error('   Barbearia final:', !!localStorage.getItem('barbearia'));
+        // Limpar qualquer dado residual
+        localStorage.removeItem('userType');
         if (intervalId) clearInterval(intervalId);
         window.location.href = '/login?tab=owner';
         return;
