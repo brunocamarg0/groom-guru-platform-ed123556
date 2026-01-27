@@ -291,14 +291,8 @@ const Login = () => {
         }
 
         // Aguardar um pouco mais para garantir que o localStorage foi atualizado
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise(resolve => setTimeout(resolve, 500)); // Aumentado para 500ms
 
-        // Usar window.location.href para garantir que a navegação aconteça
-        // e que o localStorage seja preservado (navigate pode ter problemas)
-        console.log('🔐 [LOGIN] Navegando para:', redirectPath);
-        console.log('🔐 [LOGIN] Token antes de navegar (última verificação):', !!localStorage.getItem('token'));
-        console.log('🔐 [LOGIN] UserType antes de navegar:', localStorage.getItem('userType'));
-        
         // Verificar uma última vez antes de navegar
         const tokenAntesNavegar = localStorage.getItem('token');
         const userTypeAntesNavegar = localStorage.getItem('userType');
@@ -306,6 +300,7 @@ const Login = () => {
         console.log('   Token:', !!tokenAntesNavegar, tokenAntesNavegar ? tokenAntesNavegar.substring(0, 30) + '...' : 'null');
         console.log('   UserType:', userTypeAntesNavegar);
         console.log('   Barbearia:', !!localStorage.getItem('barbearia'));
+        console.log('   User:', !!localStorage.getItem('user'));
         
         if (!tokenAntesNavegar || userTypeAntesNavegar !== userType) {
           console.error('❌ [LOGIN] Token foi perdido ANTES de navegar!');
@@ -315,6 +310,21 @@ const Login = () => {
             localStorage.setItem('userType', userType);
             if (data.usuario) localStorage.setItem('user', JSON.stringify(data.usuario));
             if (data.barbearia) localStorage.setItem('barbearia', JSON.stringify(data.barbearia));
+            
+            // Verificar novamente após salvar
+            const tokenAposSalvar = localStorage.getItem('token');
+            console.log('   Token após salvar novamente:', !!tokenAposSalvar);
+          }
+        }
+        
+        // Salvar também no sessionStorage como backup EXTRA
+        if (data.token) {
+          try {
+            sessionStorage.setItem('token_backup', data.token);
+            sessionStorage.setItem('userType_backup', userType);
+            console.log('🔐 [LOGIN] Backup salvo no sessionStorage');
+          } catch (e) {
+            console.error('❌ [LOGIN] Erro ao salvar backup:', e);
           }
         }
         
@@ -322,16 +332,24 @@ const Login = () => {
         setTimeout(() => {
           // Verificar novamente antes de navegar
           const tokenFinal = localStorage.getItem('token');
+          const userTypeFinal = localStorage.getItem('userType');
           console.log('🔐 [LOGIN] Verificação FINAL antes de window.location.href:');
           console.log('   Token:', !!tokenFinal);
+          console.log('   UserType:', userTypeFinal);
+          console.log('   Token completo (primeiros 50 chars):', tokenFinal ? tokenFinal.substring(0, 50) + '...' : 'null');
+          
           if (!tokenFinal && data.token) {
             console.error('❌ [LOGIN] Token foi perdido no setTimeout! Salvando novamente...');
             localStorage.setItem('token', data.token);
             localStorage.setItem('userType', userType);
+            if (data.usuario) localStorage.setItem('user', JSON.stringify(data.usuario));
+            if (data.barbearia) localStorage.setItem('barbearia', JSON.stringify(data.barbearia));
           }
+          
           console.log('🔐 [LOGIN] Navegando para:', redirectPath);
+          console.log('🔐 [LOGIN] Token PRESENTE antes de navegar:', !!localStorage.getItem('token'));
           window.location.href = redirectPath;
-        }, 200); // Aumentado para 200ms
+        }, 500); // Aumentado para 500ms para dar mais tempo
       } else {
         console.error('❌ [LOGIN] Token não recebido na resposta:', data);
         throw new Error('Token não recebido');

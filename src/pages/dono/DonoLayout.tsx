@@ -132,8 +132,10 @@ function DonoLayoutContent() {
       setIsCheckingAuth(false);
     };
 
-    // Aguardar 1 segundo antes de começar a verificação (dar tempo para o token ser salvo após login)
+    // Aguardar 2 segundos antes de começar a verificação (dar mais tempo para o token ser salvo após login)
+    // Isso é importante porque window.location.href recarrega a página e pode levar tempo para o localStorage estar disponível
     const initialDelay = setTimeout(() => {
+      console.log('🔐 [DONO LAYOUT] Iniciando verificação de autenticação após delay inicial...');
       checkAuth(); // Primeira verificação após delay inicial
       
       // Continuar verificando periodicamente
@@ -148,7 +150,7 @@ function DonoLayoutContent() {
       return () => {
         clearInterval(timer);
       };
-    }, 1000); // Aguardar 1 segundo antes de começar
+    }, 2000); // Aumentado para 2 segundos - dar mais tempo após window.location.href
     
     return () => {
       clearTimeout(initialDelay);
