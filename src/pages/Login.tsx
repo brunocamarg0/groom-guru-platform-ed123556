@@ -74,32 +74,43 @@ const Login = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // CAPTURAR activeTab e redirectPath NO INÍCIO para garantir que não mudem
+    const currentTab = activeTab;
+    let endpoint = '';
+    let redirectPath = '';
+    let expectedUserType = '';
+
+    if (currentTab === 'owner') {
+      endpoint = '/auth/dono/login';
+      redirectPath = '/dono';
+      expectedUserType = 'dono';
+    } else if (currentTab === 'client') {
+      endpoint = '/auth/cliente/login';
+      redirectPath = '/cliente';
+      expectedUserType = 'cliente';
+    } else if (currentTab === 'admin') {
+      endpoint = '/auth/admin/login';
+      redirectPath = '/admin';
+      expectedUserType = 'admin';
+    }
+    
     console.log('🔐 [LOGIN] ========== INÍCIO DO PROCESSO DE LOGIN ==========');
-    console.log('🔐 [LOGIN] ActiveTab:', activeTab);
-    console.log('🔐 [LOGIN] FormData:', { email: formData[activeTab as keyof typeof formData].email, senha: '***' });
+    console.log('🔐 [LOGIN] ActiveTab (capturado):', currentTab);
+    console.log('🔐 [LOGIN] Endpoint:', endpoint);
+    console.log('🔐 [LOGIN] RedirectPath (capturado):', redirectPath);
+    console.log('🔐 [LOGIN] ExpectedUserType:', expectedUserType);
+    console.log('🔐 [LOGIN] FormData:', { email: formData[currentTab as keyof typeof formData].email, senha: '***' });
     setIsLoading(true);
     
     console.log('═══════════════════════════════════════════════════════════');
     console.log('🔐 [LOGIN] ========== INICIANDO LOGIN ==========');
-    console.log('   Tab ativo:', activeTab);
-    console.log('   Email:', formData[activeTab as keyof typeof formData].email);
+    console.log('   Tab ativo:', currentTab);
+    console.log('   Email:', formData[currentTab as keyof typeof formData].email);
     console.log('   Timestamp:', new Date().toISOString());
     console.log('═══════════════════════════════════════════════════════════');
 
     try {
-      let endpoint = '';
-      let redirectPath = '';
-
-      if (activeTab === 'owner') {
-        endpoint = '/auth/dono/login';
-        redirectPath = '/dono';
-      } else if (activeTab === 'client') {
-        endpoint = '/auth/cliente/login';
-        redirectPath = '/cliente';
-      } else if (activeTab === 'admin') {
-        endpoint = '/auth/admin/login';
-        redirectPath = '/admin';
-      }
 
       console.log('🔐 [LOGIN] Fazendo requisição para:', `${API_URL}${endpoint}`);
       console.log('🔐 [LOGIN] Dados enviados:', { email: formData[activeTab as keyof typeof formData].email, senha: '***' });
@@ -109,7 +120,7 @@ const Login = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData[activeTab as keyof typeof formData]),
+        body: JSON.stringify(formData[currentTab as keyof typeof formData]),
       });
 
       console.log('🔐 [LOGIN] Resposta recebida:', { status: response.status, ok: response.ok });
@@ -151,7 +162,9 @@ const Login = () => {
       // Salvar token e dados do usuário (usando a mesma lógica simples do cadastro)
       if (data.token) {
         console.log('🔐 [LOGIN] Salvando token no localStorage...');
-        const userType = activeTab === 'owner' ? 'dono' : activeTab === 'client' ? 'cliente' : 'admin';
+        console.log('🔐 [LOGIN] Usando currentTab (capturado):', currentTab);
+        console.log('🔐 [LOGIN] ExpectedUserType:', expectedUserType);
+        const userType = expectedUserType; // Usar o userType capturado no início
         
         // Salvar em localStorage (mesma lógica do cadastro)
         localStorage.setItem('token', data.token);
@@ -204,10 +217,29 @@ const Login = () => {
         }
         
         console.log('✅ [LOGIN] Token confirmado antes de navegar:', tokenFinal.substring(0, 30) + '...');
+        console.log('🔐 [LOGIN] Verificação final antes de navegar:');
+        console.log('   CurrentTab (capturado):', currentTab);
+        console.log('   RedirectPath (capturado):', redirectPath);
+        console.log('   ExpectedUserType:', expectedUserType);
+        console.log('   UserType salvo:', localStorage.getItem('userType'));
+        console.log('   Token salvo:', !!localStorage.getItem('token'));
+        
+        // Verificar se o userType está correto antes de navegar
+        const userTypeFinal = localStorage.getItem('userType');
+        if (userTypeFinal !== expectedUserType) {
+          console.error('❌ [LOGIN] UserType incorreto! Corrigindo...');
+          console.error('   Esperado:', expectedUserType);
+          console.error('   Encontrado:', userTypeFinal);
+          console.error('   CurrentTab:', currentTab);
+          localStorage.setItem('userType', expectedUserType);
+          console.log('✅ [LOGIN] UserType corrigido para:', expectedUserType);
+        }
         
         // Redirecionar usando navigate (mesma lógica do cadastro)
+        console.log('🚀 [LOGIN] Navegando para:', redirectPath);
         setTimeout(() => {
-          navigate(redirectPath);
+          console.log('🚀 [LOGIN] Executando navigate para:', redirectPath);
+          navigate(redirectPath, { replace: true });
         }, 1000);
       } else {
         console.error('❌ [LOGIN] Token não recebido na resposta:', data);

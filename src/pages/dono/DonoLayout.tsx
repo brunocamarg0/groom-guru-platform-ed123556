@@ -48,11 +48,29 @@ function DonoLayoutContent() {
 
   // Verificar autenticação ao montar o componente (apenas uma vez)
   useEffect(() => {
+    console.log('🔐 [DONO LAYOUT] Iniciando verificação de autenticação...');
+    console.log('   URL atual:', window.location.pathname);
+    
     // Verificação inicial: se há dados de sessão mas não há token, limpar dados inválidos
     const barbearia = localStorage.getItem('barbearia');
     const user = localStorage.getItem('user');
     const token = localStorage.getItem('token');
     const userType = localStorage.getItem('userType');
+    
+    console.log('🔐 [DONO LAYOUT] Estado inicial:');
+    console.log('   Token:', !!token);
+    console.log('   UserType:', userType);
+    console.log('   Barbearia:', !!barbearia);
+    console.log('   User:', !!user);
+    
+    // Se o userType é 'cliente', isso está errado - redirecionar para login do dono
+    if (userType === 'cliente') {
+      console.error('❌ [DONO LAYOUT] UserType é "cliente" mas estamos no painel do dono!');
+      console.error('   Isso indica um problema no login. Redirecionando para login do dono...');
+      localStorage.clear();
+      window.location.href = '/login?tab=owner';
+      return;
+    }
     
     if ((barbearia || user) && !token) {
       console.warn('⚠️ [DONO LAYOUT] Detectado dados de sessão sem token!');
