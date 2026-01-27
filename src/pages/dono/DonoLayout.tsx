@@ -46,36 +46,183 @@ function DonoLayoutContent() {
   const [loadingTimeout, setLoadingTimeout] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
-  // Verificar autenticação após um pequeno delay para dar tempo do token ser salvo após login
+  // Verificar autenticação ao montar o componente (apenas uma vez)
   useEffect(() => {
-    // Aguardar um pouco antes de verificar (dar tempo para o token ser salvo após login)
-    const checkAuth = setTimeout(() => {
-      const token = localStorage.getItem('token');
-      const userType = localStorage.getItem('userType');
+    // Verificação inicial: se há dados de sessão mas não há token, limpar dados inválidos
+    const barbearia = localStorage.getItem('barbearia');
+    const user = localStorage.getItem('user');
+    const token = localStorage.getItem('token');
+    const userType = localStorage.getItem('userType');
+    
+    if ((barbearia || user) && !token) {
+      console.warn('⚠️ [DONO LAYOUT] Detectado dados de sessão sem token!');
+      console.warn('   Isso indica que houve um problema no login anterior.');
+      console.warn('   Limpando dados de sessão inválidos...');
       
-      // Verificar se o userType está correto (pode ser 'dono' ou 'owner')
+      // Limpar dados de sessão inválidos
+      localStorage.removeItem('barbearia');
+      localStorage.removeItem('user');
+      localStorage.removeItem('userType');
+      
+      console.warn('   Dados limpos. Redirecionando para login...');
+      window.location.href = '/login?tab=owner';
+      return;
+    }
+    
+    let attempts = 0;
+    const maxAttempts = 100; // Aumentado para 50 segundos (100 tentativas x 500ms) - dar MUITO mais tempo após login
+    let intervalId: NodeJS.Timeout | null = null;
+    let timeoutId: NodeJS.Timeout | null = null;
+    let hasBarbearia = false; // Flag para indicar se há barbearia (login recente)
+    
+    // Verificar imediatamente se há barbearia (indicador de login recente)
+    const barbeariaInicial = localStorage.getItem('barbearia');
+    if (barbeariaInicial) {
+      hasBarbearia = true;
+      console.log('🔍 [DONO LAYOUT] Barbearia encontrada no localStorage - login recente detectado, aguardando token...');
+    }
+    
+    const checkAuth = () => {
+      attempts++;
+      // Tentar obter token do localStorage primeiro, depois do sessionStorage como fallback
+      let token = localStorage.getItem('token');
+      let userType = localStorage.getItem('userType');
+      
+      // Se não encontrou no localStorage, tentar sessionStorage (backup)
+      if (!token) {
+        token = sessionStorage.getItem('token') || sessionStorage.getItem('token_backup');
+        userType = sessionStorage.getItem('userType') || sessionStorage.getItem('userType_backup');
+        
+        // Se encontrou no sessionStorage, copiar para localStorage
+        if (token && userType) {
+          console.log('🔄 [DONO LAYOUT] Token encontrado no sessionStorage, copiando para localStorage...');
+          try {
+            localStorage.setItem('token', token);
+            localStorage.setItem('userType', userType);
+            console.log('✅ [DONO LAYOUT] Token copiado com sucesso!');
+          } catch (e) {
+            console.error('❌ [DONO LAYOUT] Erro ao copiar token do sessionStorage para localStorage:', e);
+          }
+        }
+      }
+      
+      const barbearia = localStorage.getItem('barbearia');
+      if (barbearia && !hasBarbearia) {
+        hasBarbearia = true;
+        console.log('🔍 [DONO LAYOUT] Barbearia detectada durante verificação - login recente confirmado');
+      }
+      
+      // Log apenas a cada 5 tentativas para não poluir o console
+      if (attempts === 1 || attempts % 10 === 0 || attempts === maxAttempts) {
+        console.log(`🔐 [DONO LAYOUT] Verificando autenticação (tentativa ${attempts}/${maxAttempts})...`);
+        console.log('   Token presente:', !!token);
+        console.log('   UserType:', userType);
+        console.log('   Barbearia presente:', !!barbearia);
+        console.log('   localStorage.token:', localStorage.getItem('token') ? localStorage.getItem('token')?.substring(0, 30) + '...' : 'null');
+        console.log('   localStorage completo:', {
+          token: !!localStorage.getItem('token'),
+          userType: localStorage.getItem('userType'),
+          user: !!localStorage.getItem('user'),
+          barbearia: !!localStorage.getItem('barbearia')
+        });
+      }
+      
+      // Verificar se o userType está correto (pode ser 'dono' ou 'owner' dependendo de onde foi salvo)
       const userTypeValido = userType === 'dono' || userType === 'owner';
-
-      console.log('🔐 [DONO LAYOUT] Verificando autenticação após delay:');
-      console.log('   Token:', !!token);
-      console.log('   UserType:', userType);
-      console.log('   UserType válido:', userTypeValido);
-
-      // Se não há token ou userType não é válido, redirecionar para login
+      
+      // Se não há token ou userType não é válido
       if (!token || !userTypeValido) {
-        console.warn('⚠️ [DONO LAYOUT] Token não encontrado ou tipo de usuário incorreto. Redirecionando...');
-        console.warn('   Token:', !!token);
-        console.warn('   UserType:', userType);
+        // Se há barbearia mas não há token, aguardar mais tempo (login recente)
+        if (hasBarbearia && attempts < maxAttempts) {
+          if (attempts % 10 === 0) {
+            console.warn(`⚠️ [DONO LAYOUT] Token não encontrado mas barbearia presente (tentativa ${attempts}). Aguardando token...`);
+          }
+          return; // Continuar verificando no intervalo
+        }
+        
+        // Se ainda não atingiu o máximo de tentativas, tentar novamente
+        if (attempts < maxAttempts) {
+          // Não fazer log a cada tentativa para não poluir o console
+          if (attempts % 10 === 0) {
+            console.warn(`⚠️ [DONO LAYOUT] Token não encontrado (tentativa ${attempts}). Continuando verificação...`);
+          }
+          return; // Continuar verificando no intervalo
+        }
+        
+        // Se atingiu o máximo de tentativas, verificar se há barbearia (pode ser que o token foi perdido mas a sessão ainda é válida)
+        const barbeariaFinal = localStorage.getItem('barbearia');
+        if (barbeariaFinal) {
+          console.warn('⚠️ [DONO LAYOUT] Token não encontrado mas barbearia presente após todas as tentativas. Aguardando mais 15 segundos...');
+          // Aguardar mais 15 segundos antes de redirecionar (dar MUITO mais tempo após login)
+          if (timeoutId) clearTimeout(timeoutId);
+          timeoutId = setTimeout(() => {
+            const tokenFinal = localStorage.getItem('token') || sessionStorage.getItem('token') || sessionStorage.getItem('token_backup');
+            const userTypeFinal = localStorage.getItem('userType') || sessionStorage.getItem('userType') || sessionStorage.getItem('userType_backup');
+            console.log('🔐 [DONO LAYOUT] Verificação após espera adicional:');
+            console.log('   Token:', !!tokenFinal);
+            console.log('   UserType:', userTypeFinal);
+            console.log('   localStorage completo:', {
+              token: !!localStorage.getItem('token'),
+              userType: localStorage.getItem('userType'),
+              user: !!localStorage.getItem('user'),
+              barbearia: !!localStorage.getItem('barbearia')
+            });
+            if (tokenFinal && (userTypeFinal === 'dono' || userTypeFinal === 'owner')) {
+              console.log('✅ [DONO LAYOUT] Token encontrado após espera adicional!');
+              // Normalizar userType para 'dono'
+              if (userTypeFinal !== 'dono') {
+                localStorage.setItem('userType', 'dono');
+              }
+              setIsCheckingAuth(false);
+              if (intervalId) clearInterval(intervalId);
+            } else {
+              console.error('❌ [DONO LAYOUT] Token ainda não encontrado após espera adicional.');
+              console.error('   Limpando dados de sessão e redirecionando para login...');
+              // Limpar dados de sessão antigos para evitar confusão
+              localStorage.removeItem('barbearia');
+              localStorage.removeItem('user');
+              localStorage.removeItem('userType');
+              window.location.href = '/login?tab=owner';
+            }
+          }, 2000);
+          return;
+        }
+        
+        // Se atingiu o máximo de tentativas e não há dados de sessão, redirecionar para login
+        console.error('❌ [DONO LAYOUT] Token não encontrado após múltiplas tentativas. Redirecionando para login...');
+        console.error('   Token final:', !!localStorage.getItem('token'));
+        console.error('   UserType final:', localStorage.getItem('userType'));
+        console.error('   Barbearia final:', !!localStorage.getItem('barbearia'));
+        // Limpar qualquer dado residual
+        localStorage.removeItem('userType');
+        if (intervalId) clearInterval(intervalId);
         window.location.href = '/login?tab=owner';
         return;
       }
-
-      console.log('✅ [DONO LAYOUT] Autenticação válida!');
+      
+      console.log('✅ [DONO LAYOUT] Autenticação válida');
       setIsCheckingAuth(false);
-    }, 500); // Aguardar 500ms antes de verificar
+      if (intervalId) clearInterval(intervalId);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
 
-    return () => clearTimeout(checkAuth);
-  }, []);
+    // Verificar imediatamente (sem delay) para pegar token que já está presente
+    checkAuth();
+    
+    // Continuar verificando periodicamente
+    intervalId = setInterval(() => {
+      if (attempts < maxAttempts && isCheckingAuth) {
+        checkAuth();
+      } else {
+        if (intervalId) clearInterval(intervalId);
+      }
+    }, 500); // Verificar a cada 500ms
+    
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [location.pathname, isCheckingAuth]);
 
   // Se ainda está verificando autenticação, mostrar loading
   if (isCheckingAuth) {
