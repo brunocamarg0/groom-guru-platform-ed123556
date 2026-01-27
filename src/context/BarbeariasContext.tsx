@@ -1,12 +1,25 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { Barbearia, NovaBarbearia, StatusBarbearia, ServicoBarbearia, NovoServicoBarbearia } from "@/types/barbearia";
+import { 
+  listarBarbeariasAdmin, 
+  criarBarbeariaAdmin, 
+  atualizarBarbeariaAdmin, 
+  alterarStatusBarbeariaAdmin,
+  deletarBarbeariaAdmin,
+  BarbeariaBackend 
+} from "@/services/adminApi";
+import { useToast } from "@/hooks/use-toast";
 
 interface BarbeariasContextType {
   barbearias: Barbearia[];
-  adicionarBarbearia: (barbearia: NovaBarbearia) => void;
-  editarBarbearia: (id: string, dados: Partial<Barbearia>) => void;
-  alterarStatus: (id: string, status: StatusBarbearia) => void;
-  suspenderPorInadimplencia: (id: string) => void;
+  isLoading: boolean;
+  error: string | null;
+  recarregarBarbearias: () => Promise<void>;
+  adicionarBarbearia: (barbearia: NovaBarbearia) => Promise<void>;
+  editarBarbearia: (id: string, dados: Partial<Barbearia>) => Promise<void>;
+  alterarStatus: (id: string, status: StatusBarbearia) => Promise<void>;
+  suspenderPorInadimplencia: (id: string) => Promise<void>;
+  deletarBarbearia: (id: string) => Promise<void>;
   getBarbearia: (id: string) => Barbearia | undefined;
   adicionarServico: (barbeariaId: string, servico: NovoServicoBarbearia) => void;
   editarServico: (barbeariaId: string, servicoId: string, dados: Partial<ServicoBarbearia>) => void;
@@ -16,117 +29,210 @@ interface BarbeariasContextType {
 
 const BarbeariasContext = createContext<BarbeariasContextType | undefined>(undefined);
 
-// Serviços padrão que toda barbearia pode ter
-const servicosPadrao: ServicoBarbearia[] = [
-  { id: "s1", tipo: "corte", nome: "Corte Masculino", duracao: 30, valor: 25, ativo: true, ordem: 1 },
-  { id: "s2", tipo: "barba", nome: "Barba", duracao: 20, valor: 15, ativo: true, ordem: 2 },
-  { id: "s3", tipo: "combo", nome: "Corte + Barba", duracao: 60, valor: 45, ativo: true, ordem: 3 },
-];
-
-// Dados mockados iniciais
-const barbeariasIniciais: Barbearia[] = [
-  {
-    id: "1",
-    nome: "Barbearia do João",
-    cnpjCpf: "12.345.678/0001-90",
-    responsavel: "João Silva",
-    plano: "premium",
-    status: "ativa",
-    dataCriacao: "2024-01-15",
-    dataVencimento: "2024-12-15",
+// Função para converter dados do backend para o formato do frontend
+function converterBarbeariaBackend(backend: BarbeariaBackend): Barbearia {
+  return {
+    id: backend.id,
+    nome: backend.nome,
+    cnpjCpf: backend.cnpjCpf,
+    responsavel: backend.responsavel,
+    plano: backend.plano as 'basico' | 'premium' | 'enterprise',
+    status: backend.status as StatusBarbearia,
+    dataCriacao: backend.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0],
+    dataVencimento: backend.dataVencimento?.split('T')[0] || new Date().toISOString().split('T')[0],
     gatewayPagamento: {
-      nome: "Stripe",
-      conectado: true,
-      dataConexao: "2024-01-15",
-    },
-    servicos: [
-      ...servicosPadrao,
-      { id: "s4", tipo: "hidratacao", nome: "Hidratação Capilar", duracao: 45, valor: 35, ativo: true, ordem: 4 },
-      { id: "s5", tipo: "alisamento", nome: "Alisamento", duracao: 120, valor: 150, ativo: true, ordem: 5 },
-      { id: "s6", tipo: "progressiva", nome: "Progressiva", duracao: 180, valor: 200, ativo: false, ordem: 6 },
-    ],
-    email: "joao@barbearia.com",
-    telefone: "(11) 99999-9999",
-  },
-  {
-    id: "2",
-    nome: "Corte & Estilo",
-    cnpjCpf: "98.765.432/0001-10",
-    responsavel: "Maria Santos",
-    plano: "basico",
-    status: "em_teste",
-    dataCriacao: "2024-02-20",
-    dataVencimento: "2024-03-20",
-    gatewayPagamento: {
-      nome: "Mercado Pago",
+      nome: '',
       conectado: false,
     },
-    servicos: [...servicosPadrao],
-    email: "maria@corteestilo.com",
-  },
-  {
-    id: "3",
-    nome: "Barber Shop Premium",
-    cnpjCpf: "11.222.333/0001-44",
-    responsavel: "Carlos Oliveira",
-    plano: "enterprise",
-    status: "bloqueada",
-    dataCriacao: "2023-11-10",
-    dataVencimento: "2024-11-10",
-    gatewayPagamento: {
-      nome: "Asaas",
-      conectado: true,
-      dataConexao: "2023-11-10",
-    },
-    servicos: [
-      ...servicosPadrao,
-      { id: "s7", tipo: "luzes", nome: "Luzes", duracao: 90, valor: 120, ativo: true, ordem: 4 },
-      { id: "s8", tipo: "coloring", nome: "Coloração", duracao: 120, valor: 100, ativo: true, ordem: 5 },
-    ],
-  },
-];
+    servicos: (backend.servicos || []).map(s => ({
+      id: s.id,
+      tipo: s.tipo || 'outro',
+      nome: s.nome,
+      descricao: s.descricao,
+      duracao: s.duracao,
+      valor: s.preco,
+      ativo: s.ativo,
+      ordem: s.ordem,
+    })),
+    email: backend.email,
+    telefone: backend.telefone,
+    endereco: backend.endereco,
+    cidade: backend.cidade,
+    bairro: backend.bairro,
+    cep: backend.cep,
+  };
+}
 
 export function BarbeariasProvider({ children }: { children: ReactNode }) {
-  const [barbearias, setBarbearias] = useState<Barbearia[]>(barbeariasIniciais);
+  const [barbearias, setBarbearias] = useState<Barbearia[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
-  const adicionarBarbearia = (novaBarbearia: NovaBarbearia) => {
-    const barbearia: Barbearia = {
-      id: Date.now().toString(),
-      ...novaBarbearia,
-      status: "em_teste",
-      dataCriacao: new Date().toISOString().split("T")[0],
-      dataVencimento: calcularVencimento(novaBarbearia.plano),
-      gatewayPagamento: {
-        nome: "",
-        conectado: false,
-      },
-      servicos: [...servicosPadrao], // Inicia com serviços padrão
-    };
-    setBarbearias([...barbearias, barbearia]);
+  // Verificar se é admin antes de carregar
+  const isAdmin = typeof window !== 'undefined' && localStorage.getItem('userType') === 'admin';
+
+  const carregarBarbearias = useCallback(async () => {
+    if (!isAdmin) {
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      console.log('📋 [BARBEARIAS] Carregando barbearias do banco de dados...');
+      const dados = await listarBarbeariasAdmin();
+      console.log('📋 [BARBEARIAS] Barbearias carregadas:', dados.length);
+      
+      const barbeariasConvertidas = dados.map(converterBarbeariaBackend);
+      setBarbearias(barbeariasConvertidas);
+    } catch (err: any) {
+      console.error('❌ [BARBEARIAS] Erro ao carregar:', err);
+      setError(err.message || 'Erro ao carregar barbearias');
+      // Não mostrar toast aqui para evitar spam
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    carregarBarbearias();
+  }, [carregarBarbearias]);
+
+  const recarregarBarbearias = async () => {
+    await carregarBarbearias();
   };
 
-  const editarBarbearia = (id: string, dados: Partial<Barbearia>) => {
-    setBarbearias(
-      barbearias.map((b) => (b.id === id ? { ...b, ...dados } : b))
-    );
+  const adicionarBarbearia = async (novaBarbearia: NovaBarbearia) => {
+    try {
+      console.log('➕ [BARBEARIAS] Criando nova barbearia:', novaBarbearia.nome);
+      const resultado = await criarBarbeariaAdmin({
+        nome: novaBarbearia.nome,
+        cnpjCpf: novaBarbearia.cnpjCpf,
+        responsavel: novaBarbearia.responsavel,
+        plano: novaBarbearia.plano,
+        email: novaBarbearia.email,
+        telefone: novaBarbearia.telefone,
+        endereco: novaBarbearia.endereco,
+        cidade: novaBarbearia.cidade,
+        bairro: novaBarbearia.bairro,
+        cep: novaBarbearia.cep,
+        enviarEmail: true,
+      });
+      
+      console.log('✅ [BARBEARIAS] Barbearia criada com sucesso');
+      
+      // Recarregar lista
+      await carregarBarbearias();
+      
+      toast({
+        title: "Barbearia criada",
+        description: `${novaBarbearia.nome} foi cadastrada com sucesso.`,
+      });
+    } catch (err: any) {
+      console.error('❌ [BARBEARIAS] Erro ao criar:', err);
+      toast({
+        title: "Erro ao criar barbearia",
+        description: err.message,
+        variant: "destructive",
+      });
+      throw err;
+    }
   };
 
-  const alterarStatus = (id: string, status: StatusBarbearia) => {
-    setBarbearias(
-      barbearias.map((b) => (b.id === id ? { ...b, status } : b))
-    );
+  const editarBarbearia = async (id: string, dados: Partial<Barbearia>) => {
+    try {
+      console.log('✏️ [BARBEARIAS] Editando barbearia:', id);
+      await atualizarBarbeariaAdmin(id, {
+        nome: dados.nome,
+        cnpjCpf: dados.cnpjCpf,
+        responsavel: dados.responsavel,
+        plano: dados.plano,
+        email: dados.email,
+        telefone: dados.telefone,
+        endereco: dados.endereco,
+        cidade: dados.cidade,
+        bairro: dados.bairro,
+        cep: dados.cep,
+      });
+      
+      // Recarregar lista
+      await carregarBarbearias();
+      
+      toast({
+        title: "Barbearia atualizada",
+        description: "Os dados foram salvos com sucesso.",
+      });
+    } catch (err: any) {
+      console.error('❌ [BARBEARIAS] Erro ao editar:', err);
+      toast({
+        title: "Erro ao atualizar barbearia",
+        description: err.message,
+        variant: "destructive",
+      });
+      throw err;
+    }
   };
 
-  const suspenderPorInadimplencia = (id: string) => {
-    setBarbearias(
-      barbearias.map((b) => (b.id === id ? { ...b, status: "bloqueada" } : b))
-    );
+  const alterarStatus = async (id: string, status: StatusBarbearia) => {
+    try {
+      console.log('🔄 [BARBEARIAS] Alterando status:', id, '->', status);
+      await alterarStatusBarbeariaAdmin(id, status);
+      
+      // Atualizar localmente para feedback imediato
+      setBarbearias(prev => 
+        prev.map(b => b.id === id ? { ...b, status } : b)
+      );
+      
+      toast({
+        title: "Status alterado",
+        description: `Barbearia ${status === 'ativa' ? 'ativada' : status === 'bloqueada' ? 'bloqueada' : status === 'cancelada' ? 'cancelada' : 'em teste'} com sucesso.`,
+      });
+    } catch (err: any) {
+      console.error('❌ [BARBEARIAS] Erro ao alterar status:', err);
+      toast({
+        title: "Erro ao alterar status",
+        description: err.message,
+        variant: "destructive",
+      });
+      throw err;
+    }
+  };
+
+  const suspenderPorInadimplencia = async (id: string) => {
+    await alterarStatus(id, 'bloqueada');
+  };
+
+  const deletarBarbearia = async (id: string) => {
+    try {
+      console.log('🗑️ [BARBEARIAS] Deletando barbearia:', id);
+      await deletarBarbeariaAdmin(id);
+      
+      // Remover localmente
+      setBarbearias(prev => prev.filter(b => b.id !== id));
+      
+      toast({
+        title: "Barbearia removida",
+        description: "A barbearia foi removida com sucesso.",
+      });
+    } catch (err: any) {
+      console.error('❌ [BARBEARIAS] Erro ao deletar:', err);
+      toast({
+        title: "Erro ao remover barbearia",
+        description: err.message,
+        variant: "destructive",
+      });
+      throw err;
+    }
   };
 
   const getBarbearia = (id: string) => {
     return barbearias.find((b) => b.id === id);
   };
 
+  // Funções de serviços (operações locais por enquanto, podem ser conectadas ao backend depois)
   const adicionarServico = (barbeariaId: string, servico: NovoServicoBarbearia) => {
     const novoServico: ServicoBarbearia = {
       id: Date.now().toString(),
@@ -185,10 +291,14 @@ export function BarbeariasProvider({ children }: { children: ReactNode }) {
     <BarbeariasContext.Provider
       value={{
         barbearias,
+        isLoading,
+        error,
+        recarregarBarbearias,
         adicionarBarbearia,
         editarBarbearia,
         alterarStatus,
         suspenderPorInadimplencia,
+        deletarBarbearia,
         getBarbearia,
         adicionarServico,
         editarServico,
@@ -208,19 +318,3 @@ export function useBarbearias() {
   }
   return context;
 }
-
-function calcularVencimento(plano: string): string {
-  const hoje = new Date();
-  const vencimento = new Date(hoje);
-  
-  if (plano === "basico") {
-    vencimento.setMonth(vencimento.getMonth() + 1);
-  } else if (plano === "premium") {
-    vencimento.setMonth(vencimento.getMonth() + 3);
-  } else {
-    vencimento.setFullYear(vencimento.getFullYear() + 1);
-  }
-  
-  return vencimento.toISOString().split("T")[0];
-}
-

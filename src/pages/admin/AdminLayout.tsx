@@ -1,4 +1,5 @@
-import { Outlet, Link, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
@@ -27,12 +28,36 @@ import {
   Shield,
   MessageCircle,
   Settings,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
 export default function AdminLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    // Verificar se está autenticado como admin
+    const token = localStorage.getItem('token');
+    const userType = localStorage.getItem('userType');
+
+    if (!token || userType !== 'admin') {
+      console.log('🔐 [ADMIN] Usuário não autenticado como admin, redirecionando...');
+      navigate('/login');
+      return;
+    }
+
+    setIsCheckingAuth(false);
+  }, [navigate]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('userType');
+    navigate('/login');
+  };
 
   const menuItems = [
     {
@@ -92,6 +117,17 @@ export default function AdminLayout() {
     },
   ];
 
+  if (isCheckingAuth) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Verificando autenticação...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <SidebarProvider>
       <Sidebar>
@@ -119,7 +155,7 @@ export default function AdminLayout() {
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
                       asChild
-                      isActive={location.pathname === item.url || location.pathname.startsWith(item.url + "/")}
+                      isActive={location.pathname === item.url || (item.url !== '/admin' && location.pathname.startsWith(item.url))}
                     >
                       <Link to={item.url}>
                         <item.icon className="h-4 w-4" />
@@ -136,12 +172,10 @@ export default function AdminLayout() {
           <Button
             variant="ghost"
             className="w-full justify-start"
-            asChild
+            onClick={handleLogout}
           >
-            <Link to="/login">
-              <LogOut className="h-4 w-4 mr-2" />
-              Sair
-            </Link>
+            <LogOut className="h-4 w-4 mr-2" />
+            Sair
           </Button>
         </div>
       </Sidebar>
@@ -158,4 +192,3 @@ export default function AdminLayout() {
     </SidebarProvider>
   );
 }
-
