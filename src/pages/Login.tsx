@@ -148,228 +148,34 @@ const Login = () => {
         throw new Error('Token não recebido do servidor. Tente novamente.');
       }
 
-      // Salvar token e dados do usuário
+      // Salvar token e dados do usuário (usando a mesma lógica simples do cadastro)
       if (data.token) {
         console.log('🔐 [LOGIN] Salvando token no localStorage...');
         const userType = activeTab === 'owner' ? 'dono' : activeTab === 'client' ? 'cliente' : 'admin';
         
-        // Salvar em localStorage
-        try {
-          localStorage.setItem('token', data.token);
-          localStorage.setItem('userType', userType);
-          console.log('🔐 [LOGIN] Token salvo no localStorage:', !!localStorage.getItem('token'));
-          console.log('🔐 [LOGIN] UserType salvo no localStorage:', localStorage.getItem('userType'));
-        } catch (storageError) {
-          console.error('❌ [LOGIN] Erro ao salvar no localStorage:', storageError);
-          // Tentar salvar em sessionStorage como fallback
-          try {
-            sessionStorage.setItem('token', data.token);
-            sessionStorage.setItem('userType', userType);
-            console.log('🔐 [LOGIN] Token salvo no sessionStorage (fallback)');
-          } catch (sessionError) {
-            console.error('❌ [LOGIN] Erro ao salvar no sessionStorage:', sessionError);
-            throw new Error('Não foi possível salvar o token. Verifique as configurações do navegador.');
-          }
-        }
+        // Salvar em localStorage (mesma lógica do cadastro)
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('userType', userType);
         
-        // Salvar também em sessionStorage como backup
-        try {
-          sessionStorage.setItem('token_backup', data.token);
-          sessionStorage.setItem('userType_backup', userType);
-        } catch (e) {
-          console.warn('⚠️ [LOGIN] Não foi possível salvar backup no sessionStorage');
-        }
-
         if (data.usuario) {
           localStorage.setItem('user', JSON.stringify(data.usuario));
-          console.log('🔐 [LOGIN] Usuário salvo:', data.usuario.email);
         }
 
         if (data.barbearia) {
           localStorage.setItem('barbearia', JSON.stringify(data.barbearia));
-          console.log('🔐 [LOGIN] Barbearia salva:', data.barbearia.id);
         }
 
-        // Aguardar um pouco para garantir que o localStorage foi atualizado
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        // Verificar se o token foi salvo corretamente (múltiplas verificações)
-        let tokenVerificado = localStorage.getItem('token');
-        let userTypeVerificado = localStorage.getItem('userType');
-        let tentativas = 0;
-        const maxTentativas = 10;
-
-        while ((!tokenVerificado || userTypeVerificado !== userType) && tentativas < maxTentativas) {
-          tentativas++;
-          console.log(`🔐 [LOGIN] Verificação ${tentativas}/${maxTentativas} - Token:`, !!tokenVerificado, 'UserType:', userTypeVerificado);
-          
-          // Tentar salvar novamente se não estiver presente
-          if (!tokenVerificado && data.token) {
-            console.log('🔐 [LOGIN] Tentando salvar token novamente...');
-            localStorage.setItem('token', data.token);
-          }
-          if (userTypeVerificado !== userType) {
-            console.log('🔐 [LOGIN] Tentando salvar userType novamente...');
-            localStorage.setItem('userType', userType);
-          }
-          
-          // Aguardar um pouco antes de verificar novamente
-          await new Promise(resolve => setTimeout(resolve, 50));
-          
-          tokenVerificado = localStorage.getItem('token');
-          userTypeVerificado = localStorage.getItem('userType');
-        }
-
-        console.log('🔐 [LOGIN] Verificação final - Token:', !!tokenVerificado, 'UserType:', userTypeVerificado);
-        console.log('🔐 [LOGIN] Token completo (primeiros 50 chars):', tokenVerificado ? tokenVerificado.substring(0, 50) + '...' : 'null');
-
-        if (!tokenVerificado || userTypeVerificado !== userType) {
-          console.error('❌ [LOGIN] Token não foi salvo corretamente após múltiplas tentativas!');
-          console.error('   Token esperado:', !!data.token);
-          console.error('   Token salvo:', !!tokenVerificado);
-          console.error('   UserType esperado:', userType);
-          console.error('   UserType salvo:', userTypeVerificado);
-          console.error('   Tentativas:', tentativas);
-          throw new Error('Erro ao salvar dados de autenticação');
-        }
+        console.log('🔐 [LOGIN] Dados salvos com sucesso');
+        console.log('   Token:', !!localStorage.getItem('token'));
+        console.log('   UserType:', localStorage.getItem('userType'));
+        console.log('   RedirectPath:', redirectPath);
 
         toast.success('Login realizado com sucesso!');
-
-        // Aguardar um pouco mais antes de navegar para garantir que tudo foi salvo
-        await new Promise(resolve => setTimeout(resolve, 200));
-
-        // Verificar uma última vez antes de navegar
-        const tokenFinal = localStorage.getItem('token');
-        const userTypeFinal = localStorage.getItem('userType');
-        console.log('🔐 [LOGIN] Verificação final antes de navegar - Token:', !!tokenFinal, 'UserType:', userTypeFinal);
-        console.log('🔐 [LOGIN] Token completo (última verificação):', tokenFinal ? tokenFinal.substring(0, 50) + '...' : 'null');
         
-        if (!tokenFinal || userTypeFinal !== userType) {
-          console.error('❌ [LOGIN] Token foi perdido antes da navegação!');
-          console.error('   Tentando salvar novamente...');
-          
-          // Última tentativa de salvar
-          if (data.token) {
-            localStorage.setItem('token', data.token);
-            localStorage.setItem('userType', userType);
-            if (data.usuario) localStorage.setItem('user', JSON.stringify(data.usuario));
-            if (data.barbearia) localStorage.setItem('barbearia', JSON.stringify(data.barbearia));
-            
-            // Verificar novamente
-            const tokenUltimaTentativa = localStorage.getItem('token');
-            if (!tokenUltimaTentativa) {
-              throw new Error('Não foi possível salvar o token no localStorage. Verifique as configurações do navegador.');
-            }
-          } else {
-            throw new Error('Token não disponível para salvar');
-          }
-        }
-
-        // Salvar novamente antes de navegar (garantia extra)
-        if (data.token) {
-          console.log('🔐 [LOGIN] Salvando dados finais antes de navegar...');
-          localStorage.setItem('token', data.token);
-          localStorage.setItem('userType', userType);
-          if (data.usuario) localStorage.setItem('user', JSON.stringify(data.usuario));
-          if (data.barbearia) localStorage.setItem('barbearia', JSON.stringify(data.barbearia));
-          
-          // Verificar uma última vez após salvar
-          const tokenAposSalvar = localStorage.getItem('token');
-          const userTypeAposSalvar = localStorage.getItem('userType');
-          console.log('🔐 [LOGIN] Verificação após salvar - Token:', !!tokenAposSalvar, 'UserType:', userTypeAposSalvar);
-          
-          if (!tokenAposSalvar || userTypeAposSalvar !== userType) {
-            console.error('❌ [LOGIN] Token não foi salvo corretamente mesmo após múltiplas tentativas!');
-            throw new Error('Erro ao salvar dados de autenticação. Tente novamente.');
-          }
-        }
-
-        // Verificar uma última vez antes de navegar
-        const tokenFinalCheck = localStorage.getItem('token');
-        const userTypeFinalCheck = localStorage.getItem('userType');
-        console.log('🔐 [LOGIN] Verificação final antes de navegar:');
-        console.log('   Token:', !!tokenFinalCheck);
-        console.log('   Token (primeiros 30 chars):', tokenFinalCheck ? tokenFinalCheck.substring(0, 30) + '...' : 'null');
-        console.log('   UserType:', userTypeFinalCheck);
-        console.log('   Esperado:', userType);
-        console.log('   ActiveTab:', activeTab);
-        console.log('   RedirectPath:', redirectPath);
-        
-        // Se o userType não está correto, corrigir antes de navegar
-        if (userTypeFinalCheck !== userType) {
-          console.warn('⚠️ [LOGIN] UserType incorreto! Corrigindo...');
-          console.warn(`   Era: ${userTypeFinalCheck}, Será: ${userType}`);
-          localStorage.setItem('userType', userType);
-        }
-        
-        // Garantir que o token e userType estão salvos
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('userType', userType);
-        if (data.usuario) localStorage.setItem('user', JSON.stringify(data.usuario));
-        if (data.barbearia) localStorage.setItem('barbearia', JSON.stringify(data.barbearia));
-        
-        // Aguardar um pouco para garantir que tudo foi salvo
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
-        // Verificar novamente antes de navegar
-        const tokenUltimaVerificacao = localStorage.getItem('token');
-        const userTypeUltimaVerificacao = localStorage.getItem('userType');
-        
-        console.log('🔐 [LOGIN] Verificação final após salvar:');
-        console.log('   Token:', !!tokenUltimaVerificacao);
-        console.log('   UserType:', userTypeUltimaVerificacao);
-        
-        if (!tokenUltimaVerificacao || userTypeUltimaVerificacao !== userType) {
-          console.error('❌ [LOGIN] Token ou userType foi perdido antes da navegação!');
-          console.error('   Token:', !!tokenUltimaVerificacao);
-          console.error('   UserType:', userTypeUltimaVerificacao, 'Esperado:', userType);
-          throw new Error('Erro ao salvar dados de autenticação. Tente novamente.');
-        }
-        
-        console.log('✅ [LOGIN] Tudo verificado! Navegando para:', redirectPath);
-        
-        // Salvar também no sessionStorage como backup antes de navegar
-        try {
-          sessionStorage.setItem('token', data.token);
-          sessionStorage.setItem('userType', userType);
-          sessionStorage.setItem('token_backup', data.token);
-          sessionStorage.setItem('userType_backup', userType);
-          if (data.usuario) sessionStorage.setItem('user_backup', JSON.stringify(data.usuario));
-          if (data.barbearia) sessionStorage.setItem('barbearia_backup', JSON.stringify(data.barbearia));
-          console.log('✅ [LOGIN] Backup salvo no sessionStorage');
-        } catch (e) {
-          console.warn('⚠️ [LOGIN] Não foi possível salvar backup no sessionStorage:', e);
-        }
-        
-        // Aguardar um pouco mais antes de navegar para garantir que tudo foi salvo
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        // Verificação final antes de navegar
-        const tokenFinal = localStorage.getItem('token');
-        const userTypeFinal = localStorage.getItem('userType');
-        console.log('🔐 [LOGIN] ÚLTIMA VERIFICAÇÃO antes de navegar:');
-        console.log('   Token:', !!tokenFinal);
-        console.log('   UserType:', userTypeFinal);
-        
-        if (!tokenFinal || userTypeFinal !== userType) {
-          console.error('❌ [LOGIN] Token perdido! Restaurando do sessionStorage...');
-          const tokenBackup = sessionStorage.getItem('token') || sessionStorage.getItem('token_backup');
-          const userTypeBackup = sessionStorage.getItem('userType') || sessionStorage.getItem('userType_backup');
-          
-          if (tokenBackup && userTypeBackup) {
-            localStorage.setItem('token', tokenBackup);
-            localStorage.setItem('userType', userTypeBackup);
-            console.log('✅ [LOGIN] Token restaurado do sessionStorage');
-          } else {
-            console.error('❌ [LOGIN] Token não encontrado nem no localStorage nem no sessionStorage!');
-            throw new Error('Erro ao salvar dados de autenticação. Tente novamente.');
-          }
-        }
-        
-        // Usar window.location.href para garantir navegação completa e evitar problemas com SPA
-        // O navigate do react-router pode não funcionar corretamente em alguns casos
-        console.log('🚀 [LOGIN] Iniciando navegação para:', redirectPath);
-        window.location.href = redirectPath;
+        // Redirecionar usando navigate (mesma lógica do cadastro)
+        setTimeout(() => {
+          navigate(redirectPath);
+        }, 1000);
       } else {
         console.error('❌ [LOGIN] Token não recebido na resposta:', data);
         throw new Error('Token não recebido');
