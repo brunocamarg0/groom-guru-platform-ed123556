@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
@@ -36,27 +35,10 @@ import { Separator } from "@/components/ui/separator";
 export default function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
-  useEffect(() => {
-    // Verificar se está autenticado como admin
-    const token = localStorage.getItem('token');
-    const userType = localStorage.getItem('userType');
-
-    if (!token || userType !== 'admin') {
-      console.log('🔐 [ADMIN] Usuário não autenticado como admin, redirecionando...');
-      navigate('/login');
-      return;
-    }
-
-    setIsCheckingAuth(false);
-  }, [navigate]);
-
+  // Acesso livre ao painel admin (sem autenticação)
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('userType');
-    navigate('/login');
+    navigate('/');
   };
 
   const menuItems = [
@@ -116,17 +98,6 @@ export default function AdminLayout() {
       icon: Settings,
     },
   ];
-
-  if (isCheckingAuth) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Verificando autenticação...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <SidebarProvider>
