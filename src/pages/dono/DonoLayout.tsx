@@ -111,6 +111,19 @@ function DonoLayoutContent() {
       // Verificar se o userType está correto (pode ser 'dono' ou 'owner' dependendo de onde foi salvo)
       const userTypeValido = userType === 'dono' || userType === 'owner';
       
+      // Se encontrou token e userType válido, autenticação OK
+      if (token && userTypeValido) {
+        console.log('✅ [DONO LAYOUT] Autenticação válida encontrada!');
+        console.log('   Token:', token.substring(0, 30) + '...');
+        console.log('   UserType:', userType);
+        setIsCheckingAuth(false);
+        if (intervalId) {
+          clearInterval(intervalId);
+          intervalId = null;
+        }
+        return;
+      }
+      
       // Se não há token ou userType não é válido
       if (!token || !userTypeValido) {
         // Se ainda não atingiu o máximo de tentativas, tentar novamente
@@ -181,15 +194,25 @@ function DonoLayoutContent() {
         console.error('   Token final:', !!localStorage.getItem('token'));
         console.error('   UserType final:', localStorage.getItem('userType'));
         console.error('   Barbearia final:', !!localStorage.getItem('barbearia'));
+        console.error('   Tentativas:', attempts);
+        console.error('   localStorage completo:', {
+          token: !!localStorage.getItem('token'),
+          userType: localStorage.getItem('userType'),
+          user: !!localStorage.getItem('user'),
+          barbearia: !!localStorage.getItem('barbearia'),
+        });
+        console.error('   sessionStorage completo:', {
+          token: !!sessionStorage.getItem('token'),
+          token_backup: !!sessionStorage.getItem('token_backup'),
+          userType: sessionStorage.getItem('userType'),
+          userType_backup: sessionStorage.getItem('userType_backup'),
+        });
         // Limpar qualquer dado residual
         localStorage.removeItem('userType');
         if (intervalId) clearInterval(intervalId);
         window.location.href = '/login?tab=owner';
         return;
       }
-      
-      console.log('✅ [DONO LAYOUT] Autenticação válida');
-      setIsCheckingAuth(false);
       if (intervalId) clearInterval(intervalId);
       if (timeoutId) clearTimeout(timeoutId);
     };
