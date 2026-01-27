@@ -242,19 +242,7 @@ function DonoLayoutContent() {
     };
   }, [location.pathname, isCheckingAuth]);
 
-  // Se ainda está verificando autenticação, mostrar loading
-  if (isCheckingAuth) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="text-muted-foreground">Verificando autenticação...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Timeout para loading
+  // Timeout para loading - DEVE estar antes de qualquer early return
   useEffect(() => {
     if (!configuracao) {
       const timer = setTimeout(() => {
@@ -266,6 +254,18 @@ function DonoLayoutContent() {
       setLoadingTimeout(false);
     }
   }, [configuracao]);
+
+  // Se ainda está verificando autenticação, mostrar loading
+  if (isCheckingAuth) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="text-muted-foreground">Verificando autenticação...</p>
+        </div>
+      </div>
+    );
+  }
 
   const menuItems = [
     {
@@ -337,7 +337,12 @@ function DonoLayoutContent() {
   ];
 
   // Se não tem configuração ainda, tentar carregar do localStorage
-  let configuracaoLocal = configuracao;
+  // Usamos Partial para permitir dados incompletos vindos do localStorage
+  let configuracaoLocal: { nome?: string; foto?: string | null } | null = configuracao ? {
+    nome: configuracao.nome,
+    foto: configuracao.foto
+  } : null;
+  
   if (!configuracaoLocal || !configuracaoLocal.nome) {
     const barbeariaStr = localStorage.getItem('barbearia');
     if (barbeariaStr) {
