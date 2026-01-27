@@ -44,24 +44,46 @@ function DonoLayoutContent() {
   const { theme } = useTheme();
   const notificacoesNaoLidas = notificacoes?.filter((n) => !n.lida).length || 0;
   const [loadingTimeout, setLoadingTimeout] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
-  // Verificar autenticação de forma simples e direta (igual ao ClienteLayout)
-  const token = localStorage.getItem('token');
-  const userType = localStorage.getItem('userType');
-  
-  // Verificar se o userType está correto (pode ser 'dono' ou 'owner')
-  const userTypeValido = userType === 'dono' || userType === 'owner';
+  // Verificar autenticação após um pequeno delay para dar tempo do token ser salvo após login
+  useEffect(() => {
+    // Aguardar um pouco antes de verificar (dar tempo para o token ser salvo após login)
+    const checkAuth = setTimeout(() => {
+      const token = localStorage.getItem('token');
+      const userType = localStorage.getItem('userType');
+      
+      // Verificar se o userType está correto (pode ser 'dono' ou 'owner')
+      const userTypeValido = userType === 'dono' || userType === 'owner';
 
-  // Se não há token ou userType não é válido, redirecionar para login
-  if (!token || !userTypeValido) {
-    console.warn('⚠️ [DONO LAYOUT] Token não encontrado ou tipo de usuário incorreto. Redirecionando...');
-    console.warn('   Token:', !!token);
-    console.warn('   UserType:', userType);
-    window.location.href = '/login?tab=owner';
+      console.log('🔐 [DONO LAYOUT] Verificando autenticação após delay:');
+      console.log('   Token:', !!token);
+      console.log('   UserType:', userType);
+      console.log('   UserType válido:', userTypeValido);
+
+      // Se não há token ou userType não é válido, redirecionar para login
+      if (!token || !userTypeValido) {
+        console.warn('⚠️ [DONO LAYOUT] Token não encontrado ou tipo de usuário incorreto. Redirecionando...');
+        console.warn('   Token:', !!token);
+        console.warn('   UserType:', userType);
+        window.location.href = '/login?tab=owner';
+        return;
+      }
+
+      console.log('✅ [DONO LAYOUT] Autenticação válida!');
+      setIsCheckingAuth(false);
+    }, 500); // Aguardar 500ms antes de verificar
+
+    return () => clearTimeout(checkAuth);
+  }, []);
+
+  // Se ainda está verificando autenticação, mostrar loading
+  if (isCheckingAuth) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <p className="text-muted-foreground">Redirecionando para login...</p>
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="text-muted-foreground">Verificando autenticação...</p>
         </div>
       </div>
     );

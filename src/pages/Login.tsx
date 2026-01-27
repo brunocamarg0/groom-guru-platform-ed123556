@@ -165,12 +165,45 @@ const Login = () => {
           localStorage.setItem('barbearia', JSON.stringify(data.barbearia));
         }
 
-        console.log('🔐 [LOGIN] Dados salvos com sucesso');
-        console.log('   Token:', !!localStorage.getItem('token'));
-        console.log('   UserType:', localStorage.getItem('userType'));
+        // Verificar se foi salvo corretamente
+        const tokenSalvo = localStorage.getItem('token');
+        const userTypeSalvo = localStorage.getItem('userType');
+        
+        console.log('🔐 [LOGIN] Dados salvos - Verificação:');
+        console.log('   Token salvo:', !!tokenSalvo);
+        console.log('   Token (primeiros 30 chars):', tokenSalvo ? tokenSalvo.substring(0, 30) + '...' : 'null');
+        console.log('   UserType salvo:', userTypeSalvo);
+        console.log('   UserType esperado:', userType);
         console.log('   RedirectPath:', redirectPath);
 
+        if (!tokenSalvo || userTypeSalvo !== userType) {
+          console.error('❌ [LOGIN] Erro ao salvar token! Tentando novamente...');
+          // Tentar salvar novamente
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('userType', userType);
+          if (data.usuario) localStorage.setItem('user', JSON.stringify(data.usuario));
+          if (data.barbearia) localStorage.setItem('barbearia', JSON.stringify(data.barbearia));
+          
+          // Verificar novamente
+          const tokenVerificado = localStorage.getItem('token');
+          if (!tokenVerificado) {
+            throw new Error('Não foi possível salvar o token. Verifique as configurações do navegador.');
+          }
+        }
+
         toast.success('Login realizado com sucesso!');
+        
+        // Aguardar um pouco antes de navegar (igual ao cadastro)
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Verificar uma última vez antes de navegar
+        const tokenFinal = localStorage.getItem('token');
+        if (!tokenFinal) {
+          console.error('❌ [LOGIN] Token foi perdido antes de navegar!');
+          throw new Error('Erro ao salvar token. Tente novamente.');
+        }
+        
+        console.log('✅ [LOGIN] Token confirmado antes de navegar:', tokenFinal.substring(0, 30) + '...');
         
         // Redirecionar usando navigate (mesma lógica do cadastro)
         setTimeout(() => {
