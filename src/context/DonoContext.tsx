@@ -969,46 +969,56 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   // --- REAL-TIME FIRESTORE LISTENERS ---
   useEffect(() => {
     if (!barbeariaId) return;
+    
+    // Verificar se o Firebase está configurado antes de usar
+    if (!db) {
+      console.warn('⚠️ [Firestore] Firebase não está configurado. Pulando listeners.');
+      return;
+    }
 
     console.log('🔥 [Firestore] Iniciando listeners em tempo real para barbearia:', barbeariaId);
 
-    // Listener para Agendamentos
-    const qAgendamentosFirebase = query(
-      collection(db, `barbearias/${barbeariaId}/agendamentos`),
-      orderBy('updatedAt', 'desc')
-    );
+    try {
+      // Listener para Agendamentos
+      const qAgendamentosFirebase = query(
+        collection(db, `barbearias/${barbeariaId}/agendamentos`),
+        orderBy('updatedAt', 'desc')
+      );
 
-    const unsubscribeAgendamentos = onSnapshot(qAgendamentosFirebase, (snapshot) => {
-      // Ignorar a primeira carga se necessário, ou sempre invalidar
-      if (!snapshot.empty) {
-        console.log('🔥 [Firestore] Mudança detectada nos agendamentos, atualizando...');
-        queryClient.invalidateQueries({ queryKey: ['agendamentos', barbeariaId] });
-        queryClient.invalidateQueries({ queryKey: ['kpis', barbeariaId] });
-      }
-    }, (error) => {
-      console.error('❌ [Firestore] Erro no listener de agendamentos:', error);
-    });
+      const unsubscribeAgendamentos = onSnapshot(qAgendamentosFirebase, (snapshot) => {
+        // Ignorar a primeira carga se necessário, ou sempre invalidar
+        if (!snapshot.empty) {
+          console.log('🔥 [Firestore] Mudança detectada nos agendamentos, atualizando...');
+          queryClient.invalidateQueries({ queryKey: ['agendamentos', barbeariaId] });
+          queryClient.invalidateQueries({ queryKey: ['kpis', barbeariaId] });
+        }
+      }, (error) => {
+        console.error('❌ [Firestore] Erro no listener de agendamentos:', error);
+      });
 
-    // Listener para Notificações
-    const qNotificacoesFirebase = query(
-      collection(db, `barbearias/${barbeariaId}/notificacoes`),
-      orderBy('createdAt', 'desc')
-    );
+      // Listener para Notificações
+      const qNotificacoesFirebase = query(
+        collection(db, `barbearias/${barbeariaId}/notificacoes`),
+        orderBy('createdAt', 'desc')
+      );
 
-    const unsubscribeNotificacoes = onSnapshot(qNotificacoesFirebase, (snapshot) => {
-      if (!snapshot.empty) {
-        console.log('🔥 [Firestore] Nova notificação detectada!');
-        queryClient.invalidateQueries({ queryKey: ['notificacoes', barbeariaId] });
-      }
-    }, (error) => {
-      console.error('❌ [Firestore] Erro no listener de notificações:', error);
-    });
+      const unsubscribeNotificacoes = onSnapshot(qNotificacoesFirebase, (snapshot) => {
+        if (!snapshot.empty) {
+          console.log('🔥 [Firestore] Nova notificação detectada!');
+          queryClient.invalidateQueries({ queryKey: ['notificacoes', barbeariaId] });
+        }
+      }, (error) => {
+        console.error('❌ [Firestore] Erro no listener de notificações:', error);
+      });
 
-    return () => {
-      console.log('🔥 [Firestore] Parando listeners...');
-      unsubscribeAgendamentos();
-      unsubscribeNotificacoes();
-    };
+      return () => {
+        console.log('🔥 [Firestore] Parando listeners...');
+        unsubscribeAgendamentos();
+        unsubscribeNotificacoes();
+      };
+    } catch (error) {
+      console.error('❌ [Firestore] Erro ao configurar listeners:', error);
+    }
   }, [barbeariaId, queryClient]);
 
   // Auto-refresh dos dados a cada 30 segundos como fallback secundário
