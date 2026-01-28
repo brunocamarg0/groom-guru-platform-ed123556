@@ -18,9 +18,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Calendar, Star, CalendarCheck, RefreshCw, Eye, XCircle, MapPin } from "lucide-react";
+import { Calendar, Star, CalendarCheck, RefreshCw, Eye, XCircle } from "lucide-react";
 import { Link } from "react-router-dom";
-import { StatusAgendamento } from "@/types/cliente";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -31,14 +30,40 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
+interface Agendamento {
+  id: string;
+  data: string;
+  hora?: string;
+  horario?: string;
+  status: string;
+  profissionalNome?: string;
+  observacao?: string;
+  servico?: {
+    nome: string;
+    preco: number;
+    duracao?: number;
+    descricao?: string;
+  };
+  profissionais?: Array<{
+    profissional?: {
+      nome: string;
+    };
+  }>;
+  pagamento?: {
+    valor: number;
+    metodo?: string;
+    status?: string;
+    dataPagamento?: string;
+  };
+}
+
 export default function HistoricoAgendamentos() {
-  const { agendamentos, getAgendamentosPorStatus, cancelarAgendamento, carregarDados, loading, cliente } = useCliente();
+  const { agendamentos, cancelarAgendamento, carregarDados, loading, cliente } = useCliente();
   const { toast } = useToast();
   const [filtroData, setFiltroData] = useState("");
-  const [agendamentoSelecionado, setAgendamentoSelecionado] = useState<any>(null);
+  const [agendamentoSelecionado, setAgendamentoSelecionado] = useState<Agendamento | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  // Carregar dados se ainda não foram carregados
   useEffect(() => {
     if (!cliente && !loading && carregarDados) {
       console.log('🔄 [HISTORICO] Cliente não encontrado, carregando dados...');
@@ -46,17 +71,16 @@ export default function HistoricoAgendamentos() {
     }
   }, [cliente, loading, carregarDados]);
 
-  // Garantir que agendamentos é um array
-  const agendamentosArray = Array.isArray(agendamentos) ? agendamentos : [];
+  const agendamentosArray: Agendamento[] = Array.isArray(agendamentos) ? agendamentos : [];
 
-  const formatarMoeda = (valor: number) => {
+  const formatarMoeda = (valor: number): string => {
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
       currency: "BRL",
     }).format(valor);
   };
 
-  const formatarData = (data: string, horario?: string) => {
+  const formatarData = (data: string, horario?: string): string => {
     try {
       if (horario) {
         return new Date(`${data}T${horario}`).toLocaleString("pt-BR");
@@ -67,7 +91,7 @@ export default function HistoricoAgendamentos() {
     }
   };
 
-const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
+  const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
     confirmado: { label: "Confirmado", variant: "default" },
     pagamento_pendente: { label: "Aguardando Pagamento", variant: "secondary" },
     pendente: { label: "Pendente", variant: "secondary" },
@@ -84,14 +108,14 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
     ? agendamentosArray.filter((a) => a.data === filtroData)
     : agendamentosArray;
 
-  // Ordenar por data mais recente
   const agendamentosOrdenados = [...agendamentosFiltrados].sort((a, b) => {
     const dataA = new Date(`${a.data}T${a.hora || '00:00'}`);
     const dataB = new Date(`${b.data}T${b.hora || '00:00'}`);
     return dataB.getTime() - dataA.getTime();
   });
 
-  const handleVerDetalhes = (agendamento: any) => {
+  const handleVerDetalhes = (agendamento: Agendamento) => {
+    console.log('📋 [HISTORICO] Abrindo detalhes do agendamento:', agendamento);
     setAgendamentoSelecionado(agendamento);
     setIsDialogOpen(true);
   };
@@ -108,31 +132,44 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
         if (carregarDados) {
           await carregarDados();
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : "Não foi possível cancelar o agendamento.";
         toast({
           title: "Erro",
-          description: error.message || "Não foi possível cancelar o agendamento.",
+          description: errorMessage,
           variant: "destructive",
         });
       }
     }
   };
 
-  const renderAgendamentoRow = (agendamento: any) => {
+  const getServicoNome = (agendamento: Agendamento): string => {
+    return agendamento.servico?.nome || 'N/A';
+  };
+
+  const getProfissionalNome = (agendamento: Agendamento): string => {
+    return agendamento.profissionais?.[0]?.profissional?.nome || agendamento.profissionalNome || 'A definir';
+  };
+
+  const getValor = (agendamento: Agendamento): number => {
+    return agendamento.servico?.preco || agendamento.pagamento?.valor || 0;
+  };
+
+  const getHorario = (agendamento: Agendamento): string => {
+    return agendamento.horario || agendamento.hora || '';
+  };
+
+  const renderAgendamentoRow = (agendamento: Agendamento) => {
     const status = getStatusConfig(agendamento.status || 'pendente');
-    const horario = agendamento.horario || agendamento.hora || '';
-    const profissionalNome = agendamento.profissionais?.[0]?.profissional?.nome || agendamento.profissionalNome || 'A definir';
-    const servicoNome = agendamento.servico?.nome || 'N/A';
-    const valor = agendamento.servico?.preco || agendamento.pagamento?.valor || 0;
     
     return (
       <TableRow key={agendamento.id}>
         <TableCell>
-          {agendamento.data ? formatarData(agendamento.data, horario) : 'N/A'}
+          {agendamento.data ? formatarData(agendamento.data, getHorario(agendamento)) : 'N/A'}
         </TableCell>
-        <TableCell>{servicoNome}</TableCell>
-        <TableCell>{profissionalNome}</TableCell>
-        <TableCell>{formatarMoeda(valor)}</TableCell>
+        <TableCell>{getServicoNome(agendamento)}</TableCell>
+        <TableCell>{getProfissionalNome(agendamento)}</TableCell>
+        <TableCell>{formatarMoeda(getValor(agendamento))}</TableCell>
         <TableCell>
           <Badge variant={status.variant}>{status.label}</Badge>
         </TableCell>
@@ -142,11 +179,12 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
               variant="ghost" 
               size="icon"
               onClick={() => handleVerDetalhes(agendamento)}
+              title="Ver detalhes"
             >
               <Eye className="h-4 w-4" />
             </Button>
             {agendamento.status === "concluido" && (
-              <Button variant="ghost" size="icon" asChild>
+              <Button variant="ghost" size="icon" asChild title="Avaliar">
                 <Link to={`/cliente/avaliacoes?agendamento=${agendamento.id}`}>
                   <Star className="h-4 w-4" />
                 </Link>
@@ -154,7 +192,7 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
             )}
             {(agendamento.status === "confirmado" || agendamento.status === "pendente") && (
               <>
-                <Button variant="ghost" size="icon" asChild>
+                <Button variant="ghost" size="icon" asChild title="Reagendar">
                   <Link to={`/cliente/agendar?reagendar=${agendamento.id}`}>
                     <CalendarCheck className="h-4 w-4" />
                   </Link>
@@ -163,6 +201,7 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
                   variant="ghost" 
                   size="icon"
                   onClick={() => handleCancelar(agendamento.id)}
+                  title="Cancelar"
                 >
                   <XCircle className="h-4 w-4 text-destructive" />
                 </Button>
@@ -198,6 +237,7 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
             variant="outline" 
             size="icon"
             onClick={() => carregarDados && carregarDados()}
+            title="Atualizar"
           >
             <RefreshCw className="h-4 w-4" />
           </Button>
@@ -209,7 +249,7 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
           <TabsTrigger value="todos">
             Todos ({agendamentosOrdenados.length})
           </TabsTrigger>
-        <TabsTrigger value="pendente">
+          <TabsTrigger value="pendente">
             Pendentes ({agendamentosOrdenados.filter(a => a.status === 'pendente' || a.status === 'pagamento_pendente').length})
           </TabsTrigger>
           <TabsTrigger value="confirmado">
@@ -247,7 +287,10 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
                   {agendamentosOrdenados.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                        Nenhum agendamento encontrado
+                        <div className="flex flex-col items-center gap-2">
+                          <Calendar className="h-8 w-8 text-muted-foreground/50" />
+                          <span>Nenhum agendamento encontrado</span>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -297,40 +340,35 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
                           </TableCell>
                         </TableRow>
                       ) : (
-                        filtered.map((agendamento) => {
-                          const horario = agendamento.horario || agendamento.hora || '';
-                          const profissionalNome = agendamento.profissionais?.[0]?.profissional?.nome || agendamento.profissionalNome || 'A definir';
-                          const servicoNome = agendamento.servico?.nome || 'N/A';
-                          const valor = agendamento.servico?.preco || agendamento.pagamento?.valor || 0;
-                          return (
-                            <TableRow key={agendamento.id}>
-                              <TableCell>
-                                {agendamento.data ? formatarData(agendamento.data, horario) : 'N/A'}
-                              </TableCell>
-                              <TableCell>{servicoNome}</TableCell>
-                              <TableCell>{profissionalNome}</TableCell>
-                              <TableCell>{formatarMoeda(valor)}</TableCell>
-                              <TableCell>
-                                <div className="flex gap-2">
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon"
-                                    onClick={() => handleVerDetalhes(agendamento)}
-                                  >
-                                    <Eye className="h-4 w-4" />
+                        filtered.map((agendamento) => (
+                          <TableRow key={agendamento.id}>
+                            <TableCell>
+                              {agendamento.data ? formatarData(agendamento.data, getHorario(agendamento)) : 'N/A'}
+                            </TableCell>
+                            <TableCell>{getServicoNome(agendamento)}</TableCell>
+                            <TableCell>{getProfissionalNome(agendamento)}</TableCell>
+                            <TableCell>{formatarMoeda(getValor(agendamento))}</TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  onClick={() => handleVerDetalhes(agendamento)}
+                                  title="Ver detalhes"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                {statusFilter === "concluido" && (
+                                  <Button variant="ghost" size="icon" asChild title="Avaliar">
+                                    <Link to={`/cliente/avaliacoes?agendamento=${agendamento.id}`}>
+                                      <Star className="h-4 w-4" />
+                                    </Link>
                                   </Button>
-                                  {statusFilter === "concluido" && (
-                                    <Button variant="ghost" size="icon" asChild>
-                                      <Link to={`/cliente/avaliacoes?agendamento=${agendamento.id}`}>
-                                        <Star className="h-4 w-4" />
-                                      </Link>
-                                    </Button>
-                                  )}
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
                       )}
                     </TableBody>
                   </Table>
@@ -350,7 +388,7 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
               Informações completas do agendamento
             </DialogDescription>
           </DialogHeader>
-          {agendamentoSelecionado ? (
+          {agendamentoSelecionado && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -364,31 +402,25 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
                 <div>
                   <p className="text-sm text-muted-foreground">Horário</p>
                   <p className="font-medium">
-                    {agendamentoSelecionado.horario || agendamentoSelecionado.hora || 'N/A'}
+                    {getHorario(agendamentoSelecionado) || 'N/A'}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Serviço</p>
                   <p className="font-medium">
-                    {agendamentoSelecionado.servico?.nome || 'N/A'}
+                    {getServicoNome(agendamentoSelecionado)}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Valor</p>
                   <p className="font-medium">
-                    {formatarMoeda(
-                      agendamentoSelecionado.servico?.preco || 
-                      agendamentoSelecionado.pagamento?.valor || 
-                      0
-                    )}
+                    {formatarMoeda(getValor(agendamentoSelecionado))}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Profissional</p>
                   <p className="font-medium">
-                    {agendamentoSelecionado.profissionais?.[0]?.profissional?.nome || 
-                     agendamentoSelecionado.profissionalNome || 
-                     'A definir'}
+                    {getProfissionalNome(agendamentoSelecionado)}
                   </p>
                 </div>
                 <div>
