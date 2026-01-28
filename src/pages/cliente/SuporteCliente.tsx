@@ -109,7 +109,7 @@ export default function SuporteCliente() {
 
     setEnviando(true);
     try {
-      await apiPost('/cliente/suporte', {
+      await apiPost('/suporte-cliente', {
         categoria,
         assunto: assunto || categoriasSuporte.find(c => c.value === categoria)?.label,
         mensagem,
