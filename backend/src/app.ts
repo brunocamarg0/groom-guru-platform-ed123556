@@ -157,6 +157,14 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Rota de teste - DEVE SER A PRIMEIRA ROTA (antes de qualquer middleware que possa bloquear)
 // Esta rota deve responder SEMPRE, mesmo se o banco de dados estiver offline
+app.get('/', (req, res) => {
+  res.status(200).send('OK');
+});
+
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'OK' });
+});
+
 app.get('/api/health', (req, res) => {
   // Não fazer log aqui para evitar spam nos logs
   res.status(200).json({
