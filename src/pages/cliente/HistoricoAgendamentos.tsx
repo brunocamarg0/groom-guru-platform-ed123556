@@ -393,7 +393,7 @@ export default function HistoricoAgendamentos() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Data</p>
-                  <p className="font-medium">
+                  <p className="font-semibold text-foreground">
                     {agendamentoSelecionado.data 
                       ? formatarData(agendamentoSelecionado.data) 
                       : 'N/A'}
@@ -401,25 +401,25 @@ export default function HistoricoAgendamentos() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Horário</p>
-                  <p className="font-medium">
+                  <p className="font-semibold text-foreground">
                     {getHorario(agendamentoSelecionado) || 'N/A'}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Serviço</p>
-                  <p className="font-medium">
+                  <p className="font-semibold text-foreground">
                     {getServicoNome(agendamentoSelecionado)}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Valor</p>
-                  <p className="font-medium">
+                  <p className="font-semibold text-foreground">
                     {formatarMoeda(getValor(agendamentoSelecionado))}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Profissional</p>
-                  <p className="font-medium">
+                  <p className="font-semibold text-foreground">
                     {getProfissionalNome(agendamentoSelecionado)}
                   </p>
                 </div>
@@ -434,37 +434,37 @@ export default function HistoricoAgendamentos() {
               {agendamentoSelecionado.servico?.descricao && (
                 <div>
                   <p className="text-sm text-muted-foreground">Descrição do Serviço</p>
-                  <p className="font-medium">{agendamentoSelecionado.servico.descricao}</p>
+                  <p className="font-semibold text-foreground">{agendamentoSelecionado.servico.descricao}</p>
                 </div>
               )}
 
               {agendamentoSelecionado.servico?.duracao && (
                 <div>
                   <p className="text-sm text-muted-foreground">Duração</p>
-                  <p className="font-medium">{agendamentoSelecionado.servico.duracao} minutos</p>
+                  <p className="font-semibold text-foreground">{agendamentoSelecionado.servico.duracao} minutos</p>
                 </div>
               )}
 
               {agendamentoSelecionado.pagamento && (
                 <div className="pt-2 border-t">
-                  <p className="text-sm font-semibold mb-2">Informações de Pagamento</p>
+                  <p className="text-sm font-semibold text-foreground mb-2">Informações de Pagamento</p>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-sm text-muted-foreground">Método</p>
-                      <p className="font-medium">
+                      <p className="font-semibold text-foreground">
                         {agendamentoSelecionado.pagamento.metodo || 'N/A'}
                       </p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Status do Pagamento</p>
-                      <p className="font-medium">
+                      <p className="font-semibold text-foreground">
                         {agendamentoSelecionado.pagamento.status || 'N/A'}
                       </p>
                     </div>
                     {agendamentoSelecionado.pagamento.dataPagamento && (
                       <div>
                         <p className="text-sm text-muted-foreground">Data do Pagamento</p>
-                        <p className="font-medium">
+                        <p className="font-semibold text-foreground">
                           {new Date(agendamentoSelecionado.pagamento.dataPagamento).toLocaleDateString('pt-BR')}
                         </p>
                       </div>
@@ -476,7 +476,7 @@ export default function HistoricoAgendamentos() {
               {agendamentoSelecionado.observacao && (
                 <div>
                   <p className="text-sm text-muted-foreground">Observações</p>
-                  <p className="font-medium">{agendamentoSelecionado.observacao}</p>
+                  <p className="font-semibold text-foreground">{agendamentoSelecionado.observacao}</p>
                 </div>
               )}
 
