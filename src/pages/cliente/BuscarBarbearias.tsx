@@ -11,10 +11,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Scissors, MapPin, Phone, Mail, Search, Star, Users, Clock, Calendar, Map } from "lucide-react";
+import { Scissors, MapPin, Phone, Search, Users, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import GoogleMapsBarber from "@/components/cliente/GoogleMapsBarber";
 
 export default function BuscarBarbearias() {
   const { barbearias, buscarBarbearias } = useCliente();
@@ -79,31 +78,6 @@ export default function BuscarBarbearias() {
           Encontre a barbearia ideal e agende seu serviço
         </p>
       </div>
-
-      {/* Mapa do Google Maps */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Map className="h-5 w-5 text-primary" />
-            Localização das Barbearias
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <GoogleMapsBarber 
-            barbearias={barbearias.map(b => ({
-              id: b.id,
-              nome: b.nome,
-              latitude: (b as any).latitude,
-              longitude: (b as any).longitude,
-              endereco: b.endereco,
-              cidade: b.cidade,
-              bairro: b.bairro,
-            }))}
-            onMarkerClick={(id) => handleSelecionarBarbearia(id)}
-            height="300px"
-          />
-        </CardContent>
-      </Card>
 
       {/* Barra de busca */}
       <Card>
