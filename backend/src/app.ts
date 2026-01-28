@@ -226,8 +226,9 @@ app.use('/api/dono/configuracao', donoConfiguracaoRoutes);
 app.use('/api/dono/comissoes', donoComissoesRoutes);
 
 // Rotas do cliente (requerem autenticação para painel, mas suporte é público)
-app.use('/api/cliente', clientePanelRoutes);
+// IMPORTANTE: Rota de suporte ANTES da rota geral do cliente para funcionar corretamente
 app.use('/api/cliente/suporte', clienteSuporteRoutes); // Rota pública para abrir tickets
+app.use('/api/cliente', clientePanelRoutes);
 
 // ⚠️ ROTA DE EMERGÊNCIA - Para resetar senha sem email
 // Remover após resolver problema de email
