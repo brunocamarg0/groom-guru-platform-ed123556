@@ -195,10 +195,11 @@ export async function registrarPagamentoManual(req: AuthRequest, res: Response) 
       });
     }
 
-    // Verificar se já existe pagamento para este agendamento
-    if (agendamento.pagamento) {
-      return res.status(400).json({ 
-        error: 'Este agendamento já possui um pagamento registrado' 
+    // Se já existir pagamento, permitir "finalizar" (atualizar) quando ainda não estiver pago
+    // (ex.: pagamento presencial criado como pendente, ou pagamento online pendente)
+    if (agendamento.pagamento?.status === 'pago') {
+      return res.status(400).json({
+        error: 'Este agendamento já possui um pagamento marcado como pago'
       });
     }
 
@@ -209,17 +210,23 @@ export async function registrarPagamentoManual(req: AuthRequest, res: Response) 
       taxaGateway = valor * 0.039;
     }
 
-    // Criar pagamento no banco de dados
-    const pagamento = await prisma.pagamento.create({
-      data: {
+    // Criar OU atualizar pagamento no banco de dados (evita erro quando já existe "pendente")
+    const pagamento = await prisma.pagamento.upsert({
+      where: { agendamentoId },
+      create: {
         agendamentoId,
         valor: parseFloat(valor.toString()),
         metodo,
-        status: 'pago', // Pagamentos presenciais são sempre marcados como pagos
+        status: 'pago',
         taxaGateway,
         dataPagamento: new Date(),
-        // Observação pode ser armazenada em um campo adicional se necessário
-        // Por enquanto, vamos usar o campo observacao do agendamento se necessário
+      },
+      update: {
+        valor: parseFloat(valor.toString()),
+        metodo,
+        status: 'pago',
+        taxaGateway,
+        dataPagamento: new Date(),
       },
       include: {
         agendamento: {
