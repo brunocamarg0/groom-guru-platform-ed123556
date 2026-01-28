@@ -109,13 +109,26 @@ export default function SuporteCliente() {
 
     setEnviando(true);
     try {
-      await apiPost('/suporte-cliente', {
+      const dadosTicket = {
         categoria,
         assunto: assunto || categoriasSuporte.find(c => c.value === categoria)?.label,
         mensagem,
-        clienteNome: cliente?.nome,
-        clienteEmail: cliente?.email,
-      });
+        clienteNome: cliente?.nome || 'Cliente não identificado',
+        clienteEmail: cliente?.email || '',
+        ...(cliente?.id && { clienteId: cliente.id }),
+      };
+
+      if (!dadosTicket.clienteEmail) {
+        toast({
+          title: "Erro",
+          description: "Email do cliente não encontrado. Faça login novamente.",
+          variant: "destructive",
+        });
+        setEnviando(false);
+        return;
+      }
+
+      await apiPost('/suporte-cliente', dadosTicket);
 
       toast({
         title: "Mensagem enviada!",

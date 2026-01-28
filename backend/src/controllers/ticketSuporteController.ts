@@ -7,38 +7,89 @@ import { AuthRequest } from '../middleware/auth';
  */
 export async function criarTicket(req: Request, res: Response) {
   try {
+    console.log('🔧 [SUPORTE] Criar ticket chamado');
+    console.log('🔧 [SUPORTE] Body recebido:', JSON.stringify(req.body, null, 2));
+
     const { categoria, assunto, mensagem, clienteNome, clienteEmail, clienteId } = req.body;
 
-    if (!categoria || !mensagem || !clienteEmail) {
+    // Validações
+    if (!categoria) {
+      console.error('❌ [SUPORTE] Categoria não informada');
       return res.status(400).json({ 
-        error: 'Dados obrigatórios não informados',
-        required: ['categoria', 'mensagem', 'clienteEmail']
+        error: 'Categoria é obrigatória',
+        required: ['categoria']
       });
+    }
+
+    if (!mensagem || !mensagem.trim()) {
+      console.error('❌ [SUPORTE] Mensagem não informada ou vazia');
+      return res.status(400).json({ 
+        error: 'Mensagem é obrigatória',
+        required: ['mensagem']
+      });
+    }
+
+    if (!clienteEmail || !clienteEmail.trim()) {
+      console.error('❌ [SUPORTE] Email do cliente não informado');
+      return res.status(400).json({ 
+        error: 'Email do cliente é obrigatório',
+        required: ['clienteEmail']
+      });
+    }
+
+    // Validar se clienteId existe no banco (se fornecido)
+    let clienteIdValido = null;
+    if (clienteId) {
+      try {
+        const clienteExiste = await prisma.cliente.findUnique({
+          where: { id: clienteId },
+          select: { id: true },
+        });
+        if (clienteExiste) {
+          clienteIdValido = clienteId;
+        } else {
+          console.warn('⚠️ [SUPORTE] ClienteId fornecido não existe no banco:', clienteId);
+        }
+      } catch (err) {
+        console.warn('⚠️ [SUPORTE] Erro ao verificar clienteId:', err);
+      }
     }
 
     const ticket = await prisma.ticketSuporte.create({
       data: {
         categoria,
         assunto: assunto || `Dúvida sobre ${categoria}`,
-        mensagem,
+        mensagem: mensagem.trim(),
         clienteNome: clienteNome || 'Cliente não identificado',
-        clienteEmail,
-        clienteId: clienteId || null,
+        clienteEmail: clienteEmail.trim(),
+        clienteId: clienteIdValido,
         prioridade: 'media',
         status: 'aberto',
       },
     });
 
-    console.log('✅ [SUPORTE] Ticket criado:', ticket.id);
+    console.log('✅ [SUPORTE] Ticket criado com sucesso:', ticket.id);
 
     res.status(201).json({
       sucesso: true,
       mensagem: 'Ticket criado com sucesso. Nossa equipe entrará em contato em breve.',
       ticketId: ticket.id,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ [SUPORTE] Erro ao criar ticket:', error);
-    res.status(500).json({ error: 'Erro ao criar ticket de suporte' });
+    console.error('❌ [SUPORTE] Stack:', error?.stack);
+    console.error('❌ [SUPORTE] Message:', error?.message);
+    console.error('❌ [SUPORTE] Code:', error?.code);
+    console.error('❌ [SUPORTE] Meta:', error?.meta);
+    
+    const errorMessage = process.env.NODE_ENV === 'development' 
+      ? `Erro ao criar ticket: ${error?.message || 'Erro desconhecido'}`
+      : 'Erro ao criar ticket de suporte';
+    
+    res.status(500).json({ 
+      error: errorMessage,
+      details: process.env.NODE_ENV === 'development' ? error?.message : undefined
+    });
   }
 }
 
