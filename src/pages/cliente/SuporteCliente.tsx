@@ -88,6 +88,23 @@ export default function SuporteCliente() {
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
 
+  // Fallback: em alguns cenários o contexto pode demorar a carregar,
+  // mas o login já salvou o usuário em localStorage.
+  const clienteFallback = (() => {
+    try {
+      const userStr = localStorage.getItem("user");
+      if (!userStr) return null;
+      const u = JSON.parse(userStr);
+      return {
+        id: typeof u?.id === "string" ? u.id : undefined,
+        nome: typeof u?.nome === "string" ? u.nome : undefined,
+        email: typeof u?.email === "string" ? u.email : undefined,
+      };
+    } catch {
+      return null;
+    }
+  })();
+
   const handleEnviarMensagem = async () => {
     if (!categoria) {
       toast({
@@ -109,19 +126,23 @@ export default function SuporteCliente() {
 
     setEnviando(true);
     try {
+      const clienteNomeEfetivo = cliente?.nome || clienteFallback?.nome || "Cliente não identificado";
+      const clienteEmailEfetivo = cliente?.email || clienteFallback?.email || "";
+      const clienteIdEfetivo = cliente?.id || clienteFallback?.id;
+
       const dadosTicket = {
         categoria,
         assunto: assunto || categoriasSuporte.find(c => c.value === categoria)?.label,
         mensagem,
-        clienteNome: cliente?.nome || 'Cliente não identificado',
-        clienteEmail: cliente?.email || '',
-        ...(cliente?.id && { clienteId: cliente.id }),
+        clienteNome: clienteNomeEfetivo,
+        clienteEmail: clienteEmailEfetivo,
+        ...(clienteIdEfetivo && { clienteId: clienteIdEfetivo }),
       };
 
       if (!dadosTicket.clienteEmail) {
         toast({
           title: "Erro",
-          description: "Email do cliente não encontrado. Faça login novamente.",
+          description: "Não consegui identificar seu email para abrir o ticket. Faça login novamente.",
           variant: "destructive",
         });
         setEnviando(false);
