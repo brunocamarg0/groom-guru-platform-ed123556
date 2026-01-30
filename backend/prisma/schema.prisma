@@ -292,6 +292,7 @@ model Profissional {
   comissoes     ComissaoPaga[]
   clienteProfissional ClienteProfissional[]
   comissoesAssinatura ComissaoAssinatura[]
+  assinaturasCliente AssinaturaCliente[]
   
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
@@ -489,7 +490,7 @@ model AssinaturaCliente {
   clienteId         String      @unique
   plano             PlanoCliente @relation(fields: [planoId], references: [id])
   planoId           String
-  profissional      Profissional @relation(fields: [profissionalId], references: [id], onDelete: SetNull)
+  profissional      Profissional? @relation(fields: [profissionalId], references: [id], onDelete: SetNull)
   profissionalId   String?      // Profissional responsável pelo cliente
   
   status            String      @default("ativa") // ativa, suspensa, cancelada, vencida
