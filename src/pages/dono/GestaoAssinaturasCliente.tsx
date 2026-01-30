@@ -592,6 +592,95 @@ export default function GestaoAssinaturasCliente() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Criar Assinatura */}
+      <Dialog open={modalCriarAberto} onOpenChange={setModalCriarAberto}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nova Assinatura</DialogTitle>
+            <DialogDescription>
+              Crie uma nova assinatura para um cliente
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="cliente">Cliente *</Label>
+              <Select
+                value={formCriar.clienteId}
+                onValueChange={(value) =>
+                  setFormCriar({ ...formCriar, clienteId: value })
+                }
+              >
+                <SelectTrigger id="cliente">
+                  <SelectValue placeholder="Selecione um cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clientes.map((cliente) => (
+                    <SelectItem key={cliente.id} value={cliente.id}>
+                      {cliente.nome} - {cliente.email || cliente.telefone}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="plano">Plano *</Label>
+              <Select
+                value={formCriar.planoId}
+                onValueChange={(value) =>
+                  setFormCriar({ ...formCriar, planoId: value })
+                }
+              >
+                <SelectTrigger id="plano">
+                  <SelectValue placeholder="Selecione um plano" />
+                </SelectTrigger>
+                <SelectContent>
+                  {planos.map((plano) => (
+                    <SelectItem key={plano.id} value={plano.id}>
+                      {plano.nome} - {formatarMoeda(plano.valor)}/mês
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="profissional">Profissional (Opcional)</Label>
+              <Select
+                value={formCriar.profissionalId}
+                onValueChange={(value) =>
+                  setFormCriar({ ...formCriar, profissionalId: value })
+                }
+              >
+                <SelectTrigger id="profissional">
+                  <SelectValue placeholder="Selecione um profissional" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Nenhum</SelectItem>
+                  {profissionais.map((prof) => (
+                    <SelectItem key={prof.id} value={prof.id}>
+                      {prof.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setModalCriarAberto(false);
+                setFormCriar({ clienteId: "", planoId: "", profissionalId: "" });
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleCriarAssinatura}>Criar Assinatura</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
