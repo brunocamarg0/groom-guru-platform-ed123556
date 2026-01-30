@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "tsx watch src/app.ts",
     "build": "tsc",
-    "start": "npx prisma migrate deploy && node dist/app.js",
+    "start": "tsx scripts/setup-migrations.ts && node dist/app.js",
     "start:prod": "npm run build && npx prisma migrate deploy && node dist/app.js",
     "prisma:generate": "npx prisma generate",
     "prisma:migrate": "npx prisma migrate dev",
