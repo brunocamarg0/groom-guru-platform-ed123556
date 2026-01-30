@@ -1367,6 +1367,7 @@ export function DonoProvider({ children }: { children: ReactNode }) {
         especialidades: profissional.especialidades,
         comissaoTipo: profissional.comissao.tipo,
         comissaoValor: profissional.comissao.valor,
+        comissaoAssinatura: (profissional as any).comissaoAssinatura || 0,
       });
 
       console.log('✅ Profissional adicionado:', novoProfissional);
@@ -1398,6 +1399,9 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       if (dados.comissao) {
         updateData.comissaoTipo = dados.comissao.tipo;
         updateData.comissaoValor = dados.comissao.valor;
+      }
+      if ((dados as any).comissaoAssinatura !== undefined) {
+        updateData.comissaoAssinatura = (dados as any).comissaoAssinatura;
       }
       if (dados.ativo !== undefined) updateData.ativo = dados.ativo;
 
