@@ -32,6 +32,7 @@ import donoRelatoriosRoutes from './routes/dono/relatorios';
 import donoConfiguracaoRoutes from './routes/dono/configuracao';
 import donoComissoesRoutes from './routes/dono/comissoes';
 import donoAssinaturaRoutes from './routes/dono/assinatura';
+import donoPlanosClienteRoutes from './routes/dono/planosCliente';
 import clientePanelRoutes from './routes/cliente/panel';
 import adminAssinaturasRoutes from './routes/admin/assinaturas';
 import faturasRoutes from './routes/faturas';
@@ -236,6 +237,7 @@ app.use('/api/dono/relatorios', donoRelatoriosRoutes);
 app.use('/api/dono/configuracao', donoConfiguracaoRoutes);
 app.use('/api/dono/comissoes', donoComissoesRoutes);
 app.use('/api/dono/assinatura', donoAssinaturaRoutes);
+app.use('/api/dono', donoPlanosClienteRoutes);
 
 // Rota PÚBLICA de suporte para clientes (SEM autenticação)
 // Usar path diferente para evitar conflito com middleware de /api/cliente

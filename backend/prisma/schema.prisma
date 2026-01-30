@@ -72,6 +72,8 @@ model Barbearia {
   promocoes         Promocao[]
   notificacoes      Notificacao[]
   comissoes         ComissaoPaga[]
+  planosCliente     PlanoCliente[]
+  comissoesAssinatura ComissaoAssinatura[]
   
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
@@ -230,6 +232,8 @@ model Cliente {
   agendamentos Agendamento[]
   avaliacoes   Avaliacao[]
   tickets      TicketSuporte[]
+  assinatura   AssinaturaCliente?
+  clienteProfissional ClienteProfissional[]
   
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
@@ -277,6 +281,7 @@ model Profissional {
   especialidades String[]     @default([]) // Array de strings
   comissaoTipo  String        @default("percentual") // percentual, fixo
   comissaoValor Float         @default(0)
+  comissaoAssinatura Float    @default(0) // Comissão fixa por assinatura de cliente
   ativo         Boolean       @default(true)
   dataAdmissao  DateTime      @default(now())
   
@@ -285,6 +290,8 @@ model Profissional {
   barbeariaId   String
   agendamentos  AgendamentoProfissional[]
   comissoes     ComissaoPaga[]
+  clienteProfissional ClienteProfissional[]
+  comissoesAssinatura ComissaoAssinatura[]
   
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
@@ -453,4 +460,131 @@ model TicketSuporte {
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// Plano de assinatura para clientes
+model PlanoCliente {
+  id            String      @id @default(uuid())
+  nome          String      // Mensal, Trimestral, Semestral, Anual
+  descricao     String?
+  valor         Float       // Valor do plano
+  duracaoMeses  Int         // Duração em meses (1, 3, 6, 12)
+  beneficios    String[]    @default([]) // Array de benefícios
+  ativo         Boolean     @default(true)
+  
+  // Relacionamento com barbearia (cada barbearia pode ter seus próprios planos)
+  barbearia     Barbearia   @relation(fields: [barbeariaId], references: [id], onDelete: Cascade)
+  barbeariaId   String
+  
+  assinaturas   AssinaturaCliente[]
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+// Assinatura de cliente
+model AssinaturaCliente {
+  id                String      @id @default(uuid())
+  cliente           Cliente     @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  clienteId         String      @unique
+  plano             PlanoCliente @relation(fields: [planoId], references: [id])
+  planoId           String
+  profissional      Profissional @relation(fields: [profissionalId], references: [id], onDelete: SetNull)
+  profissionalId   String?      // Profissional responsável pelo cliente
+  
+  status            String      @default("ativa") // ativa, suspensa, cancelada, vencida
+  dataInicio        DateTime    @default(now())
+  dataVencimento    DateTime
+  proximoVencimento DateTime
+  
+  // Pagamento recorrente
+  pagamentoRecorrente Boolean   @default(false)
+  mercadoPagoSubscriptionId String? // ID da assinatura no Mercado Pago
+  
+  pagamentos        PagamentoAssinatura[]
+  comissoes         ComissaoAssinatura[]
+  
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
+// Pagamento de assinatura de cliente
+model PagamentoAssinatura {
+  id                String      @id @default(uuid())
+  assinatura        AssinaturaCliente @relation(fields: [assinaturaId], references: [id], onDelete: Cascade)
+  assinaturaId      String
+  
+  valor             Float
+  dataVencimento    DateTime
+  dataPagamento     DateTime?
+  status            String      @default("pendente") // pendente, paga, vencida, cancelada
+  
+  // Integração com gateway
+  metodoPagamento   String?     // pix, boleto, cartao_credito, cartao_debito
+  mercadoPagoPreferenceId String?
+  mercadoPagoPaymentId    String?
+  mercadoPagoStatus       String?
+  
+  // Dados do pagamento
+  linkPagamento     String?
+  qrCodePix         String?
+  codigoBoleto       String?
+  
+  observacoes       String?
+  
+  comissoes         ComissaoAssinatura[]
+  
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  
+  @@index([assinaturaId, status])
+  @@index([dataVencimento])
+}
+
+// Comissão de profissional por assinatura de cliente
+model ComissaoAssinatura {
+  id                String      @id @default(uuid())
+  profissional      Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+  profissionalId    String
+  assinatura        AssinaturaCliente @relation(fields: [assinaturaId], references: [id], onDelete: Cascade)
+  assinaturaId      String
+  pagamento         PagamentoAssinatura @relation(fields: [pagamentoId], references: [id], onDelete: Cascade)
+  pagamentoId       String
+  
+  valorComissao     Float       // Valor da comissão (fixo do profissional)
+  valorTotal        Float       // Valor total do pagamento
+  pago              Boolean     @default(false)
+  dataPagamento     DateTime?
+  mesReferencia     String      // Mês/ano de referência (ex: "2024-01")
+  observacao        String?
+  
+  barbearia         Barbearia   @relation(fields: [barbeariaId], references: [id], onDelete: Cascade)
+  barbeariaId       String
+  
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  
+  @@unique([pagamentoId, profissionalId])
+  @@index([profissionalId, mesReferencia])
+  @@index([barbeariaId, mesReferencia])
+}
+
+// Relacionamento Cliente-Profissional (qual profissional atende qual cliente)
+model ClienteProfissional {
+  id            String      @id @default(uuid())
+  cliente       Cliente     @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  clienteId     String
+  profissional  Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+  profissionalId String
+  
+  ativo         Boolean     @default(true)
+  dataInicio    DateTime    @default(now())
+  dataFim       DateTime?   // Se null, ainda está ativo
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  @@unique([clienteId, profissionalId])
+  @@index([clienteId])
+  @@index([profissionalId])
 }
