@@ -30,6 +30,7 @@ import {
   FileText,
   LogOut,
   Building2,
+  Receipt,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -292,6 +293,16 @@ function DonoLayoutContent() {
       title: "Clientes",
       url: "/dono/clientes",
       icon: User,
+    },
+    {
+      title: "Planos de Clientes",
+      url: "/dono/planos-cliente",
+      icon: Package,
+    },
+    {
+      title: "Assinaturas",
+      url: "/dono/assinaturas-cliente",
+      icon: Receipt,
     },
     {
       title: "Financeiro",

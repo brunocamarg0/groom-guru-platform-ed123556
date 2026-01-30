@@ -26,6 +26,7 @@ import {
   MessageCircle,
   Settings,
   LogOut,
+  Receipt,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -126,6 +127,11 @@ export default function ClienteLayout() {
       title: "Fidelidade",
       url: "/cliente/fidelidade",
       icon: Gift,
+    },
+    {
+      title: "Minha Assinatura",
+      url: "/cliente/assinatura",
+      icon: Receipt,
     },
     {
       title: "Suporte",

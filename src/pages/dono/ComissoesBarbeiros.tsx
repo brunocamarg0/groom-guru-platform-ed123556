@@ -263,6 +263,7 @@ export default function ComissoesBarbeiros() {
         <TabsList>
           <TabsTrigger value="resumo">Resumo por Profissional</TabsTrigger>
           <TabsTrigger value="detalhes">Detalhes de Agendamentos</TabsTrigger>
+          <TabsTrigger value="assinaturas">Comissões por Assinatura</TabsTrigger>
         </TabsList>
 
         <TabsContent value="resumo">
@@ -452,7 +453,236 @@ export default function ComissoesBarbeiros() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="assinaturas">
+          <ComissoesAssinatura mes={mes} ano={ano} />
+        </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+// Componente para Comissões por Assinatura
+function ComissoesAssinatura({ mes, ano }: { mes: number; ano: number }) {
+  const { profissionais } = useDono();
+  const [resumoAssinaturas, setResumoAssinaturas] = useState<any>(null);
+  const [profissionalSelecionado, setProfissionalSelecionado] = useState<string | null>(null);
+  const [comissoesAssinatura, setComissoesAssinatura] = useState<any[]>([]);
+  const [carregando, setCarregando] = useState(false);
+
+  useEffect(() => {
+    carregarResumoAssinaturas();
+  }, [mes, ano]);
+
+  useEffect(() => {
+    if (profissionalSelecionado) {
+      carregarComissoesAssinatura();
+    }
+  }, [profissionalSelecionado, mes, ano]);
+
+  const carregarResumoAssinaturas = async () => {
+    setCarregando(true);
+    try {
+      const data = await apiGet<any>(`/dono/comissoes-assinatura/resumo?mes=${mes}&ano=${ano}`);
+      setResumoAssinaturas(data);
+    } catch (error: any) {
+      console.error("Erro ao carregar resumo de comissões por assinatura:", error);
+      toast.error("Erro ao carregar resumo de comissões por assinatura");
+    } finally {
+      setCarregando(false);
+    }
+  };
+
+  const carregarComissoesAssinatura = async () => {
+    if (!profissionalSelecionado) return;
+
+    setCarregando(true);
+    try {
+      const data = await apiGet<any>(`/dono/comissoes-assinatura/${profissionalSelecionado}?mes=${mes}&ano=${ano}`);
+      setComissoesAssinatura(data.comissoes || []);
+    } catch (error: any) {
+      console.error("Erro ao carregar comissões por assinatura:", error);
+      toast.error("Erro ao carregar comissões por assinatura");
+    } finally {
+      setCarregando(false);
+    }
+  };
+
+  const marcarComissaoComoPaga = async (comissaoId: string) => {
+    try {
+      await apiPost(`/dono/comissoes-assinatura/${comissaoId}/marcar-pago`);
+      toast.success("Comissão marcada como paga!");
+      carregarComissoesAssinatura();
+      carregarResumoAssinaturas();
+    } catch (error: any) {
+      console.error("Erro ao marcar comissão como paga:", error);
+      toast.error("Erro ao marcar comissão como paga");
+    }
+  };
+
+  const formatarMoeda = (valor: number) => {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(valor);
+  };
+
+  const meses = [
+    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+  ];
+
+  return (
+    <div className="space-y-4">
+      {resumoAssinaturas && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Comissões Assinatura</CardTitle>
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatarMoeda(resumoAssinaturas.totalComissao || 0)}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {meses[mes - 1]} de {ano}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Pago</CardTitle>
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">
+                {formatarMoeda(resumoAssinaturas.totalPago || 0)}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Já pagos este mês
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Pendente</CardTitle>
+              <XCircle className="h-4 w-4 text-orange-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-orange-600">
+                {formatarMoeda(resumoAssinaturas.totalPendente || 0)}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                A pagar este mês
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-gray-900 dark:text-gray-100">Comissões por Assinatura</CardTitle>
+          <CardDescription>
+            {meses[mes - 1]} de {ano}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-4">
+            <Select value={profissionalSelecionado || ""} onValueChange={setProfissionalSelecionado}>
+              <SelectTrigger className="w-64">
+                <SelectValue placeholder="Selecione um profissional" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Todos os profissionais</SelectItem>
+                {profissionais.map((prof) => (
+                  <SelectItem key={prof.id} value={prof.id}>
+                    {prof.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {carregando ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">Carregando...</p>
+            </div>
+          ) : !profissionalSelecionado ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">
+                Selecione um profissional para ver as comissões por assinatura
+              </p>
+            </div>
+          ) : comissoesAssinatura.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">
+                Nenhuma comissão por assinatura encontrada para este profissional neste período
+              </p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Plano</TableHead>
+                  <TableHead>Valor Total</TableHead>
+                  <TableHead>Comissão</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {comissoesAssinatura.map((comissao) => (
+                  <TableRow key={comissao.id}>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{comissao.cliente.nome}</div>
+                        <div className="text-sm text-muted-foreground">{comissao.cliente.email}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>{comissao.plano.nome}</TableCell>
+                    <TableCell>{formatarMoeda(comissao.valorTotal)}</TableCell>
+                    <TableCell>
+                      <div className="font-medium">{formatarMoeda(comissao.valorComissao)}</div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={comissao.pago ? "default" : "secondary"}>
+                        {comissao.pago ? (
+                          <>
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Pago
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="h-3 w-3 mr-1" />
+                            Pendente
+                          </>
+                        )}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {!comissao.pago && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => marcarComissaoComoPaga(comissao.id)}
+                        >
+                          <CreditCard className="h-4 w-4 mr-1" />
+                          Marcar como Pago
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

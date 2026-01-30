@@ -613,6 +613,76 @@ export async function alterarSenha(req: AuthRequestCliente, res: Response) {
 /**
  * Excluir conta do cliente (LGPD)
  */
+/**
+ * Obter assinatura do cliente logado
+ */
+export async function obterMinhaAssinatura(req: AuthRequestCliente, res: Response) {
+  try {
+    const clienteId = req.userId;
+
+    if (!clienteId) {
+      return res.status(401).json({ error: 'Cliente não autenticado' });
+    }
+
+    const assinatura = await prisma.assinaturaCliente.findUnique({
+      where: { clienteId },
+      include: {
+        plano: true,
+        profissional: {
+          select: {
+            id: true,
+            nome: true,
+          },
+        },
+      },
+    });
+
+    if (!assinatura) {
+      return res.status(404).json({ error: 'Assinatura não encontrada' });
+    }
+
+    res.json(assinatura);
+  } catch (error) {
+    console.error('Erro ao obter assinatura do cliente:', error);
+    res.status(500).json({ error: 'Erro ao obter assinatura' });
+  }
+}
+
+/**
+ * Listar pagamentos da assinatura do cliente
+ */
+export async function listarPagamentosAssinatura(req: AuthRequestCliente, res: Response) {
+  try {
+    const clienteId = req.userId;
+
+    if (!clienteId) {
+      return res.status(401).json({ error: 'Cliente não autenticado' });
+    }
+
+    // Buscar assinatura do cliente
+    const assinatura = await prisma.assinaturaCliente.findUnique({
+      where: { clienteId },
+    });
+
+    if (!assinatura) {
+      return res.status(404).json({ error: 'Assinatura não encontrada' });
+    }
+
+    // Buscar pagamentos da assinatura
+    const pagamentos = await prisma.pagamentoAssinatura.findMany({
+      where: { assinaturaId: assinatura.id },
+      orderBy: {
+        dataVencimento: 'desc',
+      },
+    });
+
+    res.json(pagamentos);
+  } catch (error) {
+    console.error('Erro ao listar pagamentos da assinatura:', error);
+    res.status(500).json({ error: 'Erro ao listar pagamentos' });
+  }
+}
+
 export async function excluirConta(req: AuthRequestCliente, res: Response) {
   try {
     console.log('🗑️ [CLIENTE PANEL] Excluir conta: Iniciando...');

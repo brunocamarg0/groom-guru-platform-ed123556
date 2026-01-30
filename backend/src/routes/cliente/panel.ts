@@ -26,5 +26,9 @@ router.put('/agendamentos/:id/cancelar', clientePanelController.cancelarMeuAgend
 // Pagamentos
 router.post('/pagamentos', clientePanelController.criarPagamento);
 
+// Assinatura
+router.get('/assinatura', clientePanelController.obterMinhaAssinatura);
+router.get('/assinatura/pagamentos', clientePanelController.listarPagamentosAssinatura);
+
 export default router;
 
