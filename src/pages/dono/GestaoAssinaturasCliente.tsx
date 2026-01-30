@@ -42,10 +42,13 @@ import {
   Package,
   TrendingUp,
   XCircle,
-  CheckCircle
+  CheckCircle,
+  Plus
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiGet, apiPost } from "@/services/api";
+import { Label } from "@/components/ui/label";
+import { DialogFooter } from "@/components/ui/dialog";
 
 interface AssinaturaCliente {
   id: string;
@@ -89,7 +92,7 @@ interface PagamentoAssinatura {
 }
 
 export default function GestaoAssinaturasCliente() {
-  const { barbeariaId, profissionais } = useDono();
+  const { barbeariaId, profissionais, clientes } = useDono();
   const { toast } = useToast();
   const [assinaturas, setAssinaturas] = useState<AssinaturaCliente[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,12 +103,36 @@ export default function GestaoAssinaturasCliente() {
   const [pagamentos, setPagamentos] = useState<PagamentoAssinatura[]>([]);
   const [modalDetalhesAberto, setModalDetalhesAberto] = useState(false);
   const [loadingPagamentos, setLoadingPagamentos] = useState(false);
+  const [modalCriarAberto, setModalCriarAberto] = useState(false);
+  const [planos, setPlanos] = useState<any[]>([]);
+  const [clientes, setClientes] = useState<any[]>([]);
+  const [formCriar, setFormCriar] = useState({
+    clienteId: "",
+    planoId: "",
+    profissionalId: "",
+  });
 
   useEffect(() => {
     if (barbeariaId) {
       carregarAssinaturas();
+      carregarPlanos();
+      carregarClientes();
     }
   }, [barbeariaId, filtroStatus, filtroProfissional]);
+
+  const carregarPlanos = async () => {
+    try {
+      const data = await apiGet<any[]>("/dono/planos-cliente");
+      setPlanos(data.filter((p) => p.ativo));
+    } catch (error) {
+      console.error("Erro ao carregar planos:", error);
+    }
+  };
+
+  const carregarClientes = () => {
+    // Usar a lista de clientes do contexto
+    setClientes(clientes || []);
+  };
 
   const carregarAssinaturas = async () => {
     if (!barbeariaId) return;
@@ -157,6 +184,41 @@ export default function GestaoAssinaturasCliente() {
     setAssinaturaSelecionada(assinatura);
     setModalDetalhesAberto(true);
     await carregarPagamentos(assinatura.id);
+  };
+
+  const handleCriarAssinatura = async () => {
+    if (!formCriar.clienteId || !formCriar.planoId) {
+      toast({
+        title: "Erro",
+        description: "Selecione um cliente e um plano",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await apiPost("/dono/assinaturas-cliente", {
+        clienteId: formCriar.clienteId,
+        planoId: formCriar.planoId,
+        profissionalId: formCriar.profissionalId || null,
+      });
+
+      toast({
+        title: "Sucesso",
+        description: "Assinatura criada com sucesso!",
+      });
+
+      setModalCriarAberto(false);
+      setFormCriar({ clienteId: "", planoId: "", profissionalId: "" });
+      carregarAssinaturas();
+    } catch (error: any) {
+      console.error("Erro ao criar assinatura:", error);
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao criar assinatura",
+        variant: "destructive",
+      });
+    }
   };
 
   const formatarMoeda = (valor: number) => {
@@ -226,6 +288,10 @@ export default function GestaoAssinaturasCliente() {
                   className="pl-8"
                 />
               </div>
+              <Button onClick={() => setModalCriarAberto(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Assinatura
+              </Button>
             </div>
           </div>
         </CardHeader>
