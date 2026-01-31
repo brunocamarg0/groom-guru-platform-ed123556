@@ -557,18 +557,22 @@ export default function GestaoClientes() {
                 Profissional *
               </Label>
               <Select
-                value={profissionalSelecionado}
-                onValueChange={setProfissionalSelecionado}
+                value={profissionalSelecionado || undefined}
+                onValueChange={(value) => setProfissionalSelecionado(value || "")}
               >
                 <SelectTrigger id="profissional" className="bg-white text-gray-900 border-gray-300">
                   <SelectValue placeholder="Selecione um profissional" />
                 </SelectTrigger>
                 <SelectContent>
-                  {profissionais.map((prof) => (
-                    <SelectItem key={prof.id} value={prof.id}>
-                      {prof.nome}
-                    </SelectItem>
-                  ))}
+                  {profissionais.length > 0 ? (
+                    profissionais.map((prof) => (
+                      <SelectItem key={prof.id} value={prof.id}>
+                        {prof.nome}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="no-professionals" disabled>Nenhum profissional disponível</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">

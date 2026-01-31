@@ -606,20 +606,24 @@ export default function GestaoAssinaturasCliente() {
             <div className="space-y-2">
               <Label htmlFor="cliente">Cliente *</Label>
               <Select
-                value={formCriar.clienteId}
+                value={formCriar.clienteId || undefined}
                 onValueChange={(value) =>
-                  setFormCriar({ ...formCriar, clienteId: value })
+                  setFormCriar({ ...formCriar, clienteId: value || "" })
                 }
               >
                 <SelectTrigger id="cliente">
                   <SelectValue placeholder="Selecione um cliente" />
                 </SelectTrigger>
                 <SelectContent>
-                  {clientesDisponiveis.map((cliente) => (
-                    <SelectItem key={cliente.id} value={cliente.id}>
-                      {cliente.nome} - {cliente.email || cliente.telefone}
-                    </SelectItem>
-                  ))}
+                  {clientesDisponiveis.length > 0 ? (
+                    clientesDisponiveis.map((cliente) => (
+                      <SelectItem key={cliente.id} value={cliente.id}>
+                        {cliente.nome} - {cliente.email || cliente.telefone}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="no-clients" disabled>Nenhum cliente disponível</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -627,20 +631,24 @@ export default function GestaoAssinaturasCliente() {
             <div className="space-y-2">
               <Label htmlFor="plano">Plano *</Label>
               <Select
-                value={formCriar.planoId}
+                value={formCriar.planoId || undefined}
                 onValueChange={(value) =>
-                  setFormCriar({ ...formCriar, planoId: value })
+                  setFormCriar({ ...formCriar, planoId: value || "" })
                 }
               >
                 <SelectTrigger id="plano">
                   <SelectValue placeholder="Selecione um plano" />
                 </SelectTrigger>
                 <SelectContent>
-                  {planos.map((plano) => (
-                    <SelectItem key={plano.id} value={plano.id}>
-                      {plano.nome} - {formatarMoeda(plano.valor)}/mês
-                    </SelectItem>
-                  ))}
+                  {planos.length > 0 ? (
+                    planos.map((plano) => (
+                      <SelectItem key={plano.id} value={plano.id}>
+                        {plano.nome} - {formatarMoeda(plano.valor)}/mês
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="no-plans" disabled>Nenhum plano disponível</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -648,16 +656,15 @@ export default function GestaoAssinaturasCliente() {
             <div className="space-y-2">
               <Label htmlFor="profissional">Profissional (Opcional)</Label>
               <Select
-                value={formCriar.profissionalId || "none"}
+                value={formCriar.profissionalId || undefined}
                 onValueChange={(value) =>
-                  setFormCriar({ ...formCriar, profissionalId: value === "none" ? "" : value })
+                  setFormCriar({ ...formCriar, profissionalId: value || "" })
                 }
               >
                 <SelectTrigger id="profissional">
-                  <SelectValue placeholder="Selecione um profissional" />
+                  <SelectValue placeholder="Selecione um profissional (opcional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Nenhum</SelectItem>
                   {profissionais.map((prof) => (
                     <SelectItem key={prof.id} value={prof.id}>
                       {prof.nome}
