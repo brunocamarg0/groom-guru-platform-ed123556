@@ -89,6 +89,7 @@ export default function GestaoProfissionais() {
         especialidades: [],
         comissaoTipo: "percentual",
         comissaoValor: 40,
+        comissaoAssinatura: 0,
       });
     } catch (error) {
       // Erro já é tratado no contexto
@@ -143,6 +144,7 @@ export default function GestaoProfissionais() {
         especialidades: [],
         comissaoTipo: "percentual",
         comissaoValor: 40,
+        comissaoAssinatura: 0,
       });
     } catch (error) {
       // Erro já é tratado no contexto

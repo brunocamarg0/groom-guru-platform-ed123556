@@ -32,7 +32,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { apiGet } from "@/services/api";
 import { useNavigate } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
 
 interface AssinaturaCliente {
   id: string;
@@ -69,7 +68,6 @@ interface PagamentoAssinatura {
 export default function MinhaAssinatura() {
   const { cliente } = useCliente();
   const { toast } = useToast();
-  const navigate = useNavigate();
   const navigate = useNavigate();
   const [assinatura, setAssinatura] = useState<AssinaturaCliente | null>(null);
   const [pagamentos, setPagamentos] = useState<PagamentoAssinatura[]>([]);

@@ -85,15 +85,10 @@ export async function criarClienteProfissional(req: AuthRequest, res: Response) 
       });
     }
 
-    // Verificar se cliente pertence à barbearia (através de agendamentos)
-    const cliente = await prisma.cliente.findFirst({
+    // Verificar se cliente existe (sem exigir que tenha agendamentos)
+    const cliente = await prisma.cliente.findUnique({
       where: {
         id: clienteId,
-        agendamentos: {
-          some: {
-            barbeariaId,
-          },
-        },
       },
     });
 
