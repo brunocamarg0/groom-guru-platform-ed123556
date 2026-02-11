@@ -4,6 +4,9 @@ import { autenticarCliente } from '../middleware/auth';
 
 const router = Router();
 
+// Criar preferência de pagamento para assinatura (público - "Assinar agora" na landing)
+router.post('/preferencia-assinatura', pagamentoController.criarPreferenciaAssinatura);
+
 // Criar preferência de pagamento no Mercado Pago (requer autenticação)
 router.post('/preferencia', autenticarCliente, pagamentoController.criarPreferenciaPagamento);
 

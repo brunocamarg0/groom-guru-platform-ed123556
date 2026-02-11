@@ -6,6 +6,7 @@ import { Link } from "react-router-dom";
 const plans = [
   {
     name: "Básico",
+    slug: "basico",
     price: "R$ 97",
     description: "Ideal para barbearias iniciantes",
     features: [
@@ -18,6 +19,7 @@ const plans = [
   },
   {
     name: "Profissional",
+    slug: "profissional",
     price: "R$ 197",
     description: "Perfeito para barbearias em crescimento",
     features: [
@@ -33,6 +35,7 @@ const plans = [
   },
   {
     name: "Enterprise",
+    slug: "enterprise",
     price: "Personalizado",
     description: "Para redes de barbearias",
     features: [
@@ -100,9 +103,13 @@ const Pricing = () => {
                   className="w-full py-6"
                   asChild
                 >
-                  <Link to="/login">
-                    {plan.price === "Personalizado" ? "Falar Agora" : "Começar"}
-                  </Link>
+                  {plan.price === "Personalizado" ? (
+                    <Link to="/login">Falar Agora</Link>
+                  ) : (
+                    <Link to={`/checkout-assinatura?plano=${plan.slug}`}>
+                      Assinar agora
+                    </Link>
+                  )}
                 </Button>
               </CardContent>
             </Card>

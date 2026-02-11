@@ -70,6 +70,9 @@ import AuthCallback from "./pages/AuthCallback";
 import Funcionalidades from "./pages/Funcionalidades";
 import Cadastro from "./pages/Cadastro";
 import EsqueciSenha from "./pages/EsqueciSenha";
+import CheckoutAssinatura from "./pages/CheckoutAssinatura";
+import PagamentoAssinaturaSucesso from "./pages/PagamentoAssinaturaSucesso";
+import PagamentoAssinaturaFalha from "./pages/PagamentoAssinaturaFalha";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -116,6 +119,10 @@ const App = () => (
                                 <Route path="/cliente/pagamento/sucesso" element={<PagamentoSucesso />} />
                                 <Route path="/cliente/pagamento/falha" element={<PagamentoFalha />} />
                                 <Route path="/cliente/pagamento/pendente" element={<PagamentoPendente />} />
+                                <Route path="/checkout-assinatura" element={<CheckoutAssinatura />} />
+                                <Route path="/pagamento-assinatura/sucesso" element={<PagamentoAssinaturaSucesso />} />
+                                <Route path="/pagamento-assinatura/falha" element={<PagamentoAssinaturaFalha />} />
+                                <Route path="/pagamento-assinatura/pendente" element={<PagamentoAssinaturaFalha />} />
                                 <Route path="/admin" element={<AdminLayout />}>
                                   <Route index element={<AdminDashboard />} />
                                   <Route path="barbearias/nova" element={<CadastrarBarbearia />} />

@@ -20,6 +20,96 @@ interface AuthRequest extends Request {
   clienteId?: string;
 }
 
+/** Valores mensais dos planos (em reais) - usado para assinatura */
+const VALORES_PLANOS: Record<string, number> = {
+  basico: 97,
+  profissional: 197,
+  professional: 197,
+  enterprise: 0, // personalizado
+};
+
+/**
+ * Criar preferência de pagamento para assinatura de plano (pagamento real)
+ * Rota pública - usada na landing ao clicar em "Assinar agora"
+ */
+export async function criarPreferenciaAssinatura(req: Request, res: Response) {
+  try {
+    if (!process.env.MERCADOPAGO_ACCESS_TOKEN) {
+      console.error('❌ [ASSINATURA] MERCADOPAGO_ACCESS_TOKEN não configurado');
+      return res.status(503).json({
+        error: 'Erro ao processar compra da assinatura',
+        detalhes: 'Pagamentos não estão configurados. Configure MERCADOPAGO_ACCESS_TOKEN no servidor (token de produção para pagamento real).',
+      });
+    }
+
+    const { plano, email, nome } = req.body as { plano?: string; email?: string; nome?: string };
+
+    if (!plano || !email?.trim() || !nome?.trim()) {
+      return res.status(400).json({
+        error: 'Erro ao processar compra da assinatura',
+        detalhes: 'Preencha plano, nome e email.',
+      });
+    }
+
+    const planoSlug = plano.toLowerCase().replace(/\s/g, '_');
+    let valor = VALORES_PLANOS[planoSlug];
+    if (valor === undefined) {
+      valor = VALORES_PLANOS.basico;
+    }
+    if (valor <= 0) {
+      return res.status(400).json({
+        error: 'Erro ao processar compra da assinatura',
+        detalhes: 'Plano Enterprise: entre em contato para valor personalizado.',
+      });
+    }
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const tituloPlano = planoSlug === 'profissional' || planoSlug === 'professional' ? 'Profissional' : planoSlug === 'enterprise' ? 'Enterprise' : 'Básico';
+
+    const preferenceData = {
+      items: [
+        {
+          id: `assinatura-${planoSlug}`,
+          title: `Groom Guru - Plano ${tituloPlano}`,
+          description: `Assinatura mensal - Plano ${tituloPlano}`,
+          quantity: 1,
+          currency_id: 'BRL',
+          unit_price: valor,
+        },
+      ],
+      payer: {
+        name: nome.trim(),
+        email: email.trim(),
+      },
+      back_urls: {
+        success: `${frontendUrl}/pagamento-assinatura/sucesso?plano=${planoSlug}`,
+        failure: `${frontendUrl}/pagamento-assinatura/falha?plano=${planoSlug}`,
+        pending: `${frontendUrl}/pagamento-assinatura/pendente?plano=${planoSlug}`,
+      },
+      auto_return: 'approved' as const,
+      external_reference: `assinatura:${planoSlug}:${Date.now()}`,
+    };
+
+    const response = await preference.create({ body: preferenceData });
+
+    console.log('✅ [ASSINATURA] Preferência criada:', response.id, 'Plano:', tituloPlano, 'Valor:', valor);
+
+    res.json({
+      preferenceId: response.id,
+      initPoint: response.init_point,
+      valor,
+      plano: tituloPlano,
+    });
+  } catch (error: any) {
+    console.error('❌ [ASSINATURA] Erro ao criar preferência:', error);
+    const mensagem = error?.message || error?.cause?.message || 'Erro ao criar pagamento no Mercado Pago';
+    res.status(500).json({
+      error: 'Erro ao processar compra da assinatura',
+      detalhes: mensagem,
+    });
+  }
+}
+
 /**
  * Criar preferência de pagamento no Mercado Pago
  */
