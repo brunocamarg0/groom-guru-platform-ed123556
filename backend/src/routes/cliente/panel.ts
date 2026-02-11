@@ -26,5 +26,19 @@ router.put('/agendamentos/:id/cancelar', clientePanelController.cancelarMeuAgend
 // Pagamentos
 router.post('/pagamentos', clientePanelController.criarPagamento);
 
+// Assinatura
+router.get('/assinatura', clientePanelController.obterMinhaAssinatura);
+router.get('/assinatura/pagamentos', clientePanelController.listarPagamentosAssinatura);
+
+// Planos e compra de assinaturas
+import * as planosClientePublicoController from '../../controllers/planosClientePublicoController';
+import * as assinaturasClientePublicoController from '../../controllers/assinaturasClientePublicoController';
+import * as assinaturasClienteTesteController from '../../controllers/assinaturasClienteTesteController';
+
+router.get('/planos-disponiveis', planosClientePublicoController.listarPlanosDisponiveis);
+router.get('/planos-disponiveis/:barbeariaId', planosClientePublicoController.listarPlanosPorBarbearia);
+router.post('/assinaturas/comprar', assinaturasClientePublicoController.comprarAssinatura);
+router.post('/assinaturas/comprar-teste', assinaturasClienteTesteController.comprarAssinaturaTeste);
+
 export default router;
 

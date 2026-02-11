@@ -67,7 +67,9 @@ async function criarAdmins() {
     console.log('📧 Email: brunocamargocontato@hotmail.com');
     console.log('🔐 Senha: Squaredadmin');
     console.log('');
-    console.log('🔗 Acesse: /login → aba Admin');
+    console.log('⚠️  NOTA: A aba Admin foi removida da tela de login.');
+    console.log('   Os admins devem acessar diretamente: /admin');
+    console.log('   Ou usar uma URL específica de login admin (se configurada)');
     console.log('═══════════════════════════════════════════════════════');
     
   } catch (error) {

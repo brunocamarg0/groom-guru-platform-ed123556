@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation } from "react-router-dom";
+import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
@@ -27,12 +27,19 @@ import {
   Shield,
   MessageCircle,
   Settings,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
 export default function AdminLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  // Acesso livre ao painel admin (sem autenticação)
+  const handleLogout = () => {
+    navigate('/');
+  };
 
   const menuItems = [
     {
@@ -119,7 +126,7 @@ export default function AdminLayout() {
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
                       asChild
-                      isActive={location.pathname === item.url || location.pathname.startsWith(item.url + "/")}
+                      isActive={location.pathname === item.url || (item.url !== '/admin' && location.pathname.startsWith(item.url))}
                     >
                       <Link to={item.url}>
                         <item.icon className="h-4 w-4" />
@@ -136,12 +143,10 @@ export default function AdminLayout() {
           <Button
             variant="ghost"
             className="w-full justify-start"
-            asChild
+            onClick={handleLogout}
           >
-            <Link to="/login">
-              <LogOut className="h-4 w-4 mr-2" />
-              Sair
-            </Link>
+            <LogOut className="h-4 w-4 mr-2" />
+            Sair
           </Button>
         </div>
       </Sidebar>
@@ -158,4 +163,3 @@ export default function AdminLayout() {
     </SidebarProvider>
   );
 }
-

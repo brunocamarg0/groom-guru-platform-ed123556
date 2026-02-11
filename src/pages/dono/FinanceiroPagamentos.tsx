@@ -88,13 +88,25 @@ export default function FinanceiroPagamentos() {
   // Agendamentos sem pagamento (para o modal)
   // Filtra apenas agendamentos com id válido para evitar erro no Select.Item
   const agendamentosSemPagamento = useMemo(() => {
-    const agendamentosComPagamento = new Set(pagamentos.map(p => p.agendamentoId));
-    return agendamentos.filter(a => 
+    console.log('📋 [FINANCEIRO] Total de agendamentos no contexto:', agendamentos.length);
+    console.log('📋 [FINANCEIRO] Agendamentos:', agendamentos.map(a => ({ id: a.id, status: a.status, cliente: a.clienteNome, valor: a.valor })));
+    console.log('💰 [FINANCEIRO] Total de pagamentos:', pagamentos.length);
+    
+    const pagamentoPorAgendamento = new Map(pagamentos.map(p => [p.agendamentoId, p] as const));
+    console.log('💰 [FINANCEIRO] IDs de agendamentos com pagamento:', Array.from(pagamentoPorAgendamento.keys()));
+    
+    const filtrados = agendamentos.filter(a => 
       a.id && // Garante que o id existe e não é vazio
       a.id.trim() !== '' && // Garante que o id não é string vazia
-      !agendamentosComPagamento.has(a.id) && 
+      // Incluir se NÃO existe pagamento ainda, OU se existe mas ainda NÃO está pago (ex.: pendente)
+      (!pagamentoPorAgendamento.has(a.id) || pagamentoPorAgendamento.get(a.id)?.status !== 'pago') &&
       (a.status === "confirmado" || a.status === "concluido" || a.status === "pendente")
     );
+    
+    console.log('✅ [FINANCEIRO] Agendamentos sem pagamento (filtrados):', filtrados.length);
+    console.log('✅ [FINANCEIRO] Detalhes:', filtrados.map(a => ({ id: a.id, status: a.status, cliente: a.clienteNome, servico: a.servicoNome, valor: a.valor })));
+    
+    return filtrados;
   }, [agendamentos, pagamentos]);
 
   const handleRegistrarPagamento = async () => {

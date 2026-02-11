@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Barbearia" ADD COLUMN "latitude" DOUBLE PRECISION;
+ALTER TABLE "Barbearia" ADD COLUMN "longitude" DOUBLE PRECISION;

@@ -50,6 +50,8 @@ import NotificacoesCliente from "./pages/cliente/NotificacoesCliente";
 import Fidelidade from "./pages/cliente/Fidelidade";
 import SuporteCliente from "./pages/cliente/SuporteCliente";
 import ConfiguracoesCliente from "./pages/cliente/ConfiguracoesCliente";
+import MinhaAssinatura from "./pages/cliente/MinhaAssinatura";
+import PlanosDisponiveis from "./pages/cliente/PlanosDisponiveis";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import DonoLayout from "./pages/dono/DonoLayout";
 import DonoDashboard from "./pages/dono/DonoDashboard";
@@ -57,6 +59,8 @@ import AgendaInteligente from "./pages/dono/AgendaInteligente";
 import GestaoServicos from "./pages/dono/GestaoServicos";
 import GestaoProfissionais from "./pages/dono/GestaoProfissionais";
 import GestaoClientes from "./pages/dono/GestaoClientes";
+import GestaoPlanosCliente from "./pages/dono/GestaoPlanosCliente";
+import GestaoAssinaturasCliente from "./pages/dono/GestaoAssinaturasCliente";
 import FinanceiroPagamentos from "./pages/dono/FinanceiroPagamentos";
 import ComissoesBarbeiros from "./pages/dono/ComissoesBarbeiros";
 import FidelidadePromocoes from "./pages/dono/FidelidadePromocoes";
@@ -73,6 +77,7 @@ import EsqueciSenha from "./pages/EsqueciSenha";
 import CheckoutAssinatura from "./pages/CheckoutAssinatura";
 import PagamentoAssinaturaSucesso from "./pages/PagamentoAssinaturaSucesso";
 import PagamentoAssinaturaFalha from "./pages/PagamentoAssinaturaFalha";
+import LoginAdmin from "./pages/admin/LoginAdmin";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -116,6 +121,7 @@ const App = () => (
                                 <Route path="/auth/callback" element={<AuthCallback />} />
                                 <Route path="/ativar-conta" element={<AtivarConta />} />
                                 <Route path="/funcionalidades" element={<Funcionalidades />} />
+                                <Route path="/admin/login" element={<LoginAdmin />} />
                                 <Route path="/cliente/pagamento/sucesso" element={<PagamentoSucesso />} />
                                 <Route path="/cliente/pagamento/falha" element={<PagamentoFalha />} />
                                 <Route path="/cliente/pagamento/pendente" element={<PagamentoPendente />} />
@@ -155,6 +161,8 @@ const App = () => (
                                   <Route path="perfil" element={<ErrorBoundary><PerfilCliente /></ErrorBoundary>} />
                                   <Route path="notificacoes" element={<ErrorBoundary><NotificacoesCliente /></ErrorBoundary>} />
                                   <Route path="fidelidade" element={<ErrorBoundary><Fidelidade /></ErrorBoundary>} />
+                                  <Route path="assinatura" element={<ErrorBoundary><MinhaAssinatura /></ErrorBoundary>} />
+                                  <Route path="planos" element={<ErrorBoundary><PlanosDisponiveis /></ErrorBoundary>} />
                                   <Route path="suporte" element={<ErrorBoundary><SuporteCliente /></ErrorBoundary>} />
                                   <Route path="configuracoes" element={<ErrorBoundary><ConfiguracoesCliente /></ErrorBoundary>} />
                                   <Route path="*" element={<NotFound />} />
@@ -171,6 +179,8 @@ const App = () => (
                                   <Route path="servicos" element={<ErrorBoundary><GestaoServicos /></ErrorBoundary>} />
                                   <Route path="profissionais" element={<ErrorBoundary><GestaoProfissionais /></ErrorBoundary>} />
                                   <Route path="clientes" element={<ErrorBoundary><GestaoClientes /></ErrorBoundary>} />
+                                  <Route path="planos-cliente" element={<ErrorBoundary><GestaoPlanosCliente /></ErrorBoundary>} />
+                                  <Route path="assinaturas-cliente" element={<ErrorBoundary><GestaoAssinaturasCliente /></ErrorBoundary>} />
                                   <Route path="financeiro" element={<ErrorBoundary><FinanceiroPagamentos /></ErrorBoundary>} />
                                   <Route path="comissoes" element={<ErrorBoundary><ComissoesBarbeiros /></ErrorBoundary>} />
                                   <Route path="fidelidade" element={<ErrorBoundary><FidelidadePromocoes /></ErrorBoundary>} />

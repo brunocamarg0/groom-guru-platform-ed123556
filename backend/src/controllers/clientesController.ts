@@ -86,6 +86,21 @@ export async function listarClientes(req: AuthRequest, res: Response) {
           },
           orderBy: { data: 'desc' },
         },
+        assinatura: {
+          where: {
+            status: 'ativa',
+          },
+          select: {
+            id: true,
+            status: true,
+            plano: {
+              select: {
+                nome: true,
+                valor: true,
+              },
+            },
+          },
+        },
         _count: {
           select: { 
             agendamentos: {
@@ -104,11 +119,11 @@ export async function listarClientes(req: AuthRequest, res: Response) {
       
       // Calcular ticket médio baseado nos pagamentos
       const pagamentos = agendamentosBarbearia
-        .filter((ag) => ag.pagamento)
-        .map((ag) => ag.pagamento?.valor || 0);
+        .filter((ag: any) => ag.pagamento)
+        .map((ag: any) => ag.pagamento?.valor || 0);
       
       const ticketMedio = pagamentos.length > 0
-        ? pagamentos.reduce((sum, val) => sum + val, 0) / pagamentos.length
+        ? pagamentos.reduce((sum: number, val: number) => sum + val, 0) / pagamentos.length
         : 0;
 
       // Último agendamento
@@ -116,12 +131,22 @@ export async function listarClientes(req: AuthRequest, res: Response) {
         ? agendamentosBarbearia[0].data
         : null;
 
+      // Verificar se tem assinatura ativa
+      const temAssinatura = !!cliente.assinatura;
+      const assinatura = cliente.assinatura;
+
       return {
         ...cliente,
         totalAgendamentos,
         ticketMedio,
         ultimoAgendamento,
         frequencia: totalAgendamentos, // Simplificado: total de agendamentos
+        temAssinatura,
+        assinatura: assinatura ? {
+          id: assinatura.id,
+          status: assinatura.status,
+          plano: assinatura.plano,
+        } : null,
       };
     });
 

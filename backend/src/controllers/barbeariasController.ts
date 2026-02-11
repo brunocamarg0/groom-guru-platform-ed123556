@@ -8,45 +8,115 @@ import { enviarEmailConvite } from '../services/emailService';
  */
 export async function listarBarbearias(req: Request, res: Response) {
   try {
-    const barbearias = await prisma.barbearia.findMany({
-      include: {
-        dono: {
-          select: {
-            id: true,
-            nome: true,
-            email: true,
-            ativo: true,
-          },
-        },
-        convites: {
-          where: {
-            usado: false,
-            expiraEm: {
-              gt: new Date(),
+    console.log('📋 [ADMIN BARBEARIAS] Listando barbearias...');
+    
+    // Usar abordagem simplificada primeiro para evitar erros de schema
+    let barbearias: any[] = [];
+    
+    try {
+      // Tentar com query completa incluindo relações
+      barbearias = await prisma.barbearia.findMany({
+        select: {
+          id: true,
+          nome: true,
+          cnpjCpf: true,
+          responsavel: true,
+          plano: true,
+          status: true,
+          email: true,
+          telefone: true,
+          endereco: true,
+          cidade: true,
+          bairro: true,
+          cep: true,
+          dataVencimento: true,
+          createdAt: true,
+          updatedAt: true,
+          dono: {
+            select: {
+              id: true,
+              nome: true,
+              email: true,
+              ativo: true,
             },
           },
-          select: {
-            id: true,
-            token: true,
-            expiraEm: true,
+          convites: {
+            where: {
+              usado: false,
+              expiraEm: {
+                gt: new Date(),
+              },
+            },
+            select: {
+              id: true,
+              token: true,
+              expiraEm: true,
+            },
+          },
+          _count: {
+            select: {
+              servicos: true,
+              agendamentos: true,
+            },
           },
         },
-        _count: {
-          select: {
-            servicos: true,
-            agendamentos: true,
-          },
+        orderBy: {
+          createdAt: 'desc',
         },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-
+      });
+    } catch (selectError: any) {
+      console.warn('⚠️ [ADMIN BARBEARIAS] Query com select falhou, tentando query simples:', selectError?.message);
+      
+      // Fallback: query simples sem relações que podem falhar
+      try {
+        barbearias = await prisma.barbearia.findMany({
+          orderBy: {
+            createdAt: 'desc',
+          },
+        });
+        
+        // Adicionar campos vazios para manter compatibilidade
+        barbearias = barbearias.map((b: any) => ({
+          ...b,
+          dono: null,
+          convites: [],
+          _count: { servicos: 0, agendamentos: 0 },
+        }));
+      } catch (simpleError: any) {
+        console.error('❌ [ADMIN BARBEARIAS] Query simples também falhou:', simpleError?.message);
+        
+        // Último fallback: query raw SQL
+        const rawBarbearias = await prisma.$queryRaw`
+          SELECT id, nome, "cnpjCpf", responsavel, plano, status, email, telefone, 
+                 endereco, cidade, bairro, cep, "dataVencimento", "createdAt", "updatedAt"
+          FROM "Barbearia"
+          ORDER BY "createdAt" DESC
+        `;
+        
+        barbearias = (rawBarbearias as any[]).map((b: any) => ({
+          ...b,
+          dono: null,
+          convites: [],
+          _count: { servicos: 0, agendamentos: 0 },
+        }));
+      }
+    }
+    
+    console.log('✅ [ADMIN BARBEARIAS] Barbearias listadas:', barbearias.length);
     res.json(barbearias);
-  } catch (error) {
-    console.error('Erro ao listar barbearias:', error);
-    res.status(500).json({ error: 'Erro ao listar barbearias' });
+  } catch (error: any) {
+    console.error('❌ [ADMIN BARBEARIAS] Erro ao listar barbearias:', error);
+    console.error('❌ [ADMIN BARBEARIAS] Stack:', error?.stack);
+    console.error('❌ [ADMIN BARBEARIAS] Message:', error?.message);
+    console.error('❌ [ADMIN BARBEARIAS] Code:', error?.code);
+    console.error('❌ [ADMIN BARBEARIAS] Meta:', error?.meta);
+
+    // Sempre retornar detalhes do erro para debug (temporário)
+    res.status(500).json({
+      error: 'Erro ao listar barbearias',
+      details: error?.message || 'Erro desconhecido',
+      code: error?.code,
+    });
   }
 }
 
@@ -59,7 +129,22 @@ export async function buscarBarbearia(req: Request, res: Response) {
 
     const barbearia = await prisma.barbearia.findUnique({
       where: { id },
-      include: {
+      select: {
+        id: true,
+        nome: true,
+        cnpjCpf: true,
+        responsavel: true,
+        plano: true,
+        status: true,
+        email: true,
+        telefone: true,
+        endereco: true,
+        cidade: true,
+        bairro: true,
+        cep: true,
+        dataVencimento: true,
+        createdAt: true,
+        updatedAt: true,
         dono: {
           select: {
             id: true,
@@ -90,9 +175,21 @@ export async function buscarBarbearia(req: Request, res: Response) {
     }
 
     res.json(barbearia);
-  } catch (error) {
-    console.error('Erro ao buscar barbearia:', error);
-    res.status(500).json({ error: 'Erro ao buscar barbearia' });
+  } catch (error: any) {
+    console.error('❌ [ADMIN BARBEARIAS] Erro ao buscar barbearia:', error);
+    console.error('❌ [ADMIN BARBEARIAS] Stack:', error?.stack);
+    console.error('❌ [ADMIN BARBEARIAS] Message:', error?.message);
+    console.error('❌ [ADMIN BARBEARIAS] Code:', error?.code);
+    console.error('❌ [ADMIN BARBEARIAS] Meta:', error?.meta);
+
+    const errorMessage = process.env.NODE_ENV === 'development'
+      ? `Erro ao buscar barbearia: ${error?.message || 'Erro desconhecido'}`
+      : 'Erro ao buscar barbearia';
+
+    res.status(500).json({
+      error: errorMessage,
+      details: process.env.NODE_ENV === 'development' ? error?.message : undefined,
+    });
   }
 }
 

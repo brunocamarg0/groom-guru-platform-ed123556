@@ -56,6 +56,7 @@ export default function AgendamentoOnline() {
   const [step, setStep] = useState(1);
   const [barbearia, setBarbearia] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [horariosOcupados, setHorariosOcupados] = useState<string[]>([]);
   const [loadingHorarios, setLoadingHorarios] = useState(false);
   const [agendamentoIdAtual, setAgendamentoIdAtual] = useState<string | null>(null);
@@ -156,6 +157,12 @@ export default function AgendamentoOnline() {
   const profissionalSelecionado = profissionaisDisponiveis.find((p: any) => p.id === formData.profissionalId);
 
   const handleSubmit = async () => {
+    // Proteção contra duplo clique
+    if (isSubmitting) {
+      console.log('⚠️ [AGENDAMENTO] Submissão já em andamento, ignorando clique duplicado');
+      return;
+    }
+
     if (!formData.servicoId || !formData.data || !formData.hora) {
       toast({
         title: "Erro",
@@ -165,6 +172,8 @@ export default function AgendamentoOnline() {
       return;
     }
 
+    setIsSubmitting(true);
+    
     try {
       const novoAgendamento = await criarAgendamento({
         barbeariaId: formData.barbeariaId!,
@@ -189,6 +198,8 @@ export default function AgendamentoOnline() {
         description: error.message || "Não foi possível criar o agendamento.",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -422,7 +433,15 @@ export default function AgendamentoOnline() {
                         )}
                       </div>
                     )}
-                    <Button className="w-full mt-4" variant="default" size="sm">
+                    <Button 
+                      className="w-full mt-4" 
+                      variant="default" 
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelecionarBarbearia(barbeariaItem.id);
+                      }}
+                    >
                       <Clock className="h-4 w-4 mr-2" />
                       Agendar Agora
                     </Button>
@@ -781,11 +800,22 @@ export default function AgendamentoOnline() {
               </div>
             </div>
             <div className="flex gap-2 mt-6">
-              <Button variant="outline" onClick={() => setStep(3)}>
+              <Button variant="outline" onClick={() => setStep(3)} disabled={isSubmitting}>
                 Voltar
               </Button>
-              <Button className="flex-1" onClick={handleSubmit}>
-                Confirmar Agendamento
+              <Button 
+                className="flex-1" 
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2"></div>
+                    Processando...
+                  </>
+                ) : (
+                  "Confirmar Agendamento"
+                )}
               </Button>
             </div>
           </CardContent>
@@ -807,8 +837,7 @@ export default function AgendamentoOnline() {
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Data:</span>
                 <span className="font-medium">
-                  {formData.data &&
-                    new Date(formData.data).toLocaleDateString("pt-BR")} às {formData.hora}
+                  {formatarDataBR(formData.data as string)} às {formData.hora}
                 </span>
               </div>
               <div className="flex items-center justify-between font-bold text-lg pt-2 border-t">

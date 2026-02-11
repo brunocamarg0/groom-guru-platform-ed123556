@@ -27,17 +27,29 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Crown, Search, Edit, Trash2 } from "lucide-react";
+import { Plus, Crown, Search, Edit, Trash2, UserPlus, Receipt } from "lucide-react";
 import { toast } from "sonner";
+import { apiPost } from "@/services/api";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function GestaoClientes() {
-  const { clientes, marcarClienteVIP, adicionarCliente, atualizarCliente, removerCliente } = useDono();
+  const { clientes, profissionais, marcarClienteVIP, adicionarCliente, atualizarCliente, removerCliente } = useDono();
   const [busca, setBusca] = useState("");
   const [modalAberto, setModalAberto] = useState(false);
   const [modalEdicaoAberto, setModalEdicaoAberto] = useState(false);
+  const [modalAtribuirAberto, setModalAtribuirAberto] = useState(false);
   const [clienteEditando, setClienteEditando] = useState<{ id: string; nome: string; email: string; telefone: string } | null>(null);
+  const [clienteAtribuindo, setClienteAtribuindo] = useState<{ id: string; nome: string } | null>(null);
+  const [profissionalSelecionado, setProfissionalSelecionado] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [excluindo, setExcluindo] = useState<string | null>(null);
+  const [atribuindo, setAtribuindo] = useState(false);
   const [formCliente, setFormCliente] = useState({
     nome: "",
     email: "",
@@ -160,6 +172,37 @@ export default function GestaoClientes() {
     }
   };
 
+  const handleAtribuirProfissional = (cliente: any) => {
+    setClienteAtribuindo(cliente);
+    setProfissionalSelecionado("");
+    setModalAtribuirAberto(true);
+  };
+
+  const handleSalvarAtribuicao = async () => {
+    if (!clienteAtribuindo || !profissionalSelecionado) {
+      toast.error("Selecione um profissional");
+      return;
+    }
+
+    setAtribuindo(true);
+    try {
+      await apiPost("/dono/clientes-profissionais", {
+        clienteId: clienteAtribuindo.id,
+        profissionalId: profissionalSelecionado,
+      });
+
+      toast.success("Cliente atribuído ao profissional com sucesso!");
+      setModalAtribuirAberto(false);
+      setClienteAtribuindo(null);
+      setProfissionalSelecionado("");
+    } catch (error: any) {
+      console.error("Erro ao atribuir cliente:", error);
+      toast.error(error.message || "Erro ao atribuir cliente ao profissional");
+    } finally {
+      setAtribuindo(false);
+    }
+  };
+
   const handleExcluir = async (id: string, nome: string) => {
     if (!confirm(`Tem certeza que deseja remover o cliente "${nome}"?`)) {
       return;
@@ -262,6 +305,7 @@ export default function GestaoClientes() {
                 <TableHead>Ticket Médio</TableHead>
                 <TableHead>Frequência</TableHead>
                 <TableHead>Último Atendimento</TableHead>
+                <TableHead>Assinatura</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Ações</TableHead>
               </TableRow>
@@ -285,12 +329,30 @@ export default function GestaoClientes() {
                       : "Nunca"}
                   </TableCell>
                   <TableCell>
+                    {(cliente as any).temAssinatura ? (
+                      <Badge variant="default" className="flex items-center gap-1 w-fit">
+                        <Receipt className="h-3 w-3" />
+                        {(cliente as any).assinatura?.plano?.nome || "Com Assinatura"}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline">Sem Assinatura</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <Badge variant={cliente.vip ? "default" : "secondary"}>
                       {cliente.vip ? "VIP" : "Regular"}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleAtribuirProfissional(cliente)}
+                        title="Atribuir a profissional"
+                      >
+                        <UserPlus className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -475,6 +537,68 @@ export default function GestaoClientes() {
               disabled={salvando}
             >
               {salvando ? "Salvando..." : "Salvar Alterações"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Atribuir Profissional */}
+      <Dialog open={modalAtribuirAberto} onOpenChange={setModalAtribuirAberto}>
+        <DialogContent className="bg-white text-gray-900">
+          <DialogHeader>
+            <DialogTitle className="text-gray-900">Atribuir Cliente a Profissional</DialogTitle>
+            <DialogDescription className="text-gray-600">
+              {clienteAtribuindo && `Atribuir ${clienteAtribuindo.nome} a um profissional`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="profissional" className="text-gray-900">
+                Profissional *
+              </Label>
+              <Select
+                value={profissionalSelecionado || undefined}
+                onValueChange={(value) => setProfissionalSelecionado(value || "")}
+              >
+                <SelectTrigger id="profissional" className="bg-white text-gray-900 border-gray-300">
+                  <SelectValue placeholder="Selecione um profissional" />
+                </SelectTrigger>
+                <SelectContent>
+                  {profissionais.length > 0 ? (
+                    profissionais.map((prof) => (
+                      <SelectItem key={prof.id} value={prof.id}>
+                        {prof.nome}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="no-professionals" disabled>Nenhum profissional disponível</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Este cliente será atribuído ao profissional selecionado. Qualquer atribuição anterior será desativada.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setModalAtribuirAberto(false);
+                setClienteAtribuindo(null);
+                setProfissionalSelecionado("");
+              }}
+              disabled={atribuindo}
+              className="text-gray-900 border-gray-300"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleSalvarAtribuicao} 
+              disabled={atribuindo || !profissionalSelecionado}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {atribuindo ? "Atribuindo..." : "Atribuir"}
             </Button>
           </DialogFooter>
         </DialogContent>

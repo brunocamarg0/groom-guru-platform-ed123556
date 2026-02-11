@@ -72,7 +72,7 @@ export async function buscarProfissional(req: AuthRequest, res: Response) {
 export async function criarProfissional(req: AuthRequest, res: Response) {
   try {
     const { barbeariaId } = req;
-    const { nome, email, telefone, foto, especialidades, comissaoTipo, comissaoValor } = req.body;
+    const { nome, email, telefone, foto, especialidades, comissaoTipo, comissaoValor, comissaoAssinatura } = req.body;
 
     if (!barbeariaId) {
       return res.status(401).json({ error: 'Barbearia não identificada' });
@@ -91,6 +91,7 @@ export async function criarProfissional(req: AuthRequest, res: Response) {
         especialidades: especialidades || [],
         comissaoTipo: comissaoTipo || 'percentual',
         comissaoValor: comissaoValor || 0,
+        comissaoAssinatura: comissaoAssinatura ? parseFloat(comissaoAssinatura) : 0,
         barbeariaId,
       },
     });
@@ -109,7 +110,7 @@ export async function atualizarProfissional(req: AuthRequest, res: Response) {
   try {
     const { id } = req.params;
     const { barbeariaId } = req;
-    const { nome, email, telefone, foto, especialidades, comissaoTipo, comissaoValor, ativo } = req.body;
+    const { nome, email, telefone, foto, especialidades, comissaoTipo, comissaoValor, comissaoAssinatura, ativo } = req.body;
 
     if (!barbeariaId) {
       return res.status(401).json({ error: 'Barbearia não identificada' });
@@ -134,6 +135,7 @@ export async function atualizarProfissional(req: AuthRequest, res: Response) {
         ...(especialidades && { especialidades }),
         ...(comissaoTipo && { comissaoTipo }),
         ...(comissaoValor !== undefined && { comissaoValor }),
+        ...(comissaoAssinatura !== undefined && { comissaoAssinatura: parseFloat(comissaoAssinatura) || 0 }),
         ...(ativo !== undefined && { ativo }),
       },
     });

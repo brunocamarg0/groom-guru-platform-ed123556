@@ -1,9 +1,13 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { Usuario, NovoUsuario, TipoUsuario, StatusUsuario } from "@/types/usuario";
 import { useBarbearias } from "./BarbeariasContext";
+import { listarBarbeariasAdmin, BarbeariaBackend } from "@/services/adminApi";
 
 interface UsuariosContextType {
   usuarios: Usuario[];
+  isLoading: boolean;
+  error: string | null;
+  recarregarUsuarios: () => Promise<void>;
   adicionarUsuario: (usuario: NovoUsuario) => void;
   editarUsuario: (id: string, dados: Partial<Usuario>) => void;
   resetarSenha: (id: string) => void;
@@ -17,8 +21,59 @@ const UsuariosContext = createContext<UsuariosContextType | undefined>(undefined
 
 export function UsuariosProvider({ children }: { children: ReactNode }) {
   const { barbearias } = useBarbearias();
-  // Removidos dados mockados - usuários serão carregados da API quando necessário
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Verificar se é admin antes de carregar
+  const isAdmin = typeof window !== 'undefined' && localStorage.getItem('userType') === 'admin';
+
+  // Carregar usuários a partir das barbearias (donos)
+  const carregarUsuarios = useCallback(async () => {
+    if (!isAdmin) {
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      console.log('👥 [USUARIOS] Carregando usuários do banco de dados...');
+      const barbeariasDados = await listarBarbeariasAdmin();
+      
+      // Extrair usuários donos das barbearias
+      const usuariosDonos: Usuario[] = barbeariasDados
+        .filter(b => b.dono)
+        .map(b => ({
+          id: b.dono!.id,
+          barbeariaId: b.id,
+          barbeariaNome: b.nome,
+          nome: b.dono!.nome,
+          email: b.dono!.email,
+          tipo: 'admin_barbearia' as TipoUsuario,
+          status: b.dono!.ativo ? 'ativo' as StatusUsuario : 'bloqueado' as StatusUsuario,
+          dataCriacao: b.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0],
+          permissoes: ['todas'],
+        }));
+      
+      console.log('👥 [USUARIOS] Usuários carregados:', usuariosDonos.length);
+      setUsuarios(usuariosDonos);
+    } catch (err: any) {
+      console.error('❌ [USUARIOS] Erro ao carregar:', err);
+      setError(err.message || 'Erro ao carregar usuários');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    carregarUsuarios();
+  }, [carregarUsuarios]);
+
+  const recarregarUsuarios = async () => {
+    await carregarUsuarios();
+  };
 
   const adicionarUsuario = (novoUsuario: NovoUsuario) => {
     const barbearia = barbearias.find((b) => b.id === novoUsuario.barbeariaId);
@@ -68,6 +123,9 @@ export function UsuariosProvider({ children }: { children: ReactNode }) {
     <UsuariosContext.Provider
       value={{
         usuarios,
+        isLoading,
+        error,
+        recarregarUsuarios,
         adicionarUsuario,
         editarUsuario,
         resetarSenha,
@@ -89,10 +147,3 @@ export function useUsuarios() {
   }
   return context;
 }
-
-
-
-
-
-
-

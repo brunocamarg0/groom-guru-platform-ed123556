@@ -46,6 +46,7 @@ export default function GestaoProfissionais() {
     especialidades: [] as string[],
     comissaoTipo: "percentual" as "percentual" | "fixo",
     comissaoValor: 40,
+    comissaoAssinatura: 0,
   });
 
   const formatarMoeda = (valor: number) => {
@@ -76,8 +77,9 @@ export default function GestaoProfissionais() {
           tipo: formData.comissaoTipo,
           valor: formData.comissaoValor,
         },
+        comissaoAssinatura: formData.comissaoAssinatura,
         ativo: true,
-      });
+      } as any);
 
       setIsDialogOpen(false);
       setFormData({
@@ -87,6 +89,7 @@ export default function GestaoProfissionais() {
         especialidades: [],
         comissaoTipo: "percentual",
         comissaoValor: 40,
+        comissaoAssinatura: 0,
       });
     } catch (error) {
       // Erro já é tratado no contexto
@@ -104,6 +107,7 @@ export default function GestaoProfissionais() {
       especialidades: profissional.especialidades || [],
       comissaoTipo: profissional.comissao.tipo,
       comissaoValor: profissional.comissao.valor,
+      comissaoAssinatura: (profissional as any).comissaoAssinatura || 0,
     });
     setIsEditDialogOpen(true);
   };
@@ -128,7 +132,8 @@ export default function GestaoProfissionais() {
           tipo: formData.comissaoTipo,
           valor: formData.comissaoValor,
         },
-      });
+        comissaoAssinatura: formData.comissaoAssinatura,
+      } as any);
 
       setIsEditDialogOpen(false);
       setProfissionalEditando(null);
@@ -139,6 +144,7 @@ export default function GestaoProfissionais() {
         especialidades: [],
         comissaoTipo: "percentual",
         comissaoValor: 40,
+        comissaoAssinatura: 0,
       });
     } catch (error) {
       // Erro já é tratado no contexto
@@ -233,6 +239,21 @@ export default function GestaoProfissionais() {
                   />
                 </div>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="comissaoAssinatura">Comissão por Assinatura (R$)</Label>
+                <Input
+                  id="comissaoAssinatura"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.comissaoAssinatura}
+                  onChange={(e) => setFormData({ ...formData, comissaoAssinatura: parseFloat(e.target.value) || 0 })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Valor fixo pago ao profissional por cada pagamento de assinatura de cliente
+                </p>
+              </div>
             </div>
             <DialogFooter>
               <Button 
@@ -310,6 +331,21 @@ export default function GestaoProfissionais() {
                     onChange={(e) => setFormData({ ...formData, comissaoValor: parseFloat(e.target.value) || 0 })}
                   />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-comissaoAssinatura">Comissão por Assinatura (R$)</Label>
+                <Input
+                  id="edit-comissaoAssinatura"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.comissaoAssinatura}
+                  onChange={(e) => setFormData({ ...formData, comissaoAssinatura: parseFloat(e.target.value) || 0 })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Valor fixo pago ao profissional por cada pagamento de assinatura de cliente
+                </p>
               </div>
             </div>
             <DialogFooter>

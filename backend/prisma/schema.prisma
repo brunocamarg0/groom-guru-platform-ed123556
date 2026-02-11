@@ -22,16 +22,33 @@ model UsuarioAdmin {
   updatedAt DateTime @updatedAt
 }
 
+// Plano de assinatura
+model Plano {
+  id                String      @id @default(uuid())
+  nome              String      // Básico, Premium, Enterprise
+  descricao         String?
+  valorMensal       Float
+  limiteBarbeiros   Int         @default(1)
+  limiteAgendamentos Int        @default(100)
+  recursos          String[]    @default([]) // Array de recursos disponíveis
+  ativo             Boolean     @default(true)
+  
+  assinaturas       Assinatura[]
+  
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
 // Barbearia cadastrada no sistema
 model Barbearia {
   id                String    @id @default(uuid())
   nome              String
   cnpjCpf           String
   responsavel       String    // Nome do responsável legal
-  plano             String    // basico, premium, enterprise
+  plano             String    // basico, premium, enterprise (mantido para compatibilidade)
   status            String    @default("em_teste") // ativa, em_teste, bloqueada, cancelada
   dataCriacao       DateTime  @default(now())
-  dataVencimento    DateTime
+  dataVencimento    DateTime  // Mantido para compatibilidade
   email             String?
   telefone          String?
   endereco          String?
@@ -40,9 +57,12 @@ model Barbearia {
   cep               String?
   modoConfirmacao   String   @default("hibrido") // automatico, manual, hibrido
   foto              String?  // URL ou base64 da foto da barbearia
+  latitude          Float?   // Coordenada para mapa
+  longitude         Float?   // Coordenada para mapa
   
   // Relacionamentos
   dono              UsuarioDono?  @relation("BarbeariaDono")
+  assinatura        Assinatura?   // Assinatura ativa
   convites          Convite[]
   servicos          Servico[]
   agendamentos      Agendamento[]
@@ -52,9 +72,65 @@ model Barbearia {
   promocoes         Promocao[]
   notificacoes      Notificacao[]
   comissoes         ComissaoPaga[]
+  planosCliente     PlanoCliente[]
+  comissoesAssinatura ComissaoAssinatura[]
   
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
+}
+
+// Assinatura da barbearia
+model Assinatura {
+  id                String      @id @default(uuid())
+  barbearia         Barbearia   @relation(fields: [barbeariaId], references: [id], onDelete: Cascade)
+  barbeariaId       String      @unique
+  plano             Plano       @relation(fields: [planoId], references: [id])
+  planoId           String
+  
+  status            String      @default("ativa") // ativa, suspensa, cancelada, vencida
+  dataInicio        DateTime    @default(now())
+  dataVencimento    DateTime
+  proximoVencimento DateTime
+  
+  // Pagamento recorrente
+  pagamentoRecorrente Boolean   @default(false) // Se tem pagamento automático configurado
+  mercadoPagoSubscriptionId String? // ID da assinatura no Mercado Pago
+  
+  faturas            Fatura[]
+  
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
+// Fatura mensal da assinatura
+model Fatura {
+  id                String      @id @default(uuid())
+  assinatura        Assinatura  @relation(fields: [assinaturaId], references: [id], onDelete: Cascade)
+  assinaturaId      String
+  
+  valor             Float
+  dataVencimento    DateTime
+  dataPagamento     DateTime?
+  status            String      @default("pendente") // pendente, paga, vencida, cancelada
+  
+  // Integração com gateway
+  metodoPagamento   String?     // pix, boleto, cartao_credito, cartao_debito
+  mercadoPagoPreferenceId String? // ID da preferência no Mercado Pago
+  mercadoPagoPaymentId    String? // ID do pagamento quando aprovado
+  mercadoPagoStatus       String? // approved, pending, rejected
+  
+  // Dados do pagamento
+  linkPagamento     String?     // Link para pagar a fatura
+  qrCodePix         String?     // QR Code PIX (base64)
+  codigoBoleto      String?     // Código de barras do boleto
+  
+  observacoes       String?
+  
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  
+  @@index([assinaturaId, status])
+  @@index([dataVencimento])
 }
 
 // Usuário Dono da barbearia (criado via convite)
@@ -155,6 +231,9 @@ model Cliente {
   // Relacionamentos
   agendamentos Agendamento[]
   avaliacoes   Avaliacao[]
+  tickets      TicketSuporte[]
+  assinatura   AssinaturaCliente?
+  clienteProfissional ClienteProfissional[]
   
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
@@ -202,6 +281,7 @@ model Profissional {
   especialidades String[]     @default([]) // Array de strings
   comissaoTipo  String        @default("percentual") // percentual, fixo
   comissaoValor Float         @default(0)
+  comissaoAssinatura Float    @default(0) // Comissão fixa por assinatura de cliente
   ativo         Boolean       @default(true)
   dataAdmissao  DateTime      @default(now())
   
@@ -210,6 +290,9 @@ model Profissional {
   barbeariaId   String
   agendamentos  AgendamentoProfissional[]
   comissoes     ComissaoPaga[]
+  clienteProfissional ClienteProfissional[]
+  comissoesAssinatura ComissaoAssinatura[]
+  assinaturasCliente AssinaturaCliente[]
   
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
@@ -351,4 +434,158 @@ model ComissaoPaga {
   @@unique([agendamentoId, profissionalId])
   @@index([profissionalId, mesReferencia])
   @@index([barbeariaId, mesReferencia])
+}
+
+// Ticket de suporte (chamado aberto pelo cliente)
+model TicketSuporte {
+  id          String   @id @default(uuid())
+  categoria   String   // agendamento, pagamento, fidelidade, conta, outro
+  assunto     String
+  mensagem    String
+  status      String   @default("aberto") // aberto, em_andamento, resolvido, fechado
+  prioridade  String   @default("media") // baixa, media, alta, urgente
+  
+  // Dados do cliente
+  clienteId   String?
+  cliente     Cliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  clienteNome String
+  clienteEmail String
+  
+  // Resposta do admin
+  resposta    String?
+  respondidoPor String?
+  respondidoEm DateTime?
+  
+  // Resolução
+  resolvidoEm DateTime?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Plano de assinatura para clientes
+model PlanoCliente {
+  id            String      @id @default(uuid())
+  nome          String      // Mensal, Trimestral, Semestral, Anual
+  descricao     String?
+  valor         Float       // Valor do plano
+  duracaoMeses  Int         // Duração em meses (1, 3, 6, 12)
+  beneficios    String[]    @default([]) // Array de benefícios
+  ativo         Boolean     @default(true)
+  
+  // Relacionamento com barbearia (cada barbearia pode ter seus próprios planos)
+  barbearia     Barbearia   @relation(fields: [barbeariaId], references: [id], onDelete: Cascade)
+  barbeariaId   String
+  
+  assinaturas   AssinaturaCliente[]
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+// Assinatura de cliente
+model AssinaturaCliente {
+  id                String      @id @default(uuid())
+  cliente           Cliente     @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  clienteId         String      @unique
+  plano             PlanoCliente @relation(fields: [planoId], references: [id])
+  planoId           String
+  profissional      Profissional? @relation(fields: [profissionalId], references: [id], onDelete: SetNull)
+  profissionalId   String?      // Profissional responsável pelo cliente
+  
+  status            String      @default("ativa") // ativa, suspensa, cancelada, vencida
+  dataInicio        DateTime    @default(now())
+  dataVencimento    DateTime
+  proximoVencimento DateTime
+  
+  // Pagamento recorrente
+  pagamentoRecorrente Boolean   @default(false)
+  mercadoPagoSubscriptionId String? // ID da assinatura no Mercado Pago
+  
+  pagamentos        PagamentoAssinatura[]
+  comissoes         ComissaoAssinatura[]
+  
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
+// Pagamento de assinatura de cliente
+model PagamentoAssinatura {
+  id                String      @id @default(uuid())
+  assinatura        AssinaturaCliente @relation(fields: [assinaturaId], references: [id], onDelete: Cascade)
+  assinaturaId      String
+  
+  valor             Float
+  dataVencimento    DateTime
+  dataPagamento     DateTime?
+  status            String      @default("pendente") // pendente, paga, vencida, cancelada
+  
+  // Integração com gateway
+  metodoPagamento   String?     // pix, boleto, cartao_credito, cartao_debito
+  mercadoPagoPreferenceId String?
+  mercadoPagoPaymentId    String?
+  mercadoPagoStatus       String?
+  
+  // Dados do pagamento
+  linkPagamento     String?
+  qrCodePix         String?
+  codigoBoleto       String?
+  
+  observacoes       String?
+  
+  comissoes         ComissaoAssinatura[]
+  
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  
+  @@index([assinaturaId, status])
+  @@index([dataVencimento])
+}
+
+// Comissão de profissional por assinatura de cliente
+model ComissaoAssinatura {
+  id                String      @id @default(uuid())
+  profissional      Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+  profissionalId    String
+  assinatura        AssinaturaCliente @relation(fields: [assinaturaId], references: [id], onDelete: Cascade)
+  assinaturaId      String
+  pagamento         PagamentoAssinatura @relation(fields: [pagamentoId], references: [id], onDelete: Cascade)
+  pagamentoId       String
+  
+  valorComissao     Float       // Valor da comissão (fixo do profissional)
+  valorTotal        Float       // Valor total do pagamento
+  pago              Boolean     @default(false)
+  dataPagamento     DateTime?
+  mesReferencia     String      // Mês/ano de referência (ex: "2024-01")
+  observacao        String?
+  
+  barbearia         Barbearia   @relation(fields: [barbeariaId], references: [id], onDelete: Cascade)
+  barbeariaId       String
+  
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  
+  @@unique([pagamentoId, profissionalId])
+  @@index([profissionalId, mesReferencia])
+  @@index([barbeariaId, mesReferencia])
+}
+
+// Relacionamento Cliente-Profissional (qual profissional atende qual cliente)
+model ClienteProfissional {
+  id            String      @id @default(uuid())
+  cliente       Cliente     @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  clienteId     String
+  profissional  Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+  profissionalId String
+  
+  ativo         Boolean     @default(true)
+  dataInicio    DateTime    @default(now())
+  dataFim       DateTime?   // Se null, ainda está ativo
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  @@unique([clienteId, profissionalId])
+  @@index([clienteId])
+  @@index([profissionalId])
 }
