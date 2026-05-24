@@ -99,6 +99,7 @@ const queryClient = new QueryClient({
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
+      <AuthProvider>
       <BarbeariasProvider>
         <PlanosProvider>
           <FinanceiroProvider>
@@ -115,6 +116,7 @@ const App = () => (
                             <BrowserRouter>
                               <Routes>
                                 <Route path="/" element={<Index />} />
+                                <Route path="/auth" element={<Auth />} />
                                 <Route path="/login" element={<Login />} />
                                 <Route path="/cadastro" element={<Cadastro />} />
                                 <Route path="/esqueci-senha" element={<EsqueciSenha />} />
@@ -122,6 +124,11 @@ const App = () => (
                                 <Route path="/ativar-conta" element={<AtivarConta />} />
                                 <Route path="/funcionalidades" element={<Funcionalidades />} />
                                 <Route path="/admin/login" element={<LoginAdmin />} />
+                                <Route path="/super-admin" element={
+                                  <ProtectedRoute requireRole="super_admin">
+                                    <SuperAdminDashboard />
+                                  </ProtectedRoute>
+                                } />
                                 <Route path="/cliente/pagamento/sucesso" element={<PagamentoSucesso />} />
                                 <Route path="/cliente/pagamento/falha" element={<PagamentoFalha />} />
                                 <Route path="/cliente/pagamento/pendente" element={<PagamentoPendente />} />
@@ -195,6 +202,8 @@ const App = () => (
                             </BrowserRouter>
                           </ClienteProvider>
                         </ConfiguracaoProvider>
+                        </> as any
+                        }
                       </SuporteProvider>
                     </SegurancaProvider>
                   </IntegracoesGlobaisProvider>
