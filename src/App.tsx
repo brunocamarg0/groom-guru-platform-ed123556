@@ -179,11 +179,13 @@ const App = () => (
                                   <Route path="*" element={<NotFound />} />
                                 </Route>
                                 <Route path="/dono" element={
-                                  <ErrorBoundary>
-                                    <DonoProvider>
-                                      <DonoLayout />
-                                    </DonoProvider>
-                                  </ErrorBoundary>
+                                  <ProtectedRoute requireRole="owner">
+                                    <ErrorBoundary>
+                                      <DonoProvider>
+                                        <DonoLayout />
+                                      </DonoProvider>
+                                    </ErrorBoundary>
+                                  </ProtectedRoute>
                                 }>
                                   <Route index element={<ErrorBoundary><DonoDashboard /></ErrorBoundary>} />
                                   <Route path="agenda" element={<ErrorBoundary><AgendaInteligente /></ErrorBoundary>} />
