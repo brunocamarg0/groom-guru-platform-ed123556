@@ -25,8 +25,10 @@ export function UsuariosProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Verificar se é admin antes de carregar
-  const isAdmin = typeof window !== 'undefined' && localStorage.getItem('userType') === 'admin';
+  // Admin status MUST be validated server-side via RLS / authenticated APIs.
+  // This flag is UI-only and intentionally not based on client-controlled storage.
+  // Legacy Railway admin panel is being deprecated in favor of Lovable Cloud RLS.
+  const isAdmin = false;
 
   // Carregar usuários a partir das barbearias (donos)
   const carregarUsuarios = useCallback(async () => {

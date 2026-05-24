@@ -10,8 +10,6 @@ import passport from 'passport';
 import adminBarbeariasRoutes from './routes/admin/barbearias';
 import adminConvitesRoutes from './routes/admin/convites';
 import adminUsuariosRoutes from './routes/admin/usuarios';
-import criarExemploRoutes from './routes/admin/criar-exemplo';
-import corrigirAdminRoutes from './routes/admin/corrigir-admin';
 import ativacaoRoutes from './routes/ativacao';
 import authRoutes from './routes/auth';
 import googleAuthRoutes from './routes/googleAuth';
@@ -40,7 +38,7 @@ import faturasRoutes from './routes/faturas';
 import clienteSuporteRoutes from './routes/cliente/suporte';
 import adminSuporteRoutes from './routes/admin/suporte';
 import barbeariasPublicasRoutes from './routes/barbeariasPublicas';
-import emergencyRoutes from './routes/emergency';
+
 import pagamentosRoutes from './routes/pagamentos';
 import testEmailRoutes from './routes/test-email';
 // Carregar configuração do Passport (pode falhar se OAuth não estiver configurado)
@@ -248,14 +246,7 @@ app.use('/api/suporte-cliente', clienteSuporteRoutes);
 // Rotas do cliente (requerem autenticação)
 app.use('/api/cliente', clientePanelRoutes);
 
-// ⚠️ ROTA DE EMERGÊNCIA - Para resetar senha sem email
-// Remover após resolver problema de email
-console.log('🚨 [EMERGENCY] Rota de emergência registrada em /api/emergency/reset-password');
-app.use('/api/emergency', emergencyRoutes);
-
 // Rotas admin - ordem importa! Rotas mais específicas primeiro
-app.use('/api/admin', criarExemploRoutes); // /api/admin/criar-exemplo
-app.use('/api/admin', corrigirAdminRoutes); // /api/admin/corrigir-admin
 app.use('/api/admin', adminUsuariosRoutes); // /api/admin/barbearias/:id/dono
 app.use('/api/admin', adminConvitesRoutes); // /api/admin/barbearias/:id/convite
 app.use('/api/admin/barbearias', adminBarbeariasRoutes); // /api/admin/barbearias
