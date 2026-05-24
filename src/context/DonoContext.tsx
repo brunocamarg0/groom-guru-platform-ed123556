@@ -440,6 +440,7 @@ export function DonoProvider({ children }: { children: ReactNode }) {
       especialidades: p.especialidades ?? [],
       comissao_tipo: p.comissao?.tipo ?? "percentual",
       comissao_valor: p.comissao?.valor ?? 0,
+      comissao_assinatura: p.comissaoAssinatura ?? 0,
       ativo: p.ativo ?? true,
       barbearia_id: barbeariaId!,
     });
