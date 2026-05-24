@@ -13,17 +13,22 @@ import { Loader2, Scissors } from "lucide-react";
 export default function Auth() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, loading: authLoading } = useAuth();
+  const { user, roles, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [nome, setNome] = useState("");
 
-  const from = (location.state as any)?.from?.pathname ?? "/";
+  const from = (location.state as any)?.from?.pathname as string | undefined;
 
   useEffect(() => {
-    if (!authLoading && user) navigate(from, { replace: true });
-  }, [user, authLoading, navigate, from]);
+    if (authLoading || !user) return;
+    if (from) return navigate(from, { replace: true });
+    if (roles.includes("super_admin")) return navigate("/super-admin", { replace: true });
+    if (roles.includes("owner") || roles.includes("professional")) return navigate("/dono", { replace: true });
+    if (roles.includes("client")) return navigate("/cliente", { replace: true });
+    // Logged in but no role yet — stay on /auth so the user can see options
+  }, [user, roles, authLoading, navigate, from]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
