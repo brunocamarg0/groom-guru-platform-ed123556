@@ -1,5 +1,4 @@
-import { Outlet, Link, useLocation } from "react-router-dom";
-import * as React from "react";
+import { Outlet, Link, useLocation, Navigate } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
@@ -28,178 +27,84 @@ import {
   LogOut,
   Receipt,
   Package,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useCliente } from "@/context/ClienteContext";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function ClienteLayout() {
   const location = useLocation();
-  
-  // Hooks devem estar sempre no topo do componente
-  const [loadingTimeout, setLoadingTimeout] = React.useState(false);
-  
-  let cliente, notificacoes, notificacoesNaoLidas = 0, loading = false;
-  
-  try {
-    const clienteContext = useCliente();
-    cliente = clienteContext.cliente;
-    loading = clienteContext.loading;
-    notificacoes = clienteContext.notificacoes || [];
-    notificacoesNaoLidas = notificacoes.filter((n) => !n.lida).length;
-  } catch (error) {
-    console.error("Erro ao carregar contexto do cliente:", error);
-    // Fallback para evitar crash
-    cliente = null;
-    loading = false;
-    notificacoes = [];
-    notificacoesNaoLidas = 0;
-  }
+  const { user, roles, loading: authLoading, signOut } = useAuth();
 
-  // Verificar se há token no localStorage
-  const token = localStorage.getItem('token');
-  const userType = localStorage.getItem('userType');
-
-  // Se não há token ou userType não é 'cliente', redirecionar para login
-  if (!token || userType !== 'cliente') {
-    console.warn('⚠️ Token não encontrado ou tipo de usuário incorreto. Redirecionando...');
-    window.location.href = '/login?tab=client';
+  if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <p className="text-muted-foreground">Redirecionando para login...</p>
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" replace state={{ from: location }} />;
+  }
+
+  // Permitir cliente; super_admin também pode visualizar
+  const isClient = roles.includes("client") || roles.includes("super_admin");
+  if (!isClient) {
+    return (
+      <div className="flex items-center justify-center min-h-screen p-6">
+        <div className="text-center space-y-3 max-w-md">
+          <h1 className="text-2xl font-bold">Acesso restrito</h1>
+          <p className="text-muted-foreground">
+            Esta área é exclusiva para clientes. Sua conta atual não está cadastrada como cliente.
+          </p>
+          <Button asChild>
+            <Link to="/">Voltar para o início</Link>
+          </Button>
         </div>
       </div>
     );
   }
 
-  // Timeout para loading
-  React.useEffect(() => {
-    if (loading) {
-      const timer = setTimeout(() => {
-        console.warn('⚠️ [CLIENTE] Loading demorou mais de 3 segundos, usando dados do localStorage');
-        setLoadingTimeout(true);
-      }, 3000);
-      return () => clearTimeout(timer);
-    } else {
-      setLoadingTimeout(false);
-    }
-  }, [loading]);
+  let cliente: { nome?: string } | null = null;
+  let notificacoesNaoLidas = 0;
+  try {
+    const ctx = useCliente();
+    cliente = ctx.cliente as any;
+    notificacoesNaoLidas = (ctx.notificacoes || []).filter((n) => !n.lida).length;
+  } catch {
+    cliente = null;
+  }
+
+  const nomeExibicao = cliente?.nome || user.email || "Cliente";
 
   const menuItems = [
-    {
-      title: "Dashboard",
-      url: "/cliente",
-      icon: Home,
-    },
-    {
-      title: "Buscar Barbearias",
-      url: "/cliente/agendar",
-      icon: Calendar,
-    },
-    {
-      title: "Pagamentos",
-      url: "/cliente/pagamentos",
-      icon: CreditCard,
-    },
-    {
-      title: "Histórico",
-      url: "/cliente/historico",
-      icon: History,
-    },
-    {
-      title: "Avaliações",
-      url: "/cliente/avaliacoes",
-      icon: Star,
-    },
-    {
-      title: "Perfil",
-      url: "/cliente/perfil",
-      icon: User,
-    },
+    { title: "Dashboard", url: "/cliente", icon: Home },
+    { title: "Buscar Barbearias", url: "/cliente/agendar", icon: Calendar },
+    { title: "Pagamentos", url: "/cliente/pagamentos", icon: CreditCard },
+    { title: "Histórico", url: "/cliente/historico", icon: History },
+    { title: "Avaliações", url: "/cliente/avaliacoes", icon: Star },
+    { title: "Perfil", url: "/cliente/perfil", icon: User },
     {
       title: "Notificações",
       url: "/cliente/notificacoes",
       icon: Bell,
       badge: notificacoesNaoLidas > 0 ? notificacoesNaoLidas : undefined,
     },
-    {
-      title: "Fidelidade",
-      url: "/cliente/fidelidade",
-      icon: Gift,
-    },
-    {
-      title: "Planos Disponíveis",
-      url: "/cliente/planos",
-      icon: Package,
-    },
-    {
-      title: "Minha Assinatura",
-      url: "/cliente/assinatura",
-      icon: Receipt,
-    },
-    {
-      title: "Suporte",
-      url: "/cliente/suporte",
-      icon: MessageCircle,
-    },
-    {
-      title: "Configurações",
-      url: "/cliente/configuracoes",
-      icon: Settings,
-    },
+    { title: "Fidelidade", url: "/cliente/fidelidade", icon: Gift },
+    { title: "Planos Disponíveis", url: "/cliente/planos", icon: Package },
+    { title: "Minha Assinatura", url: "/cliente/assinatura", icon: Receipt },
+    { title: "Suporte", url: "/cliente/suporte", icon: MessageCircle },
+    { title: "Configurações", url: "/cliente/configuracoes", icon: Settings },
   ];
 
-  // Se não tem cliente ainda, tentar carregar do localStorage imediatamente
-  if (!cliente || !cliente.nome) {
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
-      try {
-        const userData = JSON.parse(userStr);
-        if (userData && userData.nome) {
-          // Usar dados do localStorage enquanto carrega da API
-          cliente = {
-            id: userData.id || '1',
-            nome: userData.nome || 'Cliente',
-            email: userData.email || '',
-            telefone: userData.telefone || '',
-          };
-        }
-      } catch (error) {
-        console.error('Erro ao parsear localStorage:', error);
-      }
-    }
-  }
-
-
-  if (loading && !loadingTimeout && (!cliente || !cliente.nome)) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="text-muted-foreground">Carregando painel do cliente...</p>
-          <p className="text-sm text-muted-foreground">Aguarde alguns instantes</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Se ainda não tem cliente após todos os fallbacks, mostrar erro
-  if (!cliente || !cliente.nome) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center space-y-4">
-          <p className="text-lg font-semibold text-foreground">Erro ao carregar dados do cliente</p>
-          <p className="text-muted-foreground">Não foi possível carregar seus dados.</p>
-          <p className="text-sm text-muted-foreground">Por favor, faça login novamente.</p>
-          <Button asChild className="mt-4">
-            <a href="/login?tab=client">Fazer Login Novamente</a>
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  const handleLogout = async () => {
+    await signOut();
+    window.location.href = "/auth";
+  };
 
   return (
     <div className="light">
@@ -212,7 +117,7 @@ export default function ClienteLayout() {
               </div>
               <div className="flex flex-col">
                 <span className="font-semibold text-sm text-gray-900 dark:text-gray-100">
-                  {cliente.nome || "Cliente"}
+                  {nomeExibicao}
                 </span>
                 <span className="text-xs text-gray-700 dark:text-gray-300">
                   Painel do Cliente
@@ -222,14 +127,19 @@ export default function ClienteLayout() {
           </SidebarHeader>
           <SidebarContent>
             <SidebarGroup>
-              <SidebarGroupLabel className="text-gray-900 dark:text-gray-100 font-semibold">Menu</SidebarGroupLabel>
+              <SidebarGroupLabel className="text-gray-900 dark:text-gray-100 font-semibold">
+                Menu
+              </SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
                   {menuItems.map((item) => (
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton
                         asChild
-                        isActive={location.pathname === item.url || location.pathname.startsWith(item.url + "/")}
+                        isActive={
+                          location.pathname === item.url ||
+                          location.pathname.startsWith(item.url + "/")
+                        }
                         className="text-gray-900 dark:text-gray-100"
                       >
                         <Link to={item.url} className="text-gray-900 dark:text-gray-100">
@@ -249,15 +159,9 @@ export default function ClienteLayout() {
             </SidebarGroup>
           </SidebarContent>
           <div className="p-4 border-t border-sidebar-border">
-            <Button
-              variant="ghost"
-              className="w-full justify-start"
-              asChild
-            >
-              <Link to="/login">
-                <LogOut className="h-4 w-4 mr-2" />
-                Sair
-              </Link>
+            <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Sair
             </Button>
           </div>
         </Sidebar>
@@ -275,4 +179,3 @@ export default function ClienteLayout() {
     </div>
   );
 }
-
