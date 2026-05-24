@@ -121,8 +121,8 @@ const App = () => (
                               <Routes>
                                 <Route path="/" element={<Index />} />
                                 <Route path="/auth" element={<Auth />} />
-                                <Route path="/login" element={<Login />} />
-                                <Route path="/cadastro" element={<Cadastro />} />
+                                <Route path="/login" element={<Auth />} />
+                                <Route path="/cadastro" element={<Auth />} />
                                 <Route path="/esqueci-senha" element={<EsqueciSenha />} />
                                 <Route path="/auth/callback" element={<AuthCallback />} />
                                 <Route path="/ativar-conta" element={<AtivarConta />} />
