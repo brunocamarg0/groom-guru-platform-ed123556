@@ -23,6 +23,7 @@ export default function Auth() {
 
   useEffect(() => {
     if (authLoading || !user) return;
+    if (roles.length === 0) return;
     if (from) return navigate(from, { replace: true });
     if (roles.includes("super_admin")) return navigate("/super-admin", { replace: true });
     if (roles.includes("owner") || roles.includes("professional")) return navigate("/dono", { replace: true });
