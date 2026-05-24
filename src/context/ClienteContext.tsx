@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useMemo, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import {
   Agendamento,
   Cliente,
@@ -9,9 +9,10 @@ import {
   MetodoPagamento,
   StatusPagamento,
 } from "@/types/cliente";
-import { apiGet, apiPost, apiPut } from "@/services/api";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface ClienteContextType {
   cliente: Cliente | null;
@@ -38,13 +39,18 @@ interface ClienteContextType {
     pontos: number;
     nivel: string;
     cortesRealizados: number;
-    proximoDesconto: {
-      cortesNecessarios: number;
-      desconto: number;
-    };
+    proximoDesconto: { cortesNecessarios: number; desconto: number };
     progressoProximoNivel: number;
   };
-  notificacoes: Array<{ id: string; titulo: string; mensagem: string; lida: boolean; data: string; tipo?: string; canal?: string }>;
+  notificacoes: Array<{
+    id: string;
+    titulo: string;
+    mensagem: string;
+    lida: boolean;
+    data: string;
+    tipo?: string;
+    canal?: string;
+  }>;
   barbearias: any[];
   buscarBarbearias: (busca?: string, cidade?: string, bairro?: string) => Promise<void>;
   buscarBarbeariaPorId: (id: string) => Promise<any>;
@@ -55,330 +61,225 @@ interface ClienteContextType {
 
 const ClienteContext = createContext<ClienteContextType | undefined>(undefined);
 
+// Mapeia data ISO do banco (timestamptz noon UTC) -> YYYY-MM-DD
+function isoToDateOnly(iso: string | null | undefined): string {
+  if (!iso) return new Date().toISOString().split("T")[0];
+  const d = new Date(iso);
+  const ano = d.getUTCFullYear();
+  const mes = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const dia = String(d.getUTCDate()).padStart(2, "0");
+  return `${ano}-${mes}-${dia}`;
+}
+
+function dateOnlyToNoonUtcIso(date: string): string {
+  return `${date}T12:00:00.000Z`;
+}
+
 export function ClienteProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
-  
-  // Verificar se há token E se é um cliente antes de fazer requisições
-  const [isClienteLogado, setIsClienteLogado] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    const token = localStorage.getItem('token');
-    const userType = localStorage.getItem('userType');
-    return !!token && userType === 'cliente';
-  });
-  
-  // Atualizar isClienteLogado quando o token ou userType mudar
-  useEffect(() => {
-    const checkToken = () => {
-      const token = localStorage.getItem('token');
-      const userType = localStorage.getItem('userType');
-      const shouldBeLogado = !!token && userType === 'cliente';
-      if (shouldBeLogado !== isClienteLogado) {
-        console.log('🔄 [CLIENTE CONTEXT] Estado mudou:', { token: !!token, userType, isClienteLogado: shouldBeLogado });
-        setIsClienteLogado(shouldBeLogado);
-      }
-    };
-    
-    checkToken();
-    const interval = setInterval(checkToken, 1000);
-    return () => clearInterval(interval);
-  }, [isClienteLogado]);
+  const { user, roles, loading: authLoading } = useAuth();
 
-  // Estado local para dados que não vêm de queries
-  const [clienteLocal, setClienteLocal] = useState<Cliente | null>(null);
+  const isClienteLogado = !!user && (roles.includes("client") || roles.includes("super_admin"));
+
   const [barbearias, setBarbearias] = useState<any[]>([]);
-  
-  // Estado derivado para fidelidade (calculado dos agendamentos)
-  const [fidelidade, setFidelidade] = useState({
-    pontos: 0,
-    nivel: 'Bronze',
-    cortesRealizados: 0,
+  const [notificacoes] = useState<any[]>([]);
+
+  // PERFIL do cliente
+  const { data: cliente, isLoading: loadingCliente } = useQuery({
+    queryKey: ["cliente", "perfil", user?.id],
+    enabled: isClienteLogado,
+    queryFn: async (): Promise<Cliente | null> => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from("clientes")
+        .select("id, nome, email, telefone, data_nascimento, created_at")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      return {
+        id: data.id,
+        nome: data.nome,
+        email: data.email,
+        telefone: data.telefone || undefined,
+        dataNascimento: data.data_nascimento || undefined,
+        createdAt: data.created_at,
+      };
+    },
+  });
+
+  // AGENDAMENTOS do cliente
+  const { data: agendamentosRaw, isLoading: loadingAgendamentos } = useQuery({
+    queryKey: ["cliente", "agendamentos", cliente?.id],
+    enabled: !!cliente?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("agendamentos")
+        .select(
+          `id, cliente_id, barbearia_id, servico_id, data, horario, status, observacao,
+           created_at, updated_at, forma_pagamento,
+           servico:servicos(id, nome, descricao, duracao, preco, barbearia_id, ativo),
+           pagamentos(id, valor, metodo, status, created_at, updated_at)`
+        )
+        .eq("cliente_id", cliente!.id)
+        .order("data", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const agendamentos: Agendamento[] = (agendamentosRaw || []).map((a: any) => ({
+    id: a.id,
+    clienteId: a.cliente_id,
+    barbeariaId: a.barbearia_id,
+    servicoId: a.servico_id,
+    servico: a.servico
+      ? {
+          id: a.servico.id,
+          nome: a.servico.nome,
+          descricao: a.servico.descricao || undefined,
+          duracao: a.servico.duracao,
+          preco: Number(a.servico.preco),
+          barbeariaId: a.servico.barbearia_id,
+          ativo: a.servico.ativo,
+        }
+      : undefined,
+    data: isoToDateOnly(a.data),
+    hora: a.horario || "",
+    status: a.status as StatusAgendamento,
+    observacoes: a.observacao || undefined,
+    createdAt: a.created_at,
+    updatedAt: a.updated_at,
+  }));
+
+  const pagamentos: Pagamento[] = (agendamentosRaw || [])
+    .flatMap((a: any) =>
+      (a.pagamentos || []).map((p: any) => ({
+        id: p.id,
+        agendamentoId: a.id,
+        valor: Number(p.valor),
+        metodo: p.metodo as MetodoPagamento,
+        status: p.status as StatusPagamento,
+        createdAt: p.created_at,
+        updatedAt: p.updated_at,
+      }))
+    );
+
+  // Fidelidade calculada
+  const concluidos = agendamentos.filter((a) => a.status === "concluido").length;
+  const fidelidade = {
+    pontos: concluidos * 10,
+    nivel: concluidos >= 10 ? "Ouro" : concluidos >= 5 ? "Prata" : "Bronze",
+    cortesRealizados: concluidos,
     proximoDesconto: {
-      cortesNecessarios: 5,
-      desconto: 10,
+      cortesNecessarios: 5 - (concluidos % 5) || 5,
+      desconto: concluidos >= 10 ? 15 : concluidos >= 5 ? 10 : 5,
     },
-    progressoProximoNivel: 0,
-  });
-
-  // Carregar dados do localStorage imediatamente
-  useEffect(() => {
-    const userStr = localStorage.getItem('user');
-    const userType = localStorage.getItem('userType');
-
-    if (userStr && userType === 'cliente') {
-      try {
-        const userData = JSON.parse(userStr);
-        setClienteLocal({
-          id: userData.id,
-          nome: userData.nome,
-          email: userData.email,
-          telefone: userData.telefone || undefined,
-          dataNascimento: userData.dataNascimento || undefined,
-          createdAt: userData.createdAt || new Date().toISOString(),
-        });
-      } catch (error) {
-        console.error('Erro ao parsear dados do cliente:', error);
-      }
-    }
-  }, []);
-
-  // React Query: Buscar perfil do cliente
-  const { data: perfilData, isLoading: loadingPerfil, error: errorPerfil } = useQuery({
-    queryKey: ['cliente', 'perfil'],
-    queryFn: () => {
-      console.log('👤 [QUERY CLIENTE] Buscando perfil...');
-      return apiGet<Cliente>('/cliente/perfil');
-    },
-    enabled: isClienteLogado,
-    staleTime: 1000 * 60 * 5, // 5 minutos de cache
-    retry: (failureCount, error: any) => {
-      if (error?.status === 401 || error?.message?.includes('401')) {
-        console.error('❌ [QUERY CLIENTE] Erro 401, não tentando novamente');
-        // Só limpar e redirecionar se for um cliente tentando acessar
-        const userType = localStorage.getItem('userType');
-        if (userType === 'cliente') {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          localStorage.removeItem('userType');
-          window.location.href = '/login?tab=client';
-        }
-        return false;
-      }
-      return failureCount < 2;
-    },
-  });
-
-  // React Query: Buscar agendamentos do cliente
-  const { data: agendamentosData, isLoading: loadingAgendamentos, error: errorAgendamentos } = useQuery({
-    queryKey: ['cliente', 'agendamentos'],
-    queryFn: () => {
-      console.log('📅 [QUERY CLIENTE] Buscando agendamentos...');
-      return apiGet<any[]>('/cliente/agendamentos');
-    },
-    enabled: isClienteLogado,
-    staleTime: 1000 * 60 * 2, // 2 minutos de cache (agendamentos mudam mais frequentemente)
-    retry: (failureCount, error: any) => {
-      if (error?.status === 401 || error?.message?.includes('401')) {
-        return false;
-      }
-      return failureCount < 2;
-    },
-  });
-
-  // Estados locais para agendamentos e pagamentos (derivados das queries)
-  const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
-  const [pagamentos, setPagamentos] = useState<Pagamento[]>([]);
-  const [servicos, setServicos] = useState<Servico[]>([]);
-  const [notificacoes, setNotificacoes] = useState<any[]>([]);
-
-  // Processar dados do perfil quando carregados
-  useEffect(() => {
-    if (perfilData) {
-      setClienteLocal(perfilData);
-      localStorage.setItem('user', JSON.stringify(perfilData));
-      console.log('✅ [CLIENTE] Perfil atualizado:', perfilData.nome);
-    }
-  }, [perfilData]);
-
-  // Processar agendamentos quando carregados
-  useEffect(() => {
-    if (agendamentosData) {
-      // Transformar agendamentos do banco para o formato do frontend
-      const agendamentosFormatados: Agendamento[] = agendamentosData.map((a: any) => {
-        // Extrair apenas a data (yyyy-MM-dd) usando UTC para evitar conversão de timezone
-        let dataFormatada: string;
-        if (a.data) {
-          const dataObj = new Date(a.data);
-          const ano = dataObj.getUTCFullYear();
-          const mes = String(dataObj.getUTCMonth() + 1).padStart(2, '0');
-          const dia = String(dataObj.getUTCDate()).padStart(2, '0');
-          dataFormatada = `${ano}-${mes}-${dia}`;
-        } else {
-          dataFormatada = new Date().toISOString().split('T')[0];
-        }
-
-        return {
-          id: a.id,
-          clienteId: a.clienteId,
-          barbeariaId: a.barbeariaId,
-          servicoId: a.servicoId,
-          servico: {
-            id: a.servico.id,
-            nome: a.servico.nome,
-            descricao: a.servico.descricao || undefined,
-            duracao: a.servico.duracao,
-            preco: a.servico.preco,
-            barbeariaId: a.servico.barbeariaId,
-            ativo: a.servico.ativo,
-          },
-          data: dataFormatada,
-          hora: a.horario || a.hora || '',
-          status: a.status as StatusAgendamento,
-          observacoes: a.observacao || a.observacoes || undefined,
-          createdAt: a.createdAt || new Date().toISOString(),
-          updatedAt: a.updatedAt || new Date().toISOString(),
-        };
-      });
-
-      setAgendamentos(agendamentosFormatados);
-
-      // Carregar pagamentos dos agendamentos
-      const pagamentosData: Pagamento[] = agendamentosData
-        .filter((a: any) => a.pagamento)
-        .map((a: any) => ({
-          id: a.pagamento.id,
-          agendamentoId: a.id,
-          valor: a.pagamento.valor,
-          metodo: a.pagamento.metodo as MetodoPagamento,
-          status: a.pagamento.status as StatusPagamento,
-          createdAt: a.pagamento.createdAt || new Date().toISOString(),
-          updatedAt: a.pagamento.updatedAt || new Date().toISOString(),
-        }));
-
-      setPagamentos(pagamentosData);
-
-      // Calcular pontos de fidelidade baseado em agendamentos concluídos
-      const agendamentosConcluidos = agendamentosFormatados.filter(
-        (a) => a.status === 'concluido'
-      ).length;
-
-      const pontos = agendamentosConcluidos * 10;
-      const nivel = agendamentosConcluidos >= 10 ? 'Ouro' : agendamentosConcluidos >= 5 ? 'Prata' : 'Bronze';
-      const proximoCorte = agendamentosConcluidos % 5;
-      const cortesNecessarios = 5 - proximoCorte;
-
-      setFidelidade({
-        pontos,
-        nivel,
-        cortesRealizados: agendamentosConcluidos,
-        proximoDesconto: {
-          cortesNecessarios: cortesNecessarios === 0 ? 5 : cortesNecessarios,
-          desconto: nivel === 'Ouro' ? 15 : nivel === 'Prata' ? 10 : 5,
-        },
-        progressoProximoNivel: (proximoCorte / 5) * 100,
-      });
-
-      console.log('✅ [CLIENTE] Agendamentos processados:', agendamentosFormatados.length);
-    }
-  }, [agendamentosData]);
-
-  // Função para recarregar dados (usada por componentes que precisam forçar refresh)
-  const carregarDados = async () => {
-    await queryClient.invalidateQueries({ queryKey: ['cliente'] });
+    progressoProximoNivel: ((concluidos % 5) / 5) * 100,
   };
 
-  // Estado de loading combinado
-  const loading = loadingPerfil || loadingAgendamentos;
-  
-  // Cliente: usar dados da query ou fallback para localStorage
-  const cliente = perfilData || clienteLocal;
+  const loading = authLoading || loadingCliente || loadingAgendamentos;
+
+  const setCliente = (_c: Cliente | null) => {
+    queryClient.invalidateQueries({ queryKey: ["cliente", "perfil"] });
+  };
+
+  const carregarDados = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["cliente"] });
+  };
 
   const atualizarPerfil = async (dados: Partial<Cliente>) => {
-    try {
-      const perfilAtualizado = await apiPut<Cliente>('/cliente/perfil', dados);
-      setClienteLocal(perfilAtualizado);
-      localStorage.setItem('user', JSON.stringify(perfilAtualizado));
-      // Invalidar query para recarregar dados atualizados
-      await queryClient.invalidateQueries({ queryKey: ['cliente', 'perfil'] });
-      toast.success('Perfil atualizado com sucesso!');
-    } catch (error: any) {
-      console.error('Erro ao atualizar perfil:', error);
-      toast.error(error.message || 'Erro ao atualizar perfil');
+    if (!cliente) throw new Error("Cliente não carregado");
+    const payload: any = {};
+    if (dados.nome !== undefined) payload.nome = dados.nome;
+    if (dados.telefone !== undefined) payload.telefone = dados.telefone;
+    if (dados.dataNascimento !== undefined) payload.data_nascimento = dados.dataNascimento;
+    if (dados.email !== undefined) payload.email = dados.email;
+    const { error } = await supabase.from("clientes").update(payload).eq("id", cliente.id);
+    if (error) {
+      toast.error(error.message);
       throw error;
     }
+    await queryClient.invalidateQueries({ queryKey: ["cliente", "perfil"] });
+    toast.success("Perfil atualizado!");
   };
 
-  const criarAgendamento = async (novoAgendamento: NovoAgendamento): Promise<Agendamento> => {
-    try {
-      console.log('➕ [CLIENTE] Criando agendamento:', novoAgendamento);
-
-      const agendamentoData = await apiPost<any>('/cliente/agendamentos', {
-        barbeariaId: novoAgendamento.barbeariaId,
-        servicoId: novoAgendamento.servicoId,
-        profissionalId: novoAgendamento.profissionalId,
-        data: novoAgendamento.data,
-        horario: novoAgendamento.hora,
-        observacoes: novoAgendamento.observacoes,
-      });
-
-      // Extrair apenas a data (yyyy-MM-dd) da resposta
-      // A data vem armazenada ao meio-dia UTC para evitar problemas de timezone
-      let dataFormatada: string;
-      if (agendamentoData.data) {
-        const dataObj = new Date(agendamentoData.data);
-        // Usar getUTC* para evitar conversão de timezone
-        const ano = dataObj.getUTCFullYear();
-        const mes = String(dataObj.getUTCMonth() + 1).padStart(2, '0');
-        const dia = String(dataObj.getUTCDate()).padStart(2, '0');
-        dataFormatada = `${ano}-${mes}-${dia}`;
-      } else {
-        dataFormatada = new Date().toISOString().split('T')[0];
-      }
-
-      // Transformar resposta para o formato do frontend
-      const agendamento: Agendamento = {
-        id: agendamentoData.id,
-        clienteId: agendamentoData.clienteId,
-        barbeariaId: agendamentoData.barbeariaId,
-        servicoId: agendamentoData.servicoId,
-        servico: {
-          id: agendamentoData.servico.id,
-          nome: agendamentoData.servico.nome,
-          descricao: agendamentoData.servico.descricao || undefined,
-          duracao: agendamentoData.servico.duracao,
-          preco: agendamentoData.servico.preco,
-          barbeariaId: agendamentoData.servico.barbeariaId,
-          ativo: agendamentoData.servico.ativo,
-        },
-        data: dataFormatada,
-        hora: agendamentoData.horario || agendamentoData.hora || '',
-        status: agendamentoData.status as StatusAgendamento,
-        observacoes: agendamentoData.observacao || agendamentoData.observacoes || undefined,
-        createdAt: agendamentoData.createdAt || new Date().toISOString(),
-        updatedAt: agendamentoData.updatedAt || new Date().toISOString(),
-      };
-
-      setAgendamentos([...agendamentos, agendamento]);
-      toast.success('Agendamento criado com sucesso!');
-
-      return agendamento;
-    } catch (error: any) {
-      console.error('❌ [CLIENTE CONTEXT] Erro ao criar agendamento:', error);
-      console.error('   Status:', error.status);
-      console.error('   Mensagem:', error.message);
-      
-      // Extrair mensagem de erro mais específica
-      let mensagemErro = 'Erro ao criar agendamento';
-      
-      if (error.status === 401) {
-        mensagemErro = 'Você precisa estar logado para criar um agendamento. Faça login novamente.';
-      } else if (error.status === 400) {
-        mensagemErro = error.message || 'Dados inválidos. Verifique os campos preenchidos.';
-      } else if (error.status === 404) {
-        mensagemErro = error.message || 'Barbearia, serviço ou profissional não encontrado.';
-      } else if (error.error) {
-        mensagemErro = error.error;
-      } else if (error.message) {
-        mensagemErro = error.message;
-      }
-      
-      toast.error(mensagemErro);
-      throw new Error(mensagemErro);
+  const criarAgendamento = async (novo: NovoAgendamento): Promise<Agendamento> => {
+    if (!cliente) {
+      toast.error("Cadastro de cliente não encontrado. Faça login novamente.");
+      throw new Error("Cliente não carregado");
     }
+    const insertPayload = {
+      cliente_id: cliente.id,
+      cliente_nome: cliente.nome,
+      telefone: cliente.telefone || "",
+      barbearia_id: novo.barbeariaId,
+      servico_id: novo.servicoId,
+      data: dateOnlyToNoonUtcIso(novo.data),
+      horario: novo.hora,
+      observacao: novo.observacoes || null,
+      status: "pendente",
+    };
+    const { data, error } = await supabase
+      .from("agendamentos")
+      .insert(insertPayload)
+      .select(
+        `id, cliente_id, barbearia_id, servico_id, data, horario, status, observacao,
+         created_at, updated_at,
+         servico:servicos(id, nome, descricao, duracao, preco, barbearia_id, ativo)`
+      )
+      .single();
+    if (error) {
+      toast.error(error.message);
+      throw error;
+    }
+
+    if (novo.profissionalId) {
+      await supabase
+        .from("agendamento_profissional")
+        .insert({ agendamento_id: data.id, profissional_id: novo.profissionalId });
+    }
+
+    await queryClient.invalidateQueries({ queryKey: ["cliente", "agendamentos"] });
+    toast.success("Agendamento criado!");
+
+    const s: any = data.servico;
+    return {
+      id: data.id,
+      clienteId: data.cliente_id,
+      barbeariaId: data.barbearia_id,
+      servicoId: data.servico_id,
+      servico: s
+        ? {
+            id: s.id,
+            nome: s.nome,
+            descricao: s.descricao || undefined,
+            duracao: s.duracao,
+            preco: Number(s.preco),
+            barbeariaId: s.barbearia_id,
+            ativo: s.ativo,
+          }
+        : undefined,
+      data: isoToDateOnly(data.data),
+      hora: data.horario || "",
+      status: data.status as StatusAgendamento,
+      observacoes: data.observacao || undefined,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    };
   };
 
   const cancelarAgendamento = async (id: string) => {
-    try {
-      await apiPut(`/cliente/agendamentos/${id}/cancelar`, {});
-
-      // Invalidar query para recarregar agendamentos
-      await queryClient.invalidateQueries({ queryKey: ['cliente', 'agendamentos'] });
-
-      toast.success('Agendamento cancelado com sucesso!');
-    } catch (error: any) {
-      console.error('Erro ao cancelar agendamento:', error);
-      toast.error(error.message || 'Erro ao cancelar agendamento');
+    const { error } = await supabase
+      .from("agendamentos")
+      .update({ status: "cancelado" })
+      .eq("id", id);
+    if (error) {
+      toast.error(error.message);
       throw error;
     }
+    await queryClient.invalidateQueries({ queryKey: ["cliente", "agendamentos"] });
+    toast.success("Agendamento cancelado.");
   };
 
   const criarPagamento = async (
@@ -386,232 +287,129 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
     valor: number,
     metodo: MetodoPagamento
   ): Promise<Pagamento> => {
-    try {
-      // TODO: Implementar criação de pagamento via API
-      // Por enquanto, criar localmente
-      const pagamento: Pagamento = {
-        id: Date.now().toString(),
-        agendamentoId,
+    const { data, error } = await supabase
+      .from("pagamentos")
+      .insert({
+        agendamento_id: agendamentoId,
         valor,
         metodo,
-        status: metodo === "pix" || metodo === "boleto" ? "pendente" : "processando",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      setPagamentos([...pagamentos, pagamento]);
-
-      // Atualizar status do agendamento
-      setAgendamentos(
-        agendamentos.map((a) =>
-          a.id === agendamentoId
-            ? { ...a, status: "confirmado" as StatusAgendamento, updatedAt: new Date().toISOString() }
-            : a
-        )
-      );
-
-      toast.success('Pagamento criado com sucesso!');
-      return pagamento;
-    } catch (error: any) {
-      console.error('Erro ao criar pagamento:', error);
-      toast.error(error.message || 'Erro ao criar pagamento');
+        status: metodo === "dinheiro" ? "pendente" : "processando",
+      })
+      .select()
+      .single();
+    if (error) {
+      toast.error(error.message);
       throw error;
     }
+    await queryClient.invalidateQueries({ queryKey: ["cliente", "agendamentos"] });
+    return {
+      id: data.id,
+      agendamentoId,
+      valor: Number(data.valor),
+      metodo: data.metodo as MetodoPagamento,
+      status: data.status as StatusPagamento,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    };
   };
 
   const atualizarStatusPagamento = async (id: string, status: StatusPagamento) => {
-    try {
-      setPagamentos(
-        pagamentos.map((p) =>
-          p.id === id ? { ...p, status, updatedAt: new Date().toISOString() } : p
-        )
-      );
-
-      const pagamento = pagamentos.find((p) => p.id === id);
-      if (pagamento && status === "aprovado") {
-        setAgendamentos(
-          agendamentos.map((a) =>
-            a.id === pagamento.agendamentoId
-              ? { ...a, status: "confirmado" as StatusAgendamento, updatedAt: new Date().toISOString() }
-              : a
-          )
-        );
-      }
-    } catch (error: any) {
-      console.error('Erro ao atualizar status do pagamento:', error);
-      toast.error(error.message || 'Erro ao atualizar status do pagamento');
+    const { error } = await supabase.from("pagamentos").update({ status }).eq("id", id);
+    if (error) {
+      toast.error(error.message);
       throw error;
     }
-  };
-
-  const getAgendamento = (id: string): Agendamento | undefined => {
-    return agendamentos.find((a) => a.id === id);
-  };
-
-  const getServicosPorBarbearia = (barbeariaId: string): Servico[] => {
-    return servicos.filter((s) => s.barbeariaId === barbeariaId && s.ativo);
-  };
-
-  const getAgendamentosPorStatus = (status: StatusAgendamento): Agendamento[] => {
-    return agendamentos.filter((a) => a.status === status);
+    await queryClient.invalidateQueries({ queryKey: ["cliente", "agendamentos"] });
   };
 
   const realizarPagamento = async (agendamentoId: string, dados: any): Promise<Pagamento> => {
-    try {
-      console.log('💳 [CLIENTE] Realizando pagamento:', { agendamentoId, dados });
-
-      // Criar pagamento via API
-      const pagamentoResponse = await apiPost<Pagamento>('/cliente/pagamentos', {
-        agendamentoId,
-        valor: dados.valor,
-        metodo: dados.metodo,
-        status: dados.status || 'pago',
-        cupomDesconto: dados.cupomDesconto,
-        cashbackGerado: dados.cashbackGerado || 0,
-      });
-
-      const novoPagamento: Pagamento = {
-        id: pagamentoResponse.id || Date.now().toString(),
-        agendamentoId,
-        valor: dados.valor,
-        metodo: dados.metodo,
-        status: dados.status || 'aprovado',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        ...pagamentoResponse,
-      };
-
-      // Atualizar estado local
-      setPagamentos([...pagamentos, novoPagamento]);
-
-      // Atualizar status do agendamento
-      setAgendamentos(
-        agendamentos.map((a) =>
-          a.id === agendamentoId
-            ? {
-              ...a,
-              status: dados.status === 'pago' ? 'confirmado' as StatusAgendamento : a.status,
-              updatedAt: new Date().toISOString()
-            }
-            : a
-        )
-      );
-
-      // Invalidar queries para recarregar dados
-      await queryClient.invalidateQueries({ queryKey: ['cliente'] });
-
-      toast.success('Pagamento realizado com sucesso!');
-      return novoPagamento;
-    } catch (error: any) {
-      console.error('❌ [CLIENTE] Erro ao realizar pagamento:', error);
-      toast.error(error.message || 'Erro ao realizar pagamento');
-      throw error;
-    }
+    return criarPagamento(agendamentoId, dados.valor, dados.metodo);
   };
 
-  const buscarBarbearias = async (busca?: string, cidade?: string, bairro?: string) => {
-    try {
-      console.log('🔍 [CLIENTE] Buscando barbearias...', { busca, cidade, bairro });
-
-      const params = new URLSearchParams();
-      if (busca) params.append('busca', busca);
-      if (cidade) params.append('cidade', cidade);
-      if (bairro) params.append('bairro', bairro);
-
-      const queryString = params.toString();
-      const endpoint = `/barbearias${queryString ? `?${queryString}` : ''}`;
-
-      console.log('🔍 [CLIENTE] Endpoint:', endpoint);
-
-      // Fazer requisição sem token (rota pública)
-      const API_URL = import.meta.env.VITE_API_URL || 'https://groom-guru-platform-production.up.railway.app/api';
-      const response = await fetch(`${API_URL}${endpoint}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ [CLIENTE] Erro na resposta:', response.status, errorText);
-        throw new Error(`Erro ao buscar barbearias: ${response.status} - ${errorText}`);
-      }
-
-      const barbeariasData = await response.json();
-
-      if (Array.isArray(barbeariasData)) {
-        setBarbearias(barbeariasData);
-        console.log('✅ [CLIENTE] Barbearias encontradas:', barbeariasData.length);
-      } else {
-        console.warn('⚠️ [CLIENTE] Resposta não é um array:', barbeariasData);
-        setBarbearias([]);
-      }
-    } catch (error: any) {
-      console.error('❌ [CLIENTE] Erro ao buscar barbearias:', error);
-      console.error('❌ [CLIENTE] Detalhes do erro:', {
-        message: error.message,
-        stack: error.stack,
-        name: error.name,
-      });
-      toast.error(error.message || 'Erro ao buscar barbearias');
-      setBarbearias([]);
-    }
-  };
-
-  const buscarBarbeariaPorId = async (id: string) => {
-    try {
-      console.log('🔍 [CLIENTE] Buscando barbearia por ID:', id);
-
-      // Fazer requisição sem token (rota pública)
-      const API_URL = import.meta.env.VITE_API_URL || 'https://groom-guru-platform-production.up.railway.app/api';
-      const response = await fetch(`${API_URL}/barbearias/${id}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ [CLIENTE] Erro na resposta:', response.status, errorText);
-        throw new Error(`Erro ao buscar barbearia: ${response.status} - ${errorText}`);
-      }
-
-      const barbearia = await response.json();
-      return barbearia;
-    } catch (error: any) {
-      console.error('❌ [CLIENTE] Erro ao buscar barbearia:', error);
-      toast.error(error.message || 'Erro ao buscar barbearia');
-      throw error;
-    }
-  };
+  const getAgendamento = (id: string) => agendamentos.find((a) => a.id === id);
+  const getAgendamentosPorStatus = (status: StatusAgendamento) =>
+    agendamentos.filter((a) => a.status === status);
+  const getServicosPorBarbearia = (_barbeariaId: string): Servico[] => [];
 
   const getProximoAgendamento = (): Agendamento | null => {
     const agora = new Date();
-    const agendamentosFuturos = agendamentos
+    const futuros = agendamentos
       .filter((a) => {
-        const dataAgendamento = new Date(`${a.data}T${a.hora}`);
-        return dataAgendamento > agora && a.status !== 'cancelado';
+        const d = new Date(`${a.data}T${a.hora || "00:00"}`);
+        return d > agora && a.status !== "cancelado";
       })
-      .sort((a, b) => {
-        const dataA = new Date(`${a.data}T${a.hora}`);
-        const dataB = new Date(`${b.data}T${b.hora}`);
-        return dataA.getTime() - dataB.getTime();
-      });
+      .sort(
+        (x, y) =>
+          new Date(`${x.data}T${x.hora}`).getTime() -
+          new Date(`${y.data}T${y.hora}`).getTime()
+      );
+    return futuros[0] || null;
+  };
 
-    return agendamentosFuturos[0] || null;
+  const buscarBarbearias = async (busca?: string, cidade?: string, bairro?: string) => {
+    let q = supabase
+      .from("barbearias")
+      .select(
+        `id, nome, telefone, email, foto, bairro, cidade, endereco,
+         servicos(id, nome, descricao, duracao, preco, ativo, barbearia_id),
+         profissionais(id, nome, foto, especialidades, ativo, barbearia_id)`
+      )
+      .order("nome");
+    if (busca) q = q.ilike("nome", `%${busca}%`);
+    if (cidade) q = q.ilike("cidade", `%${cidade}%`);
+    if (bairro) q = q.ilike("bairro", `%${bairro}%`);
+    const { data, error } = await q;
+    if (error) {
+      toast.error(error.message);
+      setBarbearias([]);
+      return;
+    }
+    const mapped = (data || []).map((b: any) => ({
+      ...b,
+      servicos: (b.servicos || []).filter((s: any) => s.ativo).map((s: any) => ({
+        ...s,
+        preco: Number(s.preco),
+      })),
+      profissionais: (b.profissionais || []).filter((p: any) => p.ativo),
+      totalServicos: (b.servicos || []).filter((s: any) => s.ativo).length,
+    }));
+    setBarbearias(mapped);
+  };
+
+  const buscarBarbeariaPorId = async (id: string) => {
+    const { data, error } = await supabase
+      .from("barbearias")
+      .select(
+        `id, nome, telefone, email, foto, bairro, cidade, endereco,
+         servicos(id, nome, descricao, duracao, preco, ativo, barbearia_id),
+         profissionais(id, nome, foto, especialidades, ativo, barbearia_id)`
+      )
+      .eq("id", id)
+      .single();
+    if (error) {
+      toast.error(error.message);
+      throw error;
+    }
+    const b: any = data;
+    return {
+      ...b,
+      servicos: (b.servicos || []).filter((s: any) => s.ativo).map((s: any) => ({
+        ...s,
+        preco: Number(s.preco),
+      })),
+      profissionais: (b.profissionais || []).filter((p: any) => p.ativo),
+    };
   };
 
   return (
     <ClienteContext.Provider
       value={{
-        cliente,
+        cliente: cliente ?? null,
         agendamentos,
-        servicos,
+        servicos: [],
         pagamentos,
         loading,
-        setCliente: setClienteLocal,
+        setCliente,
         criarAgendamento,
         cancelarAgendamento,
         criarPagamento,
@@ -627,9 +425,7 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
         barbearias,
         buscarBarbearias,
         buscarBarbeariaPorId,
-        criarAvaliacao: undefined, // TODO: Implementar
         realizarPagamento,
-        marcarNotificacaoLida: undefined, // TODO: Implementar
       }}
     >
       {children}
@@ -638,9 +434,7 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
 }
 
 export function useCliente() {
-  const context = useContext(ClienteContext);
-  if (!context) {
-    throw new Error("useCliente deve ser usado dentro de ClienteProvider");
-  }
-  return context;
+  const ctx = useContext(ClienteContext);
+  if (!ctx) throw new Error("useCliente deve ser usado dentro de ClienteProvider");
+  return ctx;
 }
