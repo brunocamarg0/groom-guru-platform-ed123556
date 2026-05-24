@@ -202,8 +202,6 @@ const App = () => (
                             </BrowserRouter>
                           </ClienteProvider>
                         </ConfiguracaoProvider>
-                        </> as any
-                        }
                       </SuporteProvider>
                     </SegurancaProvider>
                   </IntegracoesGlobaisProvider>
@@ -213,6 +211,7 @@ const App = () => (
           </FinanceiroProvider>
         </PlanosProvider>
       </BarbeariasProvider>
+      </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
