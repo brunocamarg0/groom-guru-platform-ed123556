@@ -1,5 +1,3 @@
-import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useDono } from "@/context/DonoContext";
 import {
   Card,
@@ -22,10 +20,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { apiGet } from "@/services/api";
 
 export default function DonoDashboard() {
-  const { barbeariaId, kpi, agendamentos, notificacoes, loading } = useDono();
+  const { kpi, agendamentos, notificacoes, loading } = useDono();
 
   const formatarMoeda = (valor: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -38,19 +35,8 @@ export default function DonoDashboard() {
     (a) => a.data === new Date().toISOString().split("T")[0]
   );
 
-  // Carregar resumo de comissões usando React Query para cache
-  const { data: comissoesData } = useQuery({
-    queryKey: ['comissoes-resumo', barbeariaId],
-    queryFn: () => {
-      const mes = new Date().getMonth() + 1;
-      const ano = new Date().getFullYear();
-      return apiGet<any>(`/dono/comissoes/resumo?mes=${mes}&ano=${ano}`);
-    },
-    enabled: !!barbeariaId,
-    staleTime: 1000 * 60 * 15, // 15 minutos de cache
-  });
-
-  const resumoComissoes = comissoesData?.resumoGeral || null;
+  // Resumo de comissões: em migração — render condicional vazio por enquanto
+  const resumoComissoes: { totalComissao: number; totalPago: number; totalPendente: number } | null = null;
 
   const alertas = [
     ...(agendamentosHoje.length < 5
