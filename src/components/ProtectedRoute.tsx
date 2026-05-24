@@ -24,7 +24,8 @@ export function ProtectedRoute({ children, requireRole, redirectTo = "/auth" }: 
     return <Navigate to={redirectTo} replace state={{ from: location }} />;
   }
 
-  if (requireRole && !roles.includes(requireRole)) {
+  // super_admin tem acesso a tudo
+  if (requireRole && !roles.includes(requireRole) && !roles.includes("super_admin")) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background p-6 text-center">
         <h1 className="text-3xl font-bold text-foreground mb-2">Acesso negado</h1>
