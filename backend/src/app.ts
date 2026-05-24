@@ -246,14 +246,7 @@ app.use('/api/suporte-cliente', clienteSuporteRoutes);
 // Rotas do cliente (requerem autenticação)
 app.use('/api/cliente', clientePanelRoutes);
 
-// ⚠️ ROTA DE EMERGÊNCIA - Para resetar senha sem email
-// Remover após resolver problema de email
-console.log('🚨 [EMERGENCY] Rota de emergência registrada em /api/emergency/reset-password');
-app.use('/api/emergency', emergencyRoutes);
-
 // Rotas admin - ordem importa! Rotas mais específicas primeiro
-app.use('/api/admin', criarExemploRoutes); // /api/admin/criar-exemplo
-app.use('/api/admin', corrigirAdminRoutes); // /api/admin/corrigir-admin
 app.use('/api/admin', adminUsuariosRoutes); // /api/admin/barbearias/:id/dono
 app.use('/api/admin', adminConvitesRoutes); // /api/admin/barbearias/:id/convite
 app.use('/api/admin/barbearias', adminBarbeariasRoutes); // /api/admin/barbearias
