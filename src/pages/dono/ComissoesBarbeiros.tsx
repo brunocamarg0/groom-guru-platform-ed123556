@@ -100,11 +100,11 @@ export default function ComissoesBarbeiros() {
 
   const anos = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
 
-  // Carregar resumo geral
   const carregarResumo = async () => {
+    if (!barbeariaId) return;
     setCarregando(true);
     try {
-      const data = await apiGet<any>(`/dono/comissoes/resumo?mes=${mes}&ano=${ano}`);
+      const data = await getResumoComissoes(barbeariaId, mes, ano);
       setResumoGeral(data.resumoGeral);
       setProfissionaisResumo(data.profissionais || []);
     } catch (error: any) {
@@ -115,11 +115,11 @@ export default function ComissoesBarbeiros() {
     }
   };
 
-  // Carregar comissões detalhadas de um profissional
   const carregarComissoesDetalhadas = async (profissionalId: string) => {
+    if (!barbeariaId) return;
     setCarregando(true);
     try {
-      const data = await apiGet<any>(`/dono/comissoes/profissional/${profissionalId}?mes=${mes}&ano=${ano}`);
+      const data = await getComissoesProfissional(barbeariaId, profissionalId, mes, ano);
       setComissoesDetalhadas(data.comissoes || []);
       setProfissionalSelecionado(profissionalId);
       setTabAtiva("detalhes");
@@ -131,15 +131,11 @@ export default function ComissoesBarbeiros() {
     }
   };
 
-  // Marcar comissão como paga
   const marcarComoPaga = async (agendamentoId: string, profissionalId: string) => {
+    if (!barbeariaId) return;
     try {
-      await apiPost('/dono/comissoes/marcar-paga', {
-        agendamentoId,
-        profissionalId,
-      });
+      await marcarComissaoPaga(barbeariaId, agendamentoId, profissionalId);
       toast.success('Comissão marcada como paga!');
-      // Recarregar dados
       if (profissionalSelecionado) {
         await carregarComissoesDetalhadas(profissionalSelecionado);
       }
@@ -150,20 +146,15 @@ export default function ComissoesBarbeiros() {
     }
   };
 
-  // Marcar todas as comissões de um profissional como pagas
   const marcarTodasComoPagas = async (profissionalId: string) => {
+    if (!barbeariaId) return;
     if (!confirm(`Tem certeza que deseja marcar TODAS as comissões de ${profissionais.find(p => p.id === profissionalId)?.nome} como pagas?`)) {
       return;
     }
 
     try {
-      const resultado = await apiPost<{ total: number }>('/dono/comissoes/marcar-todas-pagas', {
-        profissionalId,
-        mes,
-        ano,
-      });
+      const resultado = await marcarTodasComissoesPagas(barbeariaId, profissionalId, mes, ano);
       toast.success(`${resultado.total} comissões marcadas como pagas!`);
-      // Recarregar dados
       if (profissionalSelecionado) {
         await carregarComissoesDetalhadas(profissionalSelecionado);
       }
