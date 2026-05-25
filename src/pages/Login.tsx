@@ -66,11 +66,17 @@ const Login = () => {
 
       toast.success('Login realizado com sucesso!');
 
-      let redirectPath = '/cliente';
+      // Prioriza a aba escolhida pelo usuário.
+      // Super-admin só é redirecionado automaticamente quando não tem nenhum outro papel.
+      let redirectPath: string;
       if (currentTab === 'owner') {
-        redirectPath = roleSet.has('owner') ? '/dono' : '/super-admin';
+        if (roleSet.has('owner')) redirectPath = '/dono';
+        else if (roleSet.has('client')) redirectPath = '/cliente';
+        else redirectPath = '/super-admin';
       } else {
-        redirectPath = roleSet.has('client') ? '/cliente' : '/super-admin';
+        if (roleSet.has('client')) redirectPath = '/cliente';
+        else if (roleSet.has('owner')) redirectPath = '/dono';
+        else redirectPath = '/super-admin';
       }
 
       navigate(redirectPath, { replace: true });
