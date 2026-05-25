@@ -118,13 +118,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "agendamentos_barbearia_id_fkey"
-            columns: ["barbearia_id"]
-            isOneToOne: false
-            referencedRelation: "barbearias_publicas"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "agendamentos_cliente_id_fkey"
             columns: ["cliente_id"]
             isOneToOne: false
@@ -186,13 +179,6 @@ export type Database = {
             columns: ["barbearia_id"]
             isOneToOne: true
             referencedRelation: "barbearias"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "assinaturas_barbearia_id_fkey"
-            columns: ["barbearia_id"]
-            isOneToOne: true
-            referencedRelation: "barbearias_publicas"
             referencedColumns: ["id"]
           },
           {
@@ -566,13 +552,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "comissoes_assinatura_barbearia_id_fkey"
-            columns: ["barbearia_id"]
-            isOneToOne: false
-            referencedRelation: "barbearias_publicas"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "comissoes_assinatura_pagamento_id_fkey"
             columns: ["pagamento_id"]
             isOneToOne: false
@@ -657,13 +636,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "comissoes_pagas_barbearia_id_fkey"
-            columns: ["barbearia_id"]
-            isOneToOne: false
-            referencedRelation: "barbearias_publicas"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "comissoes_pagas_profissional_id_fkey"
             columns: ["profissional_id"]
             isOneToOne: false
@@ -721,13 +693,6 @@ export type Database = {
             referencedRelation: "barbearias"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "convites_barbearia_id_fkey"
-            columns: ["barbearia_id"]
-            isOneToOne: false
-            referencedRelation: "barbearias_publicas"
-            referencedColumns: ["id"]
-          },
         ]
       }
       donos_barbearia: {
@@ -764,13 +729,6 @@ export type Database = {
             columns: ["barbearia_id"]
             isOneToOne: true
             referencedRelation: "barbearias"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "donos_barbearia_barbearia_id_fkey"
-            columns: ["barbearia_id"]
-            isOneToOne: true
-            referencedRelation: "barbearias_publicas"
             referencedColumns: ["id"]
           },
         ]
@@ -973,13 +931,6 @@ export type Database = {
             columns: ["barbearia_id"]
             isOneToOne: false
             referencedRelation: "barbearias"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "notificacoes_barbearia_id_fkey"
-            columns: ["barbearia_id"]
-            isOneToOne: false
-            referencedRelation: "barbearias_publicas"
             referencedColumns: ["id"]
           },
         ]
@@ -1192,13 +1143,6 @@ export type Database = {
             referencedRelation: "barbearias"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "planos_cliente_barbearia_id_fkey"
-            columns: ["barbearia_id"]
-            isOneToOne: false
-            referencedRelation: "barbearias_publicas"
-            referencedColumns: ["id"]
-          },
         ]
       }
       produtos: {
@@ -1250,13 +1194,6 @@ export type Database = {
             columns: ["barbearia_id"]
             isOneToOne: false
             referencedRelation: "barbearias"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "produtos_barbearia_id_fkey"
-            columns: ["barbearia_id"]
-            isOneToOne: false
-            referencedRelation: "barbearias_publicas"
             referencedColumns: ["id"]
           },
         ]
@@ -1357,13 +1294,6 @@ export type Database = {
             referencedRelation: "barbearias"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "profissionais_barbearia_id_fkey"
-            columns: ["barbearia_id"]
-            isOneToOne: false
-            referencedRelation: "barbearias_publicas"
-            referencedColumns: ["id"]
-          },
         ]
       }
       promocoes: {
@@ -1423,13 +1353,6 @@ export type Database = {
             referencedRelation: "barbearias"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "promocoes_barbearia_id_fkey"
-            columns: ["barbearia_id"]
-            isOneToOne: false
-            referencedRelation: "barbearias_publicas"
-            referencedColumns: ["id"]
-          },
         ]
       }
       servicos: {
@@ -1478,13 +1401,6 @@ export type Database = {
             columns: ["barbearia_id"]
             isOneToOne: false
             referencedRelation: "barbearias"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "servicos_barbearia_id_fkey"
-            columns: ["barbearia_id"]
-            isOneToOne: false
-            referencedRelation: "barbearias_publicas"
             referencedColumns: ["id"]
           },
         ]
@@ -1547,13 +1463,6 @@ export type Database = {
             columns: ["barbearia_id"]
             isOneToOne: true
             referencedRelation: "barbearias"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "solicitacoes_cadastro_barbearia_id_fkey"
-            columns: ["barbearia_id"]
-            isOneToOne: true
-            referencedRelation: "barbearias_publicas"
             referencedColumns: ["id"]
           },
         ]
@@ -1670,63 +1579,6 @@ export type Database = {
       }
     }
     Views: {
-      barbearias_publicas: {
-        Row: {
-          bairro: string | null
-          cep: string | null
-          cidade: string | null
-          created_at: string | null
-          email: string | null
-          endereco: string | null
-          foto: string | null
-          id: string | null
-          latitude: number | null
-          longitude: number | null
-          modo_confirmacao: string | null
-          nome: string | null
-          plano: string | null
-          slug: string | null
-          status: string | null
-          telefone: string | null
-        }
-        Insert: {
-          bairro?: string | null
-          cep?: string | null
-          cidade?: string | null
-          created_at?: string | null
-          email?: string | null
-          endereco?: string | null
-          foto?: string | null
-          id?: string | null
-          latitude?: number | null
-          longitude?: number | null
-          modo_confirmacao?: string | null
-          nome?: string | null
-          plano?: string | null
-          slug?: string | null
-          status?: string | null
-          telefone?: string | null
-        }
-        Update: {
-          bairro?: string | null
-          cep?: string | null
-          cidade?: string | null
-          created_at?: string | null
-          email?: string | null
-          endereco?: string | null
-          foto?: string | null
-          id?: string | null
-          latitude?: number | null
-          longitude?: number | null
-          modo_confirmacao?: string | null
-          nome?: string | null
-          plano?: string | null
-          slug?: string | null
-          status?: string | null
-          telefone?: string | null
-        }
-        Relationships: []
-      }
       profissionais_publicos: {
         Row: {
           ativo: boolean | null
@@ -1763,13 +1615,6 @@ export type Database = {
             referencedRelation: "barbearias"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "profissionais_barbearia_id_fkey"
-            columns: ["barbearia_id"]
-            isOneToOne: false
-            referencedRelation: "barbearias_publicas"
-            referencedColumns: ["id"]
-          },
         ]
       }
     }
@@ -1781,6 +1626,42 @@ export type Database = {
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
+      }
+      get_barbearia_publica_by_id: {
+        Args: { _id: string }
+        Returns: {
+          bairro: string
+          cidade: string
+          endereco: string
+          foto: string
+          id: string
+          latitude: number
+          longitude: number
+          modo_confirmacao: string
+          nome: string
+          plano: string
+          slug: string
+          status: string
+          telefone: string
+        }[]
+      }
+      get_barbearia_publica_by_slug: {
+        Args: { _slug: string }
+        Returns: {
+          bairro: string
+          cidade: string
+          endereco: string
+          foto: string
+          id: string
+          latitude: number
+          longitude: number
+          modo_confirmacao: string
+          nome: string
+          plano: string
+          slug: string
+          status: string
+          telefone: string
+        }[]
       }
       get_horarios_ocupados: {
         Args: { _barbearia_id: string; _data: string }
@@ -1815,6 +1696,24 @@ export type Database = {
           message: Json
           msg_id: number
           read_ct: number
+        }[]
+      }
+      search_barbearias_publicas: {
+        Args: { _bairro?: string; _busca?: string; _cidade?: string }
+        Returns: {
+          bairro: string
+          cidade: string
+          endereco: string
+          foto: string
+          id: string
+          latitude: number
+          longitude: number
+          modo_confirmacao: string
+          nome: string
+          plano: string
+          slug: string
+          status: string
+          telefone: string
         }[]
       }
       slugify: { Args: { _text: string }; Returns: string }
