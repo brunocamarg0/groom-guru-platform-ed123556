@@ -36,7 +36,16 @@ import {
   Scissors,
 } from "lucide-react";
 import { toast } from "sonner";
-import { apiGet, apiPost } from "@/services/api";
+import {
+  getResumoComissoes,
+  getComissoesProfissional,
+  marcarComissaoPaga,
+  marcarTodasComissoesPagas,
+  getRelatorioCompleto,
+  getResumoComissoesAssinatura,
+  getComissoesAssinatura,
+  marcarComissaoAssinaturaPaga,
+} from "@/services/comissoesCloud";
 
 interface Comissao {
   agendamentoId: string;
@@ -67,7 +76,7 @@ interface ResumoProfissional {
 }
 
 export default function ComissoesBarbeiros() {
-  const { profissionais } = useDono();
+  const { profissionais, barbeariaId } = useDono();
   const [mes, setMes] = useState(new Date().getMonth() + 1);
   const [ano, setAno] = useState(new Date().getFullYear());
   const [resumoGeral, setResumoGeral] = useState<any>(null);
@@ -91,11 +100,11 @@ export default function ComissoesBarbeiros() {
 
   const anos = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
 
-  // Carregar resumo geral
   const carregarResumo = async () => {
+    if (!barbeariaId) return;
     setCarregando(true);
     try {
-      const data = await apiGet<any>(`/dono/comissoes/resumo?mes=${mes}&ano=${ano}`);
+      const data = await getResumoComissoes(barbeariaId, mes, ano);
       setResumoGeral(data.resumoGeral);
       setProfissionaisResumo(data.profissionais || []);
     } catch (error: any) {
@@ -106,11 +115,11 @@ export default function ComissoesBarbeiros() {
     }
   };
 
-  // Carregar comissões detalhadas de um profissional
   const carregarComissoesDetalhadas = async (profissionalId: string) => {
+    if (!barbeariaId) return;
     setCarregando(true);
     try {
-      const data = await apiGet<any>(`/dono/comissoes/profissional/${profissionalId}?mes=${mes}&ano=${ano}`);
+      const data = await getComissoesProfissional(barbeariaId, profissionalId, mes, ano);
       setComissoesDetalhadas(data.comissoes || []);
       setProfissionalSelecionado(profissionalId);
       setTabAtiva("detalhes");
@@ -122,15 +131,11 @@ export default function ComissoesBarbeiros() {
     }
   };
 
-  // Marcar comissão como paga
   const marcarComoPaga = async (agendamentoId: string, profissionalId: string) => {
+    if (!barbeariaId) return;
     try {
-      await apiPost('/dono/comissoes/marcar-paga', {
-        agendamentoId,
-        profissionalId,
-      });
+      await marcarComissaoPaga(barbeariaId, agendamentoId, profissionalId);
       toast.success('Comissão marcada como paga!');
-      // Recarregar dados
       if (profissionalSelecionado) {
         await carregarComissoesDetalhadas(profissionalSelecionado);
       }
@@ -141,20 +146,15 @@ export default function ComissoesBarbeiros() {
     }
   };
 
-  // Marcar todas as comissões de um profissional como pagas
   const marcarTodasComoPagas = async (profissionalId: string) => {
+    if (!barbeariaId) return;
     if (!confirm(`Tem certeza que deseja marcar TODAS as comissões de ${profissionais.find(p => p.id === profissionalId)?.nome} como pagas?`)) {
       return;
     }
 
     try {
-      const resultado = await apiPost<{ total: number }>('/dono/comissoes/marcar-todas-pagas', {
-        profissionalId,
-        mes,
-        ano,
-      });
+      const resultado = await marcarTodasComissoesPagas(barbeariaId, profissionalId, mes, ano);
       toast.success(`${resultado.total} comissões marcadas como pagas!`);
-      // Recarregar dados
       if (profissionalSelecionado) {
         await carregarComissoesDetalhadas(profissionalSelecionado);
       }
@@ -470,7 +470,7 @@ export default function ComissoesBarbeiros() {
 
 // Componente para Relatório Completo de Comissões
 function RelatorioCompletoComissoes({ mes, ano }: { mes: number; ano: number }) {
-  const { profissionais } = useDono();
+  const { profissionais, barbeariaId } = useDono();
   const [profissionalSelecionado, setProfissionalSelecionado] = useState<string | null>(null);
   const [relatorio, setRelatorio] = useState<any>(null);
   const [carregando, setCarregando] = useState(false);
@@ -482,11 +482,11 @@ function RelatorioCompletoComissoes({ mes, ano }: { mes: number; ano: number }) 
   }, [profissionalSelecionado, mes, ano]);
 
   const carregarRelatorio = async () => {
-    if (!profissionalSelecionado) return;
+    if (!profissionalSelecionado || !barbeariaId) return;
 
     setCarregando(true);
     try {
-      const data = await apiGet<any>(`/dono/comissoes/completo/${profissionalSelecionado}?mes=${mes}&ano=${ano}`);
+      const data = await getRelatorioCompleto(barbeariaId, profissionalSelecionado, mes, ano);
       setRelatorio(data);
     } catch (error: any) {
       console.error("Erro ao carregar relatório completo:", error);
@@ -729,7 +729,7 @@ function RelatorioCompletoComissoes({ mes, ano }: { mes: number; ano: number }) 
 
 // Componente para Comissões por Assinatura
 function ComissoesAssinatura({ mes, ano }: { mes: number; ano: number }) {
-  const { profissionais } = useDono();
+  const { profissionais, barbeariaId } = useDono();
   const [resumoAssinaturas, setResumoAssinaturas] = useState<any>(null);
   const [profissionalSelecionado, setProfissionalSelecionado] = useState<string | null>(null);
   const [comissoesAssinatura, setComissoesAssinatura] = useState<any[]>([]);
@@ -737,7 +737,7 @@ function ComissoesAssinatura({ mes, ano }: { mes: number; ano: number }) {
 
   useEffect(() => {
     carregarResumoAssinaturas();
-  }, [mes, ano]);
+  }, [mes, ano, barbeariaId]);
 
   useEffect(() => {
     if (profissionalSelecionado) {
@@ -746,10 +746,11 @@ function ComissoesAssinatura({ mes, ano }: { mes: number; ano: number }) {
   }, [profissionalSelecionado, mes, ano]);
 
   const carregarResumoAssinaturas = async () => {
+    if (!barbeariaId) return;
     setCarregando(true);
     try {
-      const data = await apiGet<any>(`/dono/comissoes-assinatura/resumo?mes=${mes}&ano=${ano}`);
-      setResumoAssinaturas(data.totalGeral || data);
+      const data = await getResumoComissoesAssinatura(barbeariaId, mes, ano);
+      setResumoAssinaturas(data.totalGeral);
     } catch (error: any) {
       console.error("Erro ao carregar resumo de comissões por assinatura:", error);
       toast.error("Erro ao carregar resumo de comissões por assinatura");
@@ -759,11 +760,11 @@ function ComissoesAssinatura({ mes, ano }: { mes: number; ano: number }) {
   };
 
   const carregarComissoesAssinatura = async () => {
-    if (!profissionalSelecionado) return;
+    if (!profissionalSelecionado || !barbeariaId) return;
 
     setCarregando(true);
     try {
-      const data = await apiGet<any>(`/dono/comissoes-assinatura/${profissionalSelecionado}?mes=${mes}&ano=${ano}`);
+      const data = await getComissoesAssinatura(barbeariaId, profissionalSelecionado, mes, ano);
       setComissoesAssinatura(data.comissoes || []);
     } catch (error: any) {
       console.error("Erro ao carregar comissões por assinatura:", error);
@@ -775,7 +776,7 @@ function ComissoesAssinatura({ mes, ano }: { mes: number; ano: number }) {
 
   const marcarComissaoComoPaga = async (comissaoId: string) => {
     try {
-      await apiPost(`/dono/comissoes-assinatura/${comissaoId}/marcar-pago`);
+      await marcarComissaoAssinaturaPaga(comissaoId);
       toast.success("Comissão marcada como paga!");
       carregarComissoesAssinatura();
       carregarResumoAssinaturas();

@@ -28,7 +28,7 @@ import {
   Download
 } from "lucide-react";
 import { toast } from "sonner";
-import { apiGet, apiPost } from "@/services/api";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
   DialogContent,
@@ -88,14 +88,54 @@ export default function MinhaAssinatura() {
 
     setLoading(true);
     try {
-      const data = await apiGet<{ assinatura: Assinatura; faturas: Fatura[] }>('/dono/assinatura/faturas');
-      setAssinatura(data.assinatura);
-      setFaturas(data.faturas);
-    } catch (error: any) {
-      console.error('Erro ao carregar assinatura:', error);
-      if (error.status !== 404) {
-        toast.error('Erro ao carregar dados da assinatura');
+      const { data: ass, error: errAss } = await supabase
+        .from("assinaturas")
+        .select("id, status, data_vencimento, proximo_vencimento, plano:planos(id, nome, valor_mensal)")
+        .eq("barbearia_id", barbeariaId)
+        .maybeSingle();
+
+      if (errAss) throw errAss;
+
+      if (!ass) {
+        setAssinatura(null);
+        setFaturas([]);
+        return;
       }
+
+      const planoRel: any = (ass as any).plano;
+      setAssinatura({
+        id: ass.id,
+        status: ass.status,
+        dataVencimento: ass.data_vencimento,
+        proximoVencimento: ass.proximo_vencimento,
+        plano: {
+          id: planoRel?.id,
+          nome: planoRel?.nome,
+          valorMensal: Number(planoRel?.valor_mensal) || 0,
+        },
+      });
+
+      const { data: fats } = await supabase
+        .from("faturas")
+        .select("id, valor, data_vencimento, data_pagamento, status, metodo_pagamento, link_pagamento, qr_code_pix")
+        .eq("assinatura_id", ass.id)
+        .order("data_vencimento", { ascending: false });
+
+      setFaturas(
+        (fats || []).map((f: any) => ({
+          id: f.id,
+          valor: Number(f.valor) || 0,
+          dataVencimento: f.data_vencimento,
+          dataPagamento: f.data_pagamento,
+          status: f.status,
+          metodoPagamento: f.metodo_pagamento,
+          linkPagamento: f.link_pagamento,
+          qrCodePix: f.qr_code_pix,
+        }))
+      );
+    } catch (error: any) {
+      console.error("Erro ao carregar assinatura:", error);
+      toast.error("Erro ao carregar dados da assinatura");
     } finally {
       setLoading(false);
     }
@@ -126,36 +166,14 @@ export default function MinhaAssinatura() {
   const handlePagarFatura = async () => {
     if (!faturaSelecionada) return;
 
-    setPagandoFatura(faturaSelecionada.id);
-    try {
-      const data = await apiPost<{
-        linkPagamento: string;
-        qrCodePix?: string;
-      }>(`/dono/assinatura/faturas/${faturaSelecionada.id}/pagar`, {
-        metodoPagamento: metodoPagamento,
-      });
-
-      if (data.linkPagamento) {
-        // Abrir link de pagamento em nova aba
-        window.open(data.linkPagamento, '_blank');
-        toast.success('Redirecionando para pagamento...');
-        setModalPagamento(false);
-        
-        // Verificar status após alguns segundos
-        setTimeout(() => {
-          carregarDados();
-        }, 5000);
-      } else if (data.qrCodePix) {
-        // Mostrar QR Code PIX
-        toast.info('QR Code PIX gerado. Verifique o modal.');
-        // Aqui você pode mostrar o QR Code em um modal
-      }
-    } catch (error: any) {
-      console.error('Erro ao criar pagamento:', error);
-      toast.error(error.message || 'Erro ao processar pagamento');
-    } finally {
-      setPagandoFatura(null);
+    if (faturaSelecionada.linkPagamento) {
+      window.open(faturaSelecionada.linkPagamento, "_blank");
+      setModalPagamento(false);
+      return;
     }
+
+    toast.info("Pagamento online via Mercado Pago em breve. Entre em contato com o suporte para regularizar.");
+    setModalPagamento(false);
   };
 
   const abrirModalPagamento = (fatura: Fatura) => {
