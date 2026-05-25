@@ -31,7 +31,21 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Edit, Power, Trash2, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { apiGet, apiPost, apiPut, apiDelete } from "@/services/api";
+import { supabase } from "@/integrations/supabase/client";
+
+function mapPlano(p: any): PlanoCliente {
+  return {
+    id: p.id,
+    nome: p.nome,
+    descricao: p.descricao || "",
+    valor: Number(p.valor) || 0,
+    duracaoMeses: p.duracao_meses,
+    beneficios: p.beneficios || [],
+    ativo: p.ativo,
+    createdAt: p.created_at,
+    updatedAt: p.updated_at,
+  };
+}
 
 interface PlanoCliente {
   id: string;
