@@ -353,6 +353,7 @@ export type Database = {
           nome: string
           plano: string
           responsavel: string
+          slug: string
           status: string
           telefone: string | null
           updated_at: string
@@ -374,6 +375,7 @@ export type Database = {
           nome: string
           plano?: string
           responsavel: string
+          slug: string
           status?: string
           telefone?: string | null
           updated_at?: string
@@ -395,6 +397,7 @@ export type Database = {
           nome?: string
           plano?: string
           responsavel?: string
+          slug?: string
           status?: string
           telefone?: string | null
           updated_at?: string
@@ -1682,6 +1685,7 @@ export type Database = {
           modo_confirmacao: string | null
           nome: string | null
           plano: string | null
+          slug: string | null
           status: string | null
           telefone: string | null
         }
@@ -1699,6 +1703,7 @@ export type Database = {
           modo_confirmacao?: string | null
           nome?: string | null
           plano?: string | null
+          slug?: string | null
           status?: string | null
           telefone?: string | null
         }
@@ -1716,6 +1721,7 @@ export type Database = {
           modo_confirmacao?: string | null
           nome?: string | null
           plano?: string | null
+          slug?: string | null
           status?: string | null
           telefone?: string | null
         }
@@ -1811,6 +1817,7 @@ export type Database = {
           read_ct: number
         }[]
       }
+      slugify: { Args: { _text: string }; Returns: string }
     }
     Enums: {
       app_role: "super_admin" | "owner" | "professional" | "client"
