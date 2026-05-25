@@ -571,9 +571,33 @@ export default function ConfiguracoesBarbearia() {
               <Input
                 id="cep"
                 value={formData.cep || ""}
-                onChange={(e) => setFormData({ ...formData, cep: e.target.value })}
+                onChange={async (e) => {
+                  const formatted = formatarCep(e.target.value);
+                  setFormData({ ...formData, cep: formatted });
+                  if (formatted.replace(/\D/g, "").length === 8) {
+                    const end = await buscarCep(formatted);
+                    if (end) {
+                      setFormData((prev: any) => ({
+                        ...prev,
+                        cep: formatted,
+                        endereco: end.logradouro || prev.endereco,
+                        bairro: end.bairro || prev.bairro,
+                        cidade: end.cidade
+                          ? `${end.cidade}${end.uf ? "/" + end.uf : ""}`
+                          : prev.cidade,
+                      }));
+                      toast.success("Endereço encontrado!");
+                    } else {
+                      toast.error("CEP não encontrado");
+                    }
+                  }
+                }}
                 placeholder="00000-000"
+                maxLength={9}
               />
+              <p className="text-xs text-muted-foreground">
+                Preenche endereço, bairro e cidade automaticamente
+              </p>
             </div>
           </div>
         </CardContent>
