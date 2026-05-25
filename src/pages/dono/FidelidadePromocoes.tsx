@@ -38,10 +38,9 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Gift, Tag, Edit, Trash2, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { PromocaoDono } from "@/types/dono";
-import { apiDelete, apiPut } from "@/services/api";
 
 export default function FidelidadePromocoes() {
-  const { promocoes, criarPromocao, atualizarPromocao, servicos } = useDono();
+  const { promocoes, criarPromocao, atualizarPromocao, removerPromocao, servicos } = useDono();
   const [modalAberto, setModalAberto] = useState(false);
   const [promocaoEditando, setPromocaoEditando] = useState<PromocaoDono | null>(null);
   const [salvando, setSalvando] = useState(false);
@@ -141,11 +140,8 @@ export default function FidelidadePromocoes() {
 
   const handleExcluir = async (id: string) => {
     if (!confirm("Tem certeza que deseja excluir esta promoção?")) return;
-    
     try {
-      await apiDelete(`/dono/promocoes/${id}`);
-      toast.success("Promoção excluída!");
-      window.location.reload();
+      await removerPromocao(id);
     } catch (error: any) {
       toast.error(error.message || "Erro ao excluir promoção");
     }

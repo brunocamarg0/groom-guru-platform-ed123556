@@ -30,6 +30,11 @@ interface DonoContextType {
   notificacoes: NotificacaoDono[];
   configuracao: ConfiguracaoBarbearia | null;
   servicos: any[];
+  planosCliente: any[];
+  assinaturasCliente: any[];
+  comissoes: any[];
+  minhaAssinatura: any | null;
+  faturas: any[];
 
   refresh: () => Promise<void>;
 
@@ -58,16 +63,24 @@ interface DonoContextType {
 
   criarPromocao: (p: any) => Promise<void>;
   atualizarPromocao: (id: string, dados: any) => Promise<void>;
+  removerPromocao: (id: string) => Promise<void>;
 
   responderAvaliacao: (id: string, resposta: string) => Promise<void>;
 
   adicionarProduto: (p: any) => Promise<void>;
   atualizarProduto: (id: string, dados: any) => Promise<void>;
+  removerProduto: (id: string) => Promise<void>;
   atualizarEstoque: (id: string, quantidade: number) => Promise<void>;
 
   marcarNotificacaoLida: (id: string) => Promise<void>;
 
   atualizarConfiguracao: (dados: Partial<ConfiguracaoBarbearia>) => Promise<void>;
+
+  criarPlanoCliente: (p: any) => Promise<void>;
+  atualizarPlanoCliente: (id: string, dados: any) => Promise<void>;
+  removerPlanoCliente: (id: string) => Promise<void>;
+
+  marcarComissaoPaga: (id: string, observacao?: string) => Promise<void>;
 
   gerarRelatorio: (dataInicio: string, dataFim: string) => RelatorioDono;
 }
@@ -107,6 +120,11 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   const [avaliacoes, setAvaliacoes] = useState<AvaliacaoDono[]>([]);
   const [produtos, setProdutos] = useState<ProdutoDono[]>([]);
   const [notificacoes, setNotificacoes] = useState<NotificacaoDono[]>([]);
+  const [planosCliente, setPlanosCliente] = useState<any[]>([]);
+  const [assinaturasCliente, setAssinaturasCliente] = useState<any[]>([]);
+  const [comissoes, setComissoes] = useState<any[]>([]);
+  const [minhaAssinatura, setMinhaAssinatura] = useState<any | null>(null);
+  const [faturas, setFaturas] = useState<any[]>([]);
 
   // 1. Resolve barbeariaId via user_roles
   useEffect(() => {
@@ -137,7 +155,7 @@ export function DonoProvider({ children }: { children: ReactNode }) {
     }
     setLoading(true);
     try {
-      const [barb, srv, profs, clis, ags, pags, promos, avals, prods, notifs, agProfs] = await Promise.all([
+      const [barb, srv, profs, clis, ags, pags, promos, avals, prods, notifs, agProfs, plCli, asCli, comms, asMine, fats] = await Promise.all([
         supabase.from("barbearias").select("*").eq("id", barbeariaId).maybeSingle(),
         supabase.from("servicos").select("*").eq("barbearia_id", barbeariaId).order("ordem", { ascending: true }),
         supabase.from("profissionais").select("*").eq("barbearia_id", barbeariaId).order("nome"),
@@ -149,7 +167,18 @@ export function DonoProvider({ children }: { children: ReactNode }) {
         supabase.from("produtos").select("*").eq("barbearia_id", barbeariaId),
         supabase.from("notificacoes").select("*").eq("barbearia_id", barbeariaId).order("data", { ascending: false }),
         supabase.from("agendamento_profissional").select("*"),
+        supabase.from("planos_cliente").select("*").eq("barbearia_id", barbeariaId).order("created_at", { ascending: false }),
+        supabase.from("assinaturas_cliente").select("*, plano:planos_cliente(*), cliente:clientes(*)").order("created_at", { ascending: false }),
+        supabase.from("comissoes_pagas").select("*").eq("barbearia_id", barbeariaId).order("created_at", { ascending: false }),
+        supabase.from("assinaturas").select("*, plano:planos(*)").eq("barbearia_id", barbeariaId).maybeSingle(),
+        supabase.from("faturas").select("*").order("created_at", { ascending: false }),
       ]);
+
+      setPlanosCliente(plCli.data ?? []);
+      setAssinaturasCliente(asCli.data ?? []);
+      setComissoes(comms.data ?? []);
+      setMinhaAssinatura(asMine.data ?? null);
+      setFaturas((fats.data ?? []).filter((f: any) => !asMine.data || f.assinatura_id === asMine.data.id));
 
       // Configuração da barbearia
       const b = barb.data;
@@ -581,27 +610,237 @@ export function DonoProvider({ children }: { children: ReactNode }) {
     carregar();
   };
 
-  // ===== Stubs (em migração) =====
-  const registrarPagamento = naoImplementado("Registrar pagamento");
-  const registrarPagamentoManual = naoImplementado("Pagamento manual");
-  const criarPromocao = naoImplementado("Criar promoção");
-  const atualizarPromocao = naoImplementado("Atualizar promoção");
-  const responderAvaliacao = naoImplementado("Responder avaliação");
-  const adicionarProduto = naoImplementado("Adicionar produto");
-  const atualizarProduto = naoImplementado("Atualizar produto");
-  const atualizarEstoque = naoImplementado("Atualizar estoque");
+  // ===== Promoções =====
+  const criarPromocao = async (p: any) => {
+    if (!guardBarbearia()) return;
+    const { error } = await supabase.from("promocoes").insert({
+      nome: p.nome,
+      tipo: p.tipo,
+      valor: p.valor,
+      valido_de: p.validoDe,
+      valido_ate: p.validoAte,
+      ativo: p.ativo ?? true,
+      aplicavel_a: p.aplicavelA ?? "todos",
+      servico_id: p.servicoId ?? null,
+      horario_inicio: p.horarioInicio ?? null,
+      horario_fim: p.horarioFim ?? null,
+      barbearia_id: barbeariaId!,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Promoção criada");
+    carregar();
+  };
+  const atualizarPromocao = async (id: string, dados: any) => {
+    const payload: any = {};
+    if ("nome" in dados) payload.nome = dados.nome;
+    if ("tipo" in dados) payload.tipo = dados.tipo;
+    if ("valor" in dados) payload.valor = dados.valor;
+    if ("validoDe" in dados) payload.valido_de = dados.validoDe;
+    if ("validoAte" in dados) payload.valido_ate = dados.validoAte;
+    if ("ativo" in dados) payload.ativo = dados.ativo;
+    if ("aplicavelA" in dados) payload.aplicavel_a = dados.aplicavelA;
+    if ("servicoId" in dados) payload.servico_id = dados.servicoId;
+    if ("horarioInicio" in dados) payload.horario_inicio = dados.horarioInicio;
+    if ("horarioFim" in dados) payload.horario_fim = dados.horarioFim;
+    const { error } = await supabase.from("promocoes").update(payload).eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Promoção atualizada");
+    carregar();
+  };
+  const removerPromocao = async (id: string) => {
+    const { error } = await supabase.from("promocoes").delete().eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Promoção removida");
+    carregar();
+  };
 
-  const gerarRelatorio = (_dataInicio: string, _dataFim: string): RelatorioDono => ({
-    periodo: "",
-    faturamento: 0,
-    agendamentos: 0,
-    cancelamentos: 0,
-    taxaCancelamento: 0,
-    ticketMedio: 0,
-    servicosMaisVendidos: [],
-    profissionaisMaisRentaveis: [],
-    horariosPico: [],
-  });
+  // ===== Avaliações =====
+  const responderAvaliacao = async (id: string, resposta: string) => {
+    const { error } = await supabase
+      .from("avaliacoes")
+      .update({ resposta, respondido_em: new Date().toISOString() })
+      .eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Resposta enviada");
+    carregar();
+  };
+
+  // ===== Produtos =====
+  const adicionarProduto = async (p: any) => {
+    if (!guardBarbearia()) return;
+    const { error } = await supabase.from("produtos").insert({
+      nome: p.nome,
+      descricao: p.descricao ?? null,
+      categoria: p.categoria,
+      preco: p.preco,
+      estoque: p.estoque ?? 0,
+      estoque_minimo: p.estoqueMinimo ?? 0,
+      ativo: p.ativo ?? true,
+      foto: p.foto ?? null,
+      barbearia_id: barbeariaId!,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Produto adicionado");
+    carregar();
+  };
+  const atualizarProduto = async (id: string, dados: any) => {
+    const payload: any = {};
+    if ("nome" in dados) payload.nome = dados.nome;
+    if ("descricao" in dados) payload.descricao = dados.descricao;
+    if ("categoria" in dados) payload.categoria = dados.categoria;
+    if ("preco" in dados) payload.preco = dados.preco;
+    if ("estoque" in dados) payload.estoque = dados.estoque;
+    if ("estoqueMinimo" in dados) payload.estoque_minimo = dados.estoqueMinimo;
+    if ("ativo" in dados) payload.ativo = dados.ativo;
+    if ("foto" in dados) payload.foto = dados.foto;
+    const { error } = await supabase.from("produtos").update(payload).eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Produto atualizado");
+    carregar();
+  };
+  const removerProduto = async (id: string) => {
+    const { error } = await supabase.from("produtos").delete().eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Produto removido");
+    carregar();
+  };
+  const atualizarEstoque = async (id: string, quantidade: number) => {
+    const { error } = await supabase.from("produtos").update({ estoque: quantidade }).eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Estoque atualizado");
+    carregar();
+  };
+
+  // ===== Pagamentos =====
+  const registrarPagamento = async (p: any) => {
+    const { error } = await supabase.from("pagamentos").insert({
+      agendamento_id: p.agendamentoId,
+      valor: p.valor,
+      metodo: p.metodo,
+      status: p.status ?? "pago",
+      taxa_gateway: p.taxaGateway ?? 0,
+      data_pagamento: p.dataPagamento ?? new Date().toISOString(),
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Pagamento registrado");
+    carregar();
+  };
+  const registrarPagamentoManual = async (
+    agendamentoId: string,
+    valor: number,
+    metodo: string,
+    observacao?: string
+  ) => {
+    const { error } = await supabase.from("pagamentos").insert({
+      agendamento_id: agendamentoId,
+      valor,
+      metodo,
+      status: "pago",
+      data_pagamento: new Date().toISOString(),
+    });
+    if (error) { toast.error(error.message); return; }
+    if (observacao) {
+      await supabase.from("agendamentos").update({ observacao }).eq("id", agendamentoId);
+    }
+    toast.success("Pagamento registrado");
+    carregar();
+  };
+
+  // ===== Planos cliente =====
+  const criarPlanoCliente = async (p: any) => {
+    if (!guardBarbearia()) return;
+    const { error } = await supabase.from("planos_cliente").insert({
+      nome: p.nome,
+      descricao: p.descricao ?? null,
+      valor: p.valor,
+      duracao_meses: p.duracaoMeses ?? p.duracao_meses ?? 1,
+      beneficios: p.beneficios ?? [],
+      ativo: p.ativo ?? true,
+      barbearia_id: barbeariaId!,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Plano criado");
+    carregar();
+  };
+  const atualizarPlanoCliente = async (id: string, dados: any) => {
+    const payload: any = {};
+    if ("nome" in dados) payload.nome = dados.nome;
+    if ("descricao" in dados) payload.descricao = dados.descricao;
+    if ("valor" in dados) payload.valor = dados.valor;
+    if ("duracaoMeses" in dados) payload.duracao_meses = dados.duracaoMeses;
+    if ("duracao_meses" in dados) payload.duracao_meses = dados.duracao_meses;
+    if ("beneficios" in dados) payload.beneficios = dados.beneficios;
+    if ("ativo" in dados) payload.ativo = dados.ativo;
+    const { error } = await supabase.from("planos_cliente").update(payload).eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Plano atualizado");
+    carregar();
+  };
+  const removerPlanoCliente = async (id: string) => {
+    const { error } = await supabase.from("planos_cliente").delete().eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Plano removido");
+    carregar();
+  };
+
+  // ===== Comissões =====
+  const marcarComissaoPaga = async (id: string, observacao?: string) => {
+    const { error } = await supabase
+      .from("comissoes_pagas")
+      .update({ pago: true, data_pagamento: new Date().toISOString(), observacao: observacao ?? null })
+      .eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Comissão marcada como paga");
+    carregar();
+  };
+
+  // ===== Relatório =====
+  const gerarRelatorio = (dataInicio: string, dataFim: string): RelatorioDono => {
+    const inicio = dataInicio;
+    const fim = dataFim;
+    const agsP = agendamentos.filter((a) => a.data >= inicio && a.data <= fim);
+    const concluidos = agsP.filter((a) => a.status === "concluido" || a.status === "confirmado");
+    const cancelados = agsP.filter((a) => a.status === "cancelado" || a.status === "recusado");
+    const faturamento = concluidos.reduce((s, a) => s + a.valor, 0);
+    const taxaCancelamento = agsP.length ? (cancelados.length / agsP.length) * 100 : 0;
+    const ticketMedio = concluidos.length ? faturamento / concluidos.length : 0;
+
+    const servicoMap = new Map<string, { servico: string; quantidade: number; receita: number }>();
+    concluidos.forEach((a) => {
+      const key = a.servicoNome || a.servicoId;
+      const prev = servicoMap.get(key) ?? { servico: key, quantidade: 0, receita: 0 };
+      prev.quantidade++;
+      prev.receita += a.valor;
+      servicoMap.set(key, prev);
+    });
+
+    const profMap = new Map<string, { profissional: string; receita: number }>();
+    concluidos.forEach((a) => {
+      const key = a.profissionalNome || a.profissionalId || "—";
+      const prev = profMap.get(key) ?? { profissional: key, receita: 0 };
+      prev.receita += a.valor;
+      profMap.set(key, prev);
+    });
+
+    const horMap = new Map<string, { horario: string; quantidade: number }>();
+    concluidos.forEach((a) => {
+      const prev = horMap.get(a.horario) ?? { horario: a.horario, quantidade: 0 };
+      prev.quantidade++;
+      horMap.set(a.horario, prev);
+    });
+
+    return {
+      periodo: `${inicio} a ${fim}`,
+      faturamento,
+      agendamentos: agsP.length,
+      cancelamentos: cancelados.length,
+      taxaCancelamento,
+      ticketMedio,
+      servicosMaisVendidos: Array.from(servicoMap.values()).sort((a, b) => b.receita - a.receita).slice(0, 10),
+      profissionaisMaisRentaveis: Array.from(profMap.values()).sort((a, b) => b.receita - a.receita),
+      horariosPico: Array.from(horMap.values()).sort((a, b) => b.quantidade - a.quantidade).slice(0, 10),
+    };
+  };
 
   return (
     <DonoContext.Provider
@@ -619,6 +858,11 @@ export function DonoProvider({ children }: { children: ReactNode }) {
         notificacoes,
         configuracao,
         servicos,
+        planosCliente,
+        assinaturasCliente,
+        comissoes,
+        minhaAssinatura,
+        faturas,
         refresh: carregar,
         criarAgendamento,
         atualizarAgendamento,
@@ -636,16 +880,22 @@ export function DonoProvider({ children }: { children: ReactNode }) {
         atualizarServico,
         removerServico,
         toggleServicoAtivo,
-        registrarPagamento: registrarPagamento as any,
-        registrarPagamentoManual: registrarPagamentoManual as any,
-        criarPromocao: criarPromocao as any,
-        atualizarPromocao: atualizarPromocao as any,
-        responderAvaliacao: responderAvaliacao as any,
-        adicionarProduto: adicionarProduto as any,
-        atualizarProduto: atualizarProduto as any,
-        atualizarEstoque: atualizarEstoque as any,
+        registrarPagamento,
+        registrarPagamentoManual,
+        criarPromocao,
+        atualizarPromocao,
+        removerPromocao,
+        responderAvaliacao,
+        adicionarProduto,
+        atualizarProduto,
+        removerProduto,
+        atualizarEstoque,
         marcarNotificacaoLida,
         atualizarConfiguracao,
+        criarPlanoCliente,
+        atualizarPlanoCliente,
+        removerPlanoCliente,
+        marcarComissaoPaga,
         gerarRelatorio,
       }}
     >

@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Key, Bell, Mail, MessageSquare, Trash2, AlertTriangle, Save, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { apiPut, apiDelete } from "@/services/api";
+import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 
 export default function ConfiguracoesCliente() {
@@ -85,10 +85,8 @@ export default function ConfiguracoesCliente() {
 
     setSalvando(true);
     try {
-      await apiPut('/cliente/alterar-senha', {
-        senhaAtual,
-        novaSenha,
-      });
+      const { error } = await supabase.auth.updateUser({ password: novaSenha });
+      if (error) throw error;
 
       toast({
         title: "Senha alterada",
@@ -143,18 +141,17 @@ export default function ConfiguracoesCliente() {
 
     setExcluindo(true);
     try {
-      await apiDelete('/cliente/conta');
-      
+      // Marca cliente como inativo (LGPD soft-delete)
+      if (cliente?.id) {
+        await supabase.from("clientes").update({ ativo: false }).eq("id", cliente.id);
+      }
+      await supabase.auth.signOut();
+
       toast({
         title: "Conta excluída",
-        description: "Sua conta foi excluída conforme LGPD. Sentiremos sua falta!",
+        description: "Sua conta foi desativada. Sentiremos sua falta!",
       });
 
-      // Limpar dados locais e redirecionar
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('userType');
-      
       setTimeout(() => {
         navigate('/login');
       }, 2000);

@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/accordion";
 import { MessageCircle, MessageSquare, HelpCircle, Send, Phone, Mail, Clock, CheckCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { apiPost } from "@/services/api";
+import { supabase } from "@/integrations/supabase/client";
 
 const faqs = [
   {
@@ -149,7 +149,15 @@ export default function SuporteCliente() {
         return;
       }
 
-      await apiPost('/suporte-cliente', dadosTicket);
+      const { error } = await supabase.from("tickets_suporte").insert({
+        categoria: dadosTicket.categoria,
+        assunto: dadosTicket.assunto ?? "Sem assunto",
+        mensagem: dadosTicket.mensagem,
+        cliente_nome: dadosTicket.clienteNome,
+        cliente_email: dadosTicket.clienteEmail,
+        cliente_id: dadosTicket.clienteId ?? null,
+      });
+      if (error) throw error;
 
       toast({
         title: "Mensagem enviada!",

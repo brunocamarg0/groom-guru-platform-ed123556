@@ -29,7 +29,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Plus, Crown, Search, Edit, Trash2, UserPlus, Receipt } from "lucide-react";
 import { toast } from "sonner";
-import { apiPost } from "@/services/api";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Select,
   SelectContent,
@@ -186,10 +186,12 @@ export default function GestaoClientes() {
 
     setAtribuindo(true);
     try {
-      await apiPost("/dono/clientes-profissionais", {
-        clienteId: clienteAtribuindo.id,
-        profissionalId: profissionalSelecionado,
+      const { error } = await supabase.from("cliente_profissional").insert({
+        cliente_id: clienteAtribuindo.id,
+        profissional_id: profissionalSelecionado,
+        ativo: true,
       });
+      if (error) throw error;
 
       toast.success("Cliente atribuído ao profissional com sucesso!");
       setModalAtribuirAberto(false);
