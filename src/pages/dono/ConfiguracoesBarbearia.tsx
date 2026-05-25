@@ -182,8 +182,6 @@ export default function ConfiguracoesBarbearia() {
       console.log('💾 [CONFIG PÁGINA] Salvando configurações...', {
         temFoto: !!dadosParaEnvio.foto,
         tamanhoFoto: dadosParaEnvio.foto ? dadosParaEnvio.foto.length : 0,
-        tokenPresente: !!token,
-        userType: userType
       });
 
       // Atualizar configuração no backend (aguardar a promise)
