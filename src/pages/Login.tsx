@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,10 +8,13 @@ import { Scissors } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 
 const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [pendingLogin, setPendingLogin] = useState<{ portal: "owner" | "client"; userId: string } | null>(null);
+  const { user, roles, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -25,12 +28,50 @@ const Login = () => {
     client: { email: "", senha: "" },
   });
 
+  useEffect(() => {
+    if (!pendingLogin || authLoading || !user) return;
+    if (user.id !== pendingLogin.userId) return;
+
+    const roleSet = new Set(roles);
+    const expectedRole = pendingLogin.portal === "owner" ? "owner" : "client";
+
+    if (roleSet.has(expectedRole)) {
+      toast.success("Login realizado com sucesso!");
+      navigate(pendingLogin.portal === "owner" ? "/dono" : "/cliente", { replace: true });
+      setPendingLogin(null);
+      setIsLoading(false);
+      return;
+    }
+
+    if (roleSet.has("super_admin") && roleSet.size === 1) {
+      toast.success("Login realizado com sucesso!");
+      navigate("/super-admin", { replace: true });
+      setPendingLogin(null);
+      setIsLoading(false);
+      return;
+    }
+
+    const rejectAccess = async () => {
+      await signOut();
+      toast.error(
+        pendingLogin.portal === "owner"
+          ? "Esta conta não tem acesso ao Portal do Dono."
+          : "Esta conta não tem acesso ao Portal do Cliente."
+      );
+      setPendingLogin(null);
+      setIsLoading(false);
+    };
+
+    void rejectAccess();
+  }, [pendingLogin, authLoading, user, roles, navigate, signOut]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const currentTab = activeTab as 'owner' | 'client';
     const { email, senha } = formData[currentTab];
 
     setIsLoading(true);
+    let shouldKeepLoading = false;
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
@@ -43,48 +84,15 @@ const Login = () => {
           : (error?.message || 'Erro ao fazer login.'));
       }
 
-      // Buscar papéis do usuário
-      const { data: roles, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', data.user.id);
-
-      if (rolesError) throw rolesError;
-
-      const roleSet = new Set((roles ?? []).map((r: any) => r.role));
-      const expected = currentTab === 'owner' ? 'owner' : 'client';
-
-      // Super admin pode entrar por qualquer aba
-      if (!roleSet.has(expected) && !roleSet.has('super_admin')) {
-        await supabase.auth.signOut();
-        throw new Error(
-          currentTab === 'owner'
-            ? 'Esta conta não tem acesso ao Portal do Dono.'
-            : 'Esta conta não tem acesso ao Portal do Cliente.'
-        );
-      }
-
-      toast.success('Login realizado com sucesso!');
-
-      // Prioriza a aba escolhida pelo usuário.
-      // Super-admin só é redirecionado automaticamente quando não tem nenhum outro papel.
-      let redirectPath: string;
-      if (currentTab === 'owner') {
-        if (roleSet.has('owner')) redirectPath = '/dono';
-        else if (roleSet.has('client')) redirectPath = '/cliente';
-        else redirectPath = '/super-admin';
-      } else {
-        if (roleSet.has('client')) redirectPath = '/cliente';
-        else if (roleSet.has('owner')) redirectPath = '/dono';
-        else redirectPath = '/super-admin';
-      }
-
-      navigate(redirectPath, { replace: true });
+      shouldKeepLoading = true;
+      setPendingLogin({ portal: currentTab, userId: data.user.id });
     } catch (err: any) {
       console.error('[LOGIN] erro:', err);
       toast.error(err.message || 'Erro ao fazer login.');
     } finally {
-      setIsLoading(false);
+      if (!shouldKeepLoading) {
+        setIsLoading(false);
+      }
     }
   };
 
