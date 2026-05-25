@@ -67,8 +67,11 @@ const Login = () => {
       toast.success('Login realizado com sucesso!');
 
       let redirectPath = '/cliente';
-      if (roleSet.has('super_admin')) redirectPath = '/super-admin';
-      else if (currentTab === 'owner') redirectPath = '/dono';
+      if (currentTab === 'owner') {
+        redirectPath = roleSet.has('owner') ? '/dono' : '/super-admin';
+      } else {
+        redirectPath = roleSet.has('client') ? '/cliente' : '/super-admin';
+      }
 
       navigate(redirectPath, { replace: true });
     } catch (err: any) {
