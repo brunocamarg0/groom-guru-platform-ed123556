@@ -1728,6 +1728,10 @@ export type Database = {
         }[]
       }
       slugify: { Args: { _text: string }; Returns: string }
+      validar_agendamento_input: {
+        Args: { _barbearia_id: string; _servico_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "super_admin" | "owner" | "professional" | "client"
