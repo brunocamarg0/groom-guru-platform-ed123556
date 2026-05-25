@@ -48,7 +48,7 @@ export default function ClienteLayout() {
   }
 
   if (!user) {
-    return <Navigate to="/auth" replace state={{ from: location }} />;
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   // Permitir cliente; super_admin também pode visualizar
@@ -103,7 +103,7 @@ export default function ClienteLayout() {
 
   const handleLogout = async () => {
     await signOut();
-    window.location.href = "/auth";
+    window.location.href = "/login";
   };
 
   return (

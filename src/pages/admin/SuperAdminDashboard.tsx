@@ -46,7 +46,7 @@ export default function SuperAdminDashboard() {
 
   const handleLogout = async () => {
     await signOut();
-    navigate("/auth");
+    navigate("/login");
   };
 
   return (

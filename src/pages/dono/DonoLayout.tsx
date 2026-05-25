@@ -74,7 +74,7 @@ function DonoLayoutContent() {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate("/auth");
+    navigate("/login");
   };
 
   const menuItems = [
