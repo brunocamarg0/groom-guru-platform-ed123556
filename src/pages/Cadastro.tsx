@@ -20,7 +20,30 @@ const Cadastro = () => {
   const tipo = searchParams.get('tipo') || 'dono'; // 'dono' ou 'cliente'
   
   const [isLoading, setIsLoading] = useState(false);
+  const [buscandoCep, setBuscandoCep] = useState(false);
   const [aceiteTermos, setAceiteTermos] = useState(false);
+
+  const handleCepChange = async (raw: string) => {
+    const formatted = formatarCep(raw);
+    setFormDono((prev) => ({ ...prev, cep: formatted }));
+    if (formatted.replace(/\D/g, "").length === 8) {
+      setBuscandoCep(true);
+      const end = await buscarCep(formatted);
+      setBuscandoCep(false);
+      if (end) {
+        setFormDono((prev) => ({
+          ...prev,
+          endereco: end.logradouro || prev.endereco,
+          bairro: end.bairro || prev.bairro,
+          cidade: end.cidade ? `${end.cidade}${end.uf ? "/" + end.uf : ""}` : prev.cidade,
+        }));
+        toast.success("Endereço encontrado!");
+      } else {
+        toast.error("CEP não encontrado");
+      }
+    }
+  };
+
   
   // Formulário para dono
   const [formDono, setFormDono] = useState({
