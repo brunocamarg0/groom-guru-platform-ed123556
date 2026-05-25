@@ -84,6 +84,7 @@ import CheckoutAssinatura from "./pages/CheckoutAssinatura";
 import PagamentoAssinaturaSucesso from "./pages/PagamentoAssinaturaSucesso";
 import PagamentoAssinaturaFalha from "./pages/PagamentoAssinaturaFalha";
 import LoginAdmin from "./pages/admin/LoginAdmin";
+import BarbeariaPublica from "./pages/public/BarbeariaPublica";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -237,6 +238,7 @@ const App = () => (
               <Route path="configuracoes" element={<ErrorBoundary><ConfiguracoesBarbearia /></ErrorBoundary>} />
               <Route path="relatorios" element={<ErrorBoundary><RelatoriosAvancados /></ErrorBoundary>} />
             </Route>
+            <Route path="/:slug" element={<BarbeariaPublica />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
