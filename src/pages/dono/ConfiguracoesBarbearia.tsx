@@ -144,34 +144,6 @@ export default function ConfiguracoesBarbearia() {
 
   const handleSubmit = async () => {
     try {
-      // Verificar token antes de tentar salvar
-      const token = localStorage.getItem('token');
-      const userType = localStorage.getItem('userType');
-      
-      if (!token) {
-        toast({
-          title: "Erro de autenticação",
-          description: "Token não encontrado. Por favor, faça login novamente.",
-          variant: "destructive",
-        });
-        // Redirecionar para login após 2 segundos
-        setTimeout(() => {
-          window.location.href = '/login?tab=owner';
-        }, 2000);
-        return;
-      }
-
-      if (userType !== 'dono') {
-        toast({
-          title: "Erro de autenticação",
-          description: "Tipo de usuário incorreto. Por favor, faça login novamente.",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = '/login?tab=owner';
-        }, 2000);
-        return;
-      }
 
       // Validação: bairro e cidade são obrigatórios
       if (!formData.bairro || !formData.cidade) {
