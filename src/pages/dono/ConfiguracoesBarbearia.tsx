@@ -246,121 +246,34 @@ export default function ConfiguracoesBarbearia() {
 
     setIsAlterandoSenha(true);
     try {
-      // Garantir que a URL base não tenha /api no final
-      const baseUrl = (import.meta.env.VITE_API_URL || 'https://groom-guru-platform-production.up.railway.app').replace(/\/api\/?$/, '');
-      const API_URL = `${baseUrl}/api`;
-      const token = localStorage.getItem('token');
-      
-      if (!token) {
-        throw new Error('Token não encontrado. Faça login novamente.');
-      }
+      const { data: userData } = await supabase.auth.getUser();
+      const email = userData.user?.email;
+      if (!email) throw new Error("Sessão não encontrada. Faça login novamente.");
 
-      const urlCompleta = `${API_URL}/auth/dono/alterar-senha`;
-      console.log('🔐 Tentando alterar senha...');
-      console.log('🔐 Base URL:', baseUrl);
-      console.log('🔐 API URL:', API_URL);
-      console.log('🔐 URL completa:', urlCompleta);
-      console.log('🔐 Token presente:', !!token);
-      
-      let response: Response;
-      try {
-        response = await fetch(
-          urlCompleta,
-          {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              senhaAtual: senhaForm.senhaAtual,
-              novaSenha: senhaForm.novaSenha,
-            }),
-          }
-        );
-      } catch (fetchError: any) {
-        console.error('❌ Erro de rede ao fazer requisição:', fetchError);
-        throw new Error(`Erro de conexão: ${fetchError.message || 'Não foi possível conectar ao servidor'}`);
-      }
+      // Reautentica com a senha atual
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password: senhaForm.senhaAtual,
+      });
+      if (signInError) throw new Error("Senha atual incorreta.");
 
-      console.log('🔐 Status da resposta:', response.status);
-      console.log('🔐 Status Text:', response.statusText);
-      console.log('🔐 Content-Type:', response.headers.get('content-type'));
-      console.log('🔐 Response OK:', response.ok);
-
-      // Tentar ler a resposta como texto primeiro para debug
-      const responseText = await response.text();
-      console.log('🔐 Resposta bruta (primeiros 500 chars):', responseText.substring(0, 500));
-
-      // Verificar se a resposta é JSON
-      const contentType = response.headers.get('content-type');
-      let data: any;
-      
-      if (contentType && contentType.includes('application/json')) {
-        try {
-          data = JSON.parse(responseText);
-          console.log('🔐 Resposta parseada (JSON):', data);
-        } catch (parseError) {
-          console.error('❌ Erro ao fazer parse do JSON:', parseError);
-          throw new Error(`Resposta inválida do servidor: ${responseText.substring(0, 200)}`);
-        }
-      } else {
-        console.error('❌ Resposta não é JSON. Content-Type:', contentType);
-        console.error('❌ Resposta completa:', responseText);
-        
-        // Se for 404, a rota não existe
-        if (response.status === 404) {
-          throw new Error('Rota não encontrada. Verifique se o backend está configurado corretamente.');
-        }
-        
-        throw new Error(`Resposta inválida do servidor (${response.status}): ${responseText.substring(0, 200)}`);
-      }
-
-      if (!response.ok) {
-        // Extrair mensagem de erro de várias formas possíveis
-        const errorMessage = data?.error || data?.message || data?.detalhes || data?.mensagem || `Erro do servidor (${response.status})`;
-        console.error('❌ Erro na resposta:', {
-          status: response.status,
-          statusText: response.statusText,
-          data: data,
-          errorMessage: errorMessage
-        });
-        throw new Error(errorMessage);
-      }
+      // Atualiza para a nova
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: senhaForm.novaSenha,
+      });
+      if (updateError) throw new Error(updateError.message);
 
       toast({
         title: "Senha alterada!",
-        description: "Sua senha foi alterada com sucesso. Use a nova senha no próximo login.",
+        description: "Sua senha foi alterada com sucesso.",
       });
 
       setShowAlterarSenha(false);
-      setSenhaForm({
-        senhaAtual: "",
-        novaSenha: "",
-        confirmarSenha: "",
-      });
+      setSenhaForm({ senhaAtual: "", novaSenha: "", confirmarSenha: "" });
     } catch (error: any) {
-      console.error('❌ Erro completo ao alterar senha:', error);
-      console.error('❌ Tipo do erro:', typeof error);
-      console.error('❌ Erro.message:', error.message);
-      console.error('❌ Erro.stack:', error.stack);
-      
-      // Extrair mensagem de erro de várias formas
-      let errorMessage = 'Ocorreu um erro ao alterar a senha.';
-      
-      if (error?.message) {
-        errorMessage = error.message;
-      } else if (typeof error === 'string') {
-        errorMessage = error;
-      } else if (error?.error) {
-        errorMessage = error.error;
-      }
-      
-      console.error('❌ Mensagem de erro final:', errorMessage);
-      
       toast({
         title: "Erro ao alterar senha",
-        description: errorMessage,
+        description: error?.message || "Ocorreu um erro ao alterar a senha.",
         variant: "destructive",
       });
     } finally {
