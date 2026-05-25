@@ -354,13 +354,12 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
         .from("servicos")
         .select("id, nome, descricao, duracao, preco, ativo, barbearia_id")
         .in("barbearia_id", ids),
-      supabase
-        .from("profissionais_publicos")
-        .select("id, nome, foto, especialidades, ativo, barbearia_id")
-        .in("barbearia_id", ids),
+      supabase.rpc("get_profissionais_publicos_by_barbearia" as any, {
+        _barbearia_ids: ids,
+      }),
     ]);
     const servicos = servicosRes.data || [];
-    const profissionais = profsRes.data || [];
+    const profissionais = (profsRes.data as any[]) || [];
     return barbeariasBase.map((b: any) => {
       const servs = servicos
         .filter((s: any) => s.barbearia_id === b.id && s.ativo)
