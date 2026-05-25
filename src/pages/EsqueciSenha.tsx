@@ -63,11 +63,12 @@ const EsqueciSenha = () => {
             <CardContent className="space-y-4">
               <div className="text-center space-y-4">
                 <p className="text-muted-foreground">
-                  Se o email <strong>{email}</strong> estiver cadastrado, você receberá uma nova senha por email.
+                  Se o email <strong>{email}</strong> estiver cadastrado, você receberá um link para redefinir sua senha.
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  A nova senha será sua senha oficial. Você pode mantê-la ou alterá-la nas configurações da sua conta.
+                  Clique no link recebido para criar uma nova senha.
                 </p>
+
               </div>
               <Button
                 variant="hero"
