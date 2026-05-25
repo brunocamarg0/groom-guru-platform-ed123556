@@ -502,15 +502,37 @@ export function DonoProvider({ children }: { children: ReactNode }) {
 
   // Clientes
   const adicionarCliente = async (c: any) => {
+    const emailNorm = (c.email ?? "").trim().toLowerCase();
+    const telefoneNorm = (c.telefone ?? "").trim();
+
+    if (emailNorm) {
+      const { data: jaExisteEmail } = await supabase
+        .from("clientes")
+        .select("id")
+        .eq("email", emailNorm)
+        .maybeSingle();
+      if (jaExisteEmail) {
+        toast.error("Já existe um cliente cadastrado com este email");
+        return;
+      }
+    }
+
     const { error } = await supabase.from("clientes").insert({
       nome: c.nome,
-      email: c.email,
-      telefone: c.telefone,
+      email: emailNorm || `temp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}@temp.local`,
+      telefone: telefoneNorm || null,
       foto: c.foto ?? null,
       data_nascimento: c.dataNascimento ?? null,
       vip: c.vip ?? false,
     });
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      if ((error as any).code === "23505") {
+        toast.error("Já existe um cliente com este email");
+      } else {
+        toast.error(error.message);
+      }
+      return;
+    }
     toast.success("Cliente cadastrado");
     carregar();
   };
