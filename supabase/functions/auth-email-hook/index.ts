@@ -36,10 +36,10 @@ const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
 }
 
 // Configuration
-const SITE_NAME = "groom-guru-platform"
-const SENDER_DOMAIN = "notify.www.portifoliobrunocamargo.com.br"
-const ROOT_DOMAIN = "www.portifoliobrunocamargo.com.br"
-const FROM_DOMAIN = "www.portifoliobrunocamargo.com.br" // Domain shown in From address (may be root or sender subdomain)
+const SITE_NAME = "Barber Maestro"
+const SENDER_DOMAIN = "notify.www.barbermaestro.com"
+const ROOT_DOMAIN = "www.barbermaestro.com"
+const FROM_DOMAIN = "www.barbermaestro.com" // Domain shown in From address (may be root or sender subdomain)
 
 // Sample data for preview mode ONLY (not used in actual email sending).
 // URLs are baked in at scaffold time from the project's real data.
