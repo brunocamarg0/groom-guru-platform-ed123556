@@ -17,12 +17,12 @@ const corsHeaders = {
 }
 
 const EMAIL_SUBJECTS: Record<string, string> = {
-  signup: 'Confirm your email',
-  invite: "You've been invited",
-  magiclink: 'Your login link',
-  recovery: 'Reset your password',
-  email_change: 'Confirm your new email',
-  reauthentication: 'Your verification code',
+  signup: 'Barber Maestro — Confirme seu e-mail',
+  invite: 'Barber Maestro — Você foi convidado',
+  magiclink: 'Barber Maestro — Seu link de acesso',
+  recovery: 'Barber Maestro — Redefinição de senha',
+  email_change: 'Barber Maestro — Confirme seu novo e-mail',
+  reauthentication: 'Barber Maestro — Seu código de verificação',
 }
 
 // Template mapping
