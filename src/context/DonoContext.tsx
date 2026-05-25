@@ -120,6 +120,11 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   const [avaliacoes, setAvaliacoes] = useState<AvaliacaoDono[]>([]);
   const [produtos, setProdutos] = useState<ProdutoDono[]>([]);
   const [notificacoes, setNotificacoes] = useState<NotificacaoDono[]>([]);
+  const [planosCliente, setPlanosCliente] = useState<any[]>([]);
+  const [assinaturasCliente, setAssinaturasCliente] = useState<any[]>([]);
+  const [comissoes, setComissoes] = useState<any[]>([]);
+  const [minhaAssinatura, setMinhaAssinatura] = useState<any | null>(null);
+  const [faturas, setFaturas] = useState<any[]>([]);
 
   // 1. Resolve barbeariaId via user_roles
   useEffect(() => {
