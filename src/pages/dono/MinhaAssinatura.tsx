@@ -88,14 +88,54 @@ export default function MinhaAssinatura() {
 
     setLoading(true);
     try {
-      const data = await apiGet<{ assinatura: Assinatura; faturas: Fatura[] }>('/dono/assinatura/faturas');
-      setAssinatura(data.assinatura);
-      setFaturas(data.faturas);
-    } catch (error: any) {
-      console.error('Erro ao carregar assinatura:', error);
-      if (error.status !== 404) {
-        toast.error('Erro ao carregar dados da assinatura');
+      const { data: ass, error: errAss } = await supabase
+        .from("assinaturas")
+        .select("id, status, data_vencimento, proximo_vencimento, plano:planos(id, nome, valor_mensal)")
+        .eq("barbearia_id", barbeariaId)
+        .maybeSingle();
+
+      if (errAss) throw errAss;
+
+      if (!ass) {
+        setAssinatura(null);
+        setFaturas([]);
+        return;
       }
+
+      const planoRel: any = (ass as any).plano;
+      setAssinatura({
+        id: ass.id,
+        status: ass.status,
+        dataVencimento: ass.data_vencimento,
+        proximoVencimento: ass.proximo_vencimento,
+        plano: {
+          id: planoRel?.id,
+          nome: planoRel?.nome,
+          valorMensal: Number(planoRel?.valor_mensal) || 0,
+        },
+      });
+
+      const { data: fats } = await supabase
+        .from("faturas")
+        .select("id, valor, data_vencimento, data_pagamento, status, metodo_pagamento, link_pagamento, qr_code_pix")
+        .eq("assinatura_id", ass.id)
+        .order("data_vencimento", { ascending: false });
+
+      setFaturas(
+        (fats || []).map((f: any) => ({
+          id: f.id,
+          valor: Number(f.valor) || 0,
+          dataVencimento: f.data_vencimento,
+          dataPagamento: f.data_pagamento,
+          status: f.status,
+          metodoPagamento: f.metodo_pagamento,
+          linkPagamento: f.link_pagamento,
+          qrCodePix: f.qr_code_pix,
+        }))
+      );
+    } catch (error: any) {
+      console.error("Erro ao carregar assinatura:", error);
+      toast.error("Erro ao carregar dados da assinatura");
     } finally {
       setLoading(false);
     }
