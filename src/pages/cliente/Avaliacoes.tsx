@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Star, Calendar, User, Scissors, ArrowLeft, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { apiPost } from "@/services/api";
+import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 
 export default function Avaliacoes() {
@@ -67,14 +67,17 @@ export default function Avaliacoes() {
 
     setEnviando(true);
     try {
-      // Enviar avaliação para o backend
-      await apiPost('/cliente/avaliacoes', {
-        agendamentoId,
-        notaProfissional: notas.profissional,
-        notaAtendimento: notas.atendimento,
-        notaAmbiente: notas.ambiente,
-        comentario: comentario || undefined,
+      if (!cliente?.id) throw new Error("Cliente não identificado");
+      const { error } = await supabase.from("avaliacoes").insert({
+        agendamento_id: agendamentoId,
+        cliente_id: cliente.id,
+        nota_profissional: notas.profissional,
+        nota_atendimento: notas.atendimento,
+        nota_ambiente: notas.ambiente,
+        comentario: comentario || null,
       });
+      if (error) throw error;
+
 
       toast({
         title: "Avaliação enviada!",

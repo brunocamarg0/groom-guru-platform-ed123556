@@ -39,10 +39,9 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, AlertTriangle, Package, Edit, Trash2, TrendingUp, TrendingDown } from "lucide-react";
 import { toast } from "sonner";
 import { ProdutoDono } from "@/types/dono";
-import { apiDelete } from "@/services/api";
 
 export default function ProdutosEstoque() {
-  const { produtos, adicionarProduto, atualizarProduto, atualizarEstoque } = useDono();
+  const { produtos, adicionarProduto, atualizarProduto, atualizarEstoque, removerProduto } = useDono();
   const [modalAberto, setModalAberto] = useState(false);
   const [modalEstoque, setModalEstoque] = useState(false);
   const [produtoEditando, setProdutoEditando] = useState<ProdutoDono | null>(null);
@@ -154,11 +153,8 @@ export default function ProdutosEstoque() {
 
   const handleExcluir = async (id: string) => {
     if (!confirm("Tem certeza que deseja excluir este produto?")) return;
-    
     try {
-      await apiDelete(`/dono/produtos/${id}`);
-      toast.success("Produto excluído!");
-      window.location.reload();
+      await removerProduto(id);
     } catch (error: any) {
       toast.error(error.message || "Erro ao excluir produto");
     }
