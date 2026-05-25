@@ -11,6 +11,7 @@ import { Scissors, ArrowLeft, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { buscarCep, formatarCep } from "@/lib/viacep";
 
 
 const Cadastro = () => {
@@ -19,7 +20,30 @@ const Cadastro = () => {
   const tipo = searchParams.get('tipo') || 'dono'; // 'dono' ou 'cliente'
   
   const [isLoading, setIsLoading] = useState(false);
+  const [buscandoCep, setBuscandoCep] = useState(false);
   const [aceiteTermos, setAceiteTermos] = useState(false);
+
+  const handleCepChange = async (raw: string) => {
+    const formatted = formatarCep(raw);
+    setFormDono((prev) => ({ ...prev, cep: formatted }));
+    if (formatted.replace(/\D/g, "").length === 8) {
+      setBuscandoCep(true);
+      const end = await buscarCep(formatted);
+      setBuscandoCep(false);
+      if (end) {
+        setFormDono((prev) => ({
+          ...prev,
+          endereco: end.logradouro || prev.endereco,
+          bairro: end.bairro || prev.bairro,
+          cidade: end.cidade ? `${end.cidade}${end.uf ? "/" + end.uf : ""}` : prev.cidade,
+        }));
+        toast.success("Endereço encontrado!");
+      } else {
+        toast.error("CEP não encontrado");
+      }
+    }
+  };
+
   
   // Formulário para dono
   const [formDono, setFormDono] = useState({
@@ -276,12 +300,21 @@ const Cadastro = () => {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="cep">CEP</Label>
-                        <Input
-                          id="cep"
-                          value={formDono.cep}
-                          onChange={(e) => setFormDono({ ...formDono, cep: e.target.value })}
-                          placeholder="00000-000"
-                        />
+                        <div className="relative">
+                          <Input
+                            id="cep"
+                            value={formDono.cep}
+                            onChange={(e) => handleCepChange(e.target.value)}
+                            placeholder="00000-000"
+                            maxLength={9}
+                          />
+                          {buscandoCep && (
+                            <Loader2 className="w-4 h-4 animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Digite o CEP para preencher o endereço automaticamente
+                        </p>
                       </div>
                     </div>
                   </>

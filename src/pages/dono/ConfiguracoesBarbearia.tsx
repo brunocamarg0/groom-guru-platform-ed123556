@@ -25,6 +25,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ConfiguracaoBarbearia } from "@/types/dono";
 import LinkAgendamentoCard from "@/components/dono/LinkAgendamentoCard";
+import { buscarCep, formatarCep } from "@/lib/viacep";
+import { toast as sonnerToast } from "sonner";
 
 // Função para comprimir imagem (reduz tamanho para evitar problemas)
 const compressImage = (file: File, maxWidth: number = 600, maxHeight: number = 600, quality: number = 0.7): Promise<Blob> => {
@@ -569,9 +571,33 @@ export default function ConfiguracoesBarbearia() {
               <Input
                 id="cep"
                 value={formData.cep || ""}
-                onChange={(e) => setFormData({ ...formData, cep: e.target.value })}
+                onChange={async (e) => {
+                  const formatted = formatarCep(e.target.value);
+                  setFormData({ ...formData, cep: formatted });
+                  if (formatted.replace(/\D/g, "").length === 8) {
+                    const end = await buscarCep(formatted);
+                    if (end) {
+                      setFormData((prev: any) => ({
+                        ...prev,
+                        cep: formatted,
+                        endereco: end.logradouro || prev.endereco,
+                        bairro: end.bairro || prev.bairro,
+                        cidade: end.cidade
+                          ? `${end.cidade}${end.uf ? "/" + end.uf : ""}`
+                          : prev.cidade,
+                      }));
+                      sonnerToast.success("Endereço encontrado!");
+                    } else {
+                      sonnerToast.error("CEP não encontrado");
+                    }
+                  }
+                }}
                 placeholder="00000-000"
+                maxLength={9}
               />
+              <p className="text-xs text-muted-foreground">
+                Preenche endereço, bairro e cidade automaticamente
+              </p>
             </div>
           </div>
         </CardContent>
