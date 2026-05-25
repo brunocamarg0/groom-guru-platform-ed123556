@@ -300,12 +300,21 @@ const Cadastro = () => {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="cep">CEP</Label>
-                        <Input
-                          id="cep"
-                          value={formDono.cep}
-                          onChange={(e) => setFormDono({ ...formDono, cep: e.target.value })}
-                          placeholder="00000-000"
-                        />
+                        <div className="relative">
+                          <Input
+                            id="cep"
+                            value={formDono.cep}
+                            onChange={(e) => handleCepChange(e.target.value)}
+                            placeholder="00000-000"
+                            maxLength={9}
+                          />
+                          {buscandoCep && (
+                            <Loader2 className="w-4 h-4 animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Digite o CEP para preencher o endereço automaticamente
+                        </p>
                       </div>
                     </div>
                   </>
