@@ -1669,6 +1669,17 @@ export type Database = {
           horario: string
         }[]
       }
+      get_profissionais_publicos_by_barbearia: {
+        Args: { _barbearia_ids: string[] }
+        Returns: {
+          ativo: boolean
+          barbearia_id: string
+          especialidades: string[]
+          foto: string
+          id: string
+          nome: string
+        }[]
+      }
       get_user_barbearia_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {

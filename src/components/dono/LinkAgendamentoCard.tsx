@@ -21,6 +21,7 @@ export default function LinkAgendamentoCard() {
   const { barbeariaId } = useDono();
   const [slug, setSlug] = useState("");
   const [original, setOriginal] = useState("");
+  const [nomeBarbearia, setNomeBarbearia] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -31,14 +32,20 @@ export default function LinkAgendamentoCard() {
       setLoading(true);
       const { data } = await supabase
         .from("barbearias" as any)
-        .select("slug")
+        .select("slug, nome")
         .eq("id", barbeariaId)
         .maybeSingle();
-      const s = (data as any)?.slug ?? "";
-      setSlug(s);
+      const row = data as any;
+      const s = row?.slug ?? "";
+      const nome = row?.nome ?? "";
+      // Se ainda não houver slug salvo, sugere baseado no nome da barbearia
+      const fallback = s || slugify(nome);
+      setSlug(fallback);
       setOriginal(s);
+      setNomeBarbearia(nome);
       setLoading(false);
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [barbeariaId]);
 
   const link = `${window.location.origin}/${slug || "sua-barbearia"}`;
@@ -88,7 +95,9 @@ export default function LinkAgendamentoCard() {
           Link de Agendamento
         </CardTitle>
         <CardDescription>
-          Compartilhe este link com seus clientes para que possam agendar diretamente
+          {nomeBarbearia
+            ? <>Compartilhe este link com os clientes da <strong>{nomeBarbearia}</strong></>
+            : "Compartilhe este link com seus clientes para que possam agendar diretamente"}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
