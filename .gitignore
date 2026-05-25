@@ -13,7 +13,6 @@ dist-ssr
 *.local
 
 # Environment files
-.env
 .env.local
 .env.*.local
 backend/.env
@@ -32,7 +31,5 @@ backend/.env
 # Never commit env files
 backend/.env
 backend/TOKENS_GERADOS.txt
-.env
-.env.*
 !.env.example
 !env.example
