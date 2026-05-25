@@ -346,14 +346,36 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
     return futuros[0] || null;
   };
 
+  const hidratarBarbearias = async (barbeariasBase: any[]) => {
+    const ids = barbeariasBase.map((b) => b.id);
+    if (ids.length === 0) return [];
+    const [servicosRes, profsRes] = await Promise.all([
+      supabase
+        .from("servicos")
+        .select("id, nome, descricao, duracao, preco, ativo, barbearia_id")
+        .in("barbearia_id", ids),
+      supabase
+        .from("profissionais_publicos")
+        .select("id, nome, foto, especialidades, ativo, barbearia_id")
+        .in("barbearia_id", ids),
+    ]);
+    const servicos = servicosRes.data || [];
+    const profissionais = profsRes.data || [];
+    return barbeariasBase.map((b: any) => {
+      const servs = servicos
+        .filter((s: any) => s.barbearia_id === b.id && s.ativo)
+        .map((s: any) => ({ ...s, preco: Number(s.preco) }));
+      const profs = profissionais.filter(
+        (p: any) => p.barbearia_id === b.id && p.ativo
+      );
+      return { ...b, servicos: servs, profissionais: profs, totalServicos: servs.length };
+    });
+  };
+
   const buscarBarbearias = async (busca?: string, cidade?: string, bairro?: string) => {
     let q = supabase
-      .from("barbearias")
-      .select(
-        `id, nome, telefone, email, foto, bairro, cidade, endereco,
-         servicos(id, nome, descricao, duracao, preco, ativo, barbearia_id),
-         profissionais(id, nome, foto, especialidades, ativo, barbearia_id)`
-      )
+      .from("barbearias_publicas" as any)
+      .select("id, nome, telefone, email, foto, bairro, cidade, endereco")
       .order("nome");
     if (busca) q = q.ilike("nome", `%${busca}%`);
     if (cidade) q = q.ilike("cidade", `%${cidade}%`);
@@ -364,41 +386,22 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
       setBarbearias([]);
       return;
     }
-    const mapped = (data || []).map((b: any) => ({
-      ...b,
-      servicos: (b.servicos || []).filter((s: any) => s.ativo).map((s: any) => ({
-        ...s,
-        preco: Number(s.preco),
-      })),
-      profissionais: (b.profissionais || []).filter((p: any) => p.ativo),
-      totalServicos: (b.servicos || []).filter((s: any) => s.ativo).length,
-    }));
+    const mapped = await hidratarBarbearias(data || []);
     setBarbearias(mapped);
   };
 
   const buscarBarbeariaPorId = async (id: string) => {
     const { data, error } = await supabase
-      .from("barbearias")
-      .select(
-        `id, nome, telefone, email, foto, bairro, cidade, endereco,
-         servicos(id, nome, descricao, duracao, preco, ativo, barbearia_id),
-         profissionais(id, nome, foto, especialidades, ativo, barbearia_id)`
-      )
+      .from("barbearias_publicas" as any)
+      .select("id, nome, telefone, email, foto, bairro, cidade, endereco")
       .eq("id", id)
       .single();
     if (error) {
       toast.error(error.message);
       throw error;
     }
-    const b: any = data;
-    return {
-      ...b,
-      servicos: (b.servicos || []).filter((s: any) => s.ativo).map((s: any) => ({
-        ...s,
-        preco: Number(s.preco),
-      })),
-      profissionais: (b.profissionais || []).filter((p: any) => p.ativo),
-    };
+    const [hidratada] = await hidratarBarbearias([data]);
+    return hidratada;
   };
 
   return (
