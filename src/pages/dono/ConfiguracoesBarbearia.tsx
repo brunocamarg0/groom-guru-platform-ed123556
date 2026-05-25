@@ -26,6 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ConfiguracaoBarbearia } from "@/types/dono";
 import LinkAgendamentoCard from "@/components/dono/LinkAgendamentoCard";
 import { buscarCep, formatarCep } from "@/lib/viacep";
+import { supabase } from "@/integrations/supabase/client";
 
 
 // Função para comprimir imagem (reduz tamanho para evitar problemas)
