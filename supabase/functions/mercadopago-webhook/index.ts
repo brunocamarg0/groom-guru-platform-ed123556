@@ -92,7 +92,28 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!paymentId || !mpToken) {
+    if (!paymentId) {
+      return new Response(JSON.stringify({ ok: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Identifica barbearia pelo external_reference (agendamento) para obter o token correto.
+    const admin = createClient(supabaseUrl, serviceKey);
+    let mpToken: string | undefined = undefined;
+
+    // 1ª tentativa: pelo body do webhook (rápido), depois pelo agendamento.
+    const refFromBody = body?.external_reference;
+    if (refFromBody) {
+      const { data: ag } = await admin
+        .from("agendamentos").select("barbearia_id").eq("id", refFromBody).maybeSingle();
+      if (ag?.barbearia_id) {
+        const info = await getMPTokenForBarbearia(ag.barbearia_id);
+        if (info) mpToken = info.accessToken;
+      }
+    }
+    if (!mpToken) mpToken = fallbackToken ?? undefined;
+    if (!mpToken) {
       return new Response(JSON.stringify({ ok: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -102,16 +123,6 @@ Deno.serve(async (req) => {
       `https://api.mercadopago.com/v1/payments/${paymentId}`,
       { headers: { Authorization: `Bearer ${mpToken}` } }
     );
-    if (!mpRes.ok) {
-      return new Response(JSON.stringify({ ok: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const payment = await mpRes.json();
-    const agendamentoId: string | undefined = payment.external_reference;
-    const status = payment.status as string;
-
-    const admin = createClient(supabaseUrl, serviceKey);
 
     const mapped =
       status === "approved"
