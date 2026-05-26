@@ -73,8 +73,10 @@ export default function ClienteLayout() {
 
   const cliente = (clienteCtx?.cliente as { nome?: string } | null) || null;
   const notificacoesNaoLidas = (clienteCtx?.notificacoes || []).filter((n) => !n.lida).length;
+  const nomeCliente =
+    (typeof cliente?.nome === "string" && cliente.nome.trim()) || user.email?.split("@")[0] || "Cliente";
 
-  const nomeExibicao = cliente?.nome || user.email || "Cliente";
+  const nomeExibicao = nomeCliente;
 
   const menuItems = [
     { title: "Dashboard", url: "/cliente", icon: Home },
@@ -102,7 +104,7 @@ export default function ClienteLayout() {
   };
 
   return (
-    <div className="light">
+    <div className="light bg-white min-h-screen" id="cliente-panel">
       <SidebarProvider>
         <Sidebar className="bg-sidebar">
           <SidebarHeader className="border-b border-sidebar-border">
