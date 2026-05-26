@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useDono } from "@/context/DonoContext";
+import MercadoPagoConnectCard from "@/components/pagamento/MercadoPagoConnectCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -107,7 +108,7 @@ const configuracaoPadrao: ConfiguracaoBarbearia = {
 };
 
 export default function ConfiguracoesBarbearia() {
-  const { configuracao, atualizarConfiguracao } = useDono();
+  const { configuracao, atualizarConfiguracao, barbeariaId } = useDono();
   const { toast } = useToast();
   
   // Função para garantir que temos uma configuração válida
@@ -299,6 +300,10 @@ export default function ConfiguracoesBarbearia() {
       </div>
 
       <LinkAgendamentoCard />
+
+      <MercadoPagoConnectCard barbeariaId={barbeariaId} />
+
+
 
 
 
