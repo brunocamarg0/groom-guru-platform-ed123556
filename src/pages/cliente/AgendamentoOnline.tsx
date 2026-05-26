@@ -486,7 +486,7 @@ export default function AgendamentoOnline() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Agendar Serviço</h2>
+          <h2 className="text-3xl font-bold tracking-tight text-foreground">Agendar Serviço</h2>
           <p className="text-muted-foreground">
             {barbearia?.nome || 'Barbearia sem nome'}
           </p>
