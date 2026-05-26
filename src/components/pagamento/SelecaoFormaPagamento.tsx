@@ -56,7 +56,29 @@ export function SelecaoFormaPagamento({
       const { data, error } = await supabase.functions.invoke("mercadopago-preference", {
         body: { agendamentoId },
       });
-      if (error) throw error;
+
+      // Tenta extrair mensagem detalhada do corpo da resposta (ex.: 409 mp_nao_conectado)
+      if (error) {
+        let detalhe: string | null = null;
+        try {
+          const ctx: any = (error as any).context;
+          if (ctx?.json) {
+            const body = await ctx.json();
+            detalhe = body?.message || body?.error || null;
+          } else if (ctx?.text) {
+            const txt = await ctx.text();
+            try {
+              const body = JSON.parse(txt);
+              detalhe = body?.message || body?.error || null;
+            } catch {
+              detalhe = txt;
+            }
+          }
+        } catch {
+          /* ignore */
+        }
+        throw new Error(detalhe || error.message || "Erro ao iniciar pagamento online");
+      }
 
       const url = data?.initPoint || data?.sandboxInitPoint;
       if (!url) throw new Error("URL de pagamento indisponível");
