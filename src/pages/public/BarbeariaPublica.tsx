@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { useParams, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
 
 export default function BarbeariaPublica() {
   const { slug } = useParams<{ slug: string }>();
+  const { user, loading: authLoading } = useAuth();
   const [state, setState] = useState<
     { kind: "loading" } | { kind: "found"; id: string } | { kind: "notfound" }
   >({ kind: "loading" });
@@ -25,7 +27,7 @@ export default function BarbeariaPublica() {
     })();
   }, [slug]);
 
-  if (state.kind === "loading") {
+  if (authLoading || state.kind === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -35,6 +37,12 @@ export default function BarbeariaPublica() {
 
   if (state.kind === "notfound") {
     return <Navigate to="/" replace />;
+  }
+
+  // Sem sessão → manda para login, preservando destino do agendamento
+  if (!user) {
+    const redirect = encodeURIComponent(`/cliente/agendar?barbearia=${state.id}`);
+    return <Navigate to={`/login?redirect=${redirect}`} replace />;
   }
 
   return <Navigate to={`/cliente/agendar?barbearia=${state.id}`} replace />;
