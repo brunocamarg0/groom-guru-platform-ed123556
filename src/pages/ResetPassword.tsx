@@ -91,7 +91,7 @@ const ResetPassword = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="confirm">Confirmar senha</Label>
+                  <Label htmlFor="confirm" className="text-foreground font-bold">Confirmar senha</Label>
                   <Input
                     id="confirm"
                     type="password"
