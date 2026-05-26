@@ -38,6 +38,9 @@ import { useAuth } from "@/hooks/useAuth";
 export default function ClienteLayout() {
   const location = useLocation();
   const { user, roles, loading: authLoading, signOut } = useAuth();
+  // Hook must be called unconditionally to satisfy Rules of Hooks.
+  // ClienteProvider always wraps this layout, so useCliente is safe.
+  const clienteCtx = useCliente();
 
   if (authLoading) {
     return (
@@ -51,7 +54,6 @@ export default function ClienteLayout() {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  // Permitir cliente; super_admin também pode visualizar
   const isClient = roles.includes("client") || roles.includes("super_admin");
   if (!isClient) {
     return (
@@ -69,15 +71,8 @@ export default function ClienteLayout() {
     );
   }
 
-  let cliente: { nome?: string } | null = null;
-  let notificacoesNaoLidas = 0;
-  try {
-    const ctx = useCliente();
-    cliente = ctx.cliente as any;
-    notificacoesNaoLidas = (ctx.notificacoes || []).filter((n) => !n.lida).length;
-  } catch {
-    cliente = null;
-  }
+  const cliente = (clienteCtx?.cliente as { nome?: string } | null) || null;
+  const notificacoesNaoLidas = (clienteCtx?.notificacoes || []).filter((n) => !n.lida).length;
 
   const nomeExibicao = cliente?.nome || user.email || "Cliente";
 
