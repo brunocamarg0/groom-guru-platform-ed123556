@@ -19,7 +19,14 @@ const Login = () => {
   const [searchParams] = useSearchParams();
 
   const tabFromUrl = searchParams.get('tab');
-  const getInitialTab = () => (tabFromUrl === 'client' ? 'client' : 'owner');
+  const redirectUrl = searchParams.get('redirect');
+  const getInitialTab = () => {
+    if (tabFromUrl === 'client') return 'client';
+    if (tabFromUrl === 'owner') return 'owner';
+    if (redirectUrl && redirectUrl.startsWith('/cliente')) return 'client';
+    if (redirectUrl && redirectUrl.startsWith('/dono')) return 'owner';
+    return 'owner';
+  };
 
   const [activeTab, setActiveTab] = useState(getInitialTab());
 
