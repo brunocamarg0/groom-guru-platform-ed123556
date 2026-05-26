@@ -107,7 +107,7 @@ const configuracaoPadrao: ConfiguracaoBarbearia = {
 };
 
 export default function ConfiguracoesBarbearia() {
-  const { configuracao, atualizarConfiguracao } = useDono();
+  const { configuracao, atualizarConfiguracao, barbeariaId } = useDono();
   const { toast } = useToast();
   
   // Função para garantir que temos uma configuração válida
