@@ -1,6 +1,8 @@
 // Webhook do Mercado Pago — atualiza status do pagamento.
 // Valida assinatura HMAC-SHA256 (x-signature) antes de processar.
+// Usa o token da barbearia (Mercado Pago Connect) para consultar o pagamento.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { getMPTokenForBarbearia } from "../_shared/mp-token.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
