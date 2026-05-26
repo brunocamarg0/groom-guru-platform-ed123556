@@ -75,7 +75,6 @@ export default function LinkAgendamentoCard() {
       await atualizarConfiguracao({ linkAgendamento: `${PUBLIC_ORIGIN}/${clean}` } as any);
       setSlug(clean);
       setOriginal(clean);
-      toast.success("Link de agendamento atualizado!");
     } catch (error: any) {
       if ((error as any)?.code === "23505") {
         toast.error("Este link já está em uso. Escolha outro.");
