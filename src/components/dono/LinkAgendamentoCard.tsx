@@ -18,7 +18,7 @@ const slugify = (s: string) =>
     .slice(0, 60);
 
 export default function LinkAgendamentoCard() {
-  const { barbeariaId, refresh, atualizarConfiguracao } = useDono();
+  const { barbeariaId, atualizarConfiguracao } = useDono();
   const [slug, setSlug] = useState("");
   const [original, setOriginal] = useState("");
   const [nomeBarbearia, setNomeBarbearia] = useState("");
@@ -75,7 +75,6 @@ export default function LinkAgendamentoCard() {
       await atualizarConfiguracao({ linkAgendamento: `${PUBLIC_ORIGIN}/${clean}` } as any);
       setSlug(clean);
       setOriginal(clean);
-      await refresh();
       toast.success("Link de agendamento atualizado!");
     } catch (error: any) {
       if ((error as any)?.code === "23505") {
