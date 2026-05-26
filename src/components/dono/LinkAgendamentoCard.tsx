@@ -48,7 +48,9 @@ export default function LinkAgendamentoCard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [barbeariaId]);
 
-  const link = `${window.location.origin}/${slug || "sua-barbearia"}`;
+  const PUBLIC_HOST = "www.barbermaestro.com";
+  const PUBLIC_ORIGIN = `https://${PUBLIC_HOST}`;
+  const link = `${PUBLIC_ORIGIN}/${slug || "sua-barbearia"}`;
 
   const handleCopy = async () => {
     if (!slug) {
@@ -105,7 +107,7 @@ export default function LinkAgendamentoCard() {
           <Label htmlFor="slug">Nome no link (sem acentos ou espaços)</Label>
           <div className="flex gap-2 mt-1">
             <div className="flex items-center px-3 rounded-sm border bg-muted text-muted-foreground text-sm whitespace-nowrap">
-              {window.location.host}/
+              {PUBLIC_HOST}/
             </div>
             <Input
               id="slug"
@@ -133,8 +135,7 @@ export default function LinkAgendamentoCard() {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            Dica: conecte um domínio próprio em Configurações do Projeto para remover o
-            "lovable.app" do link.
+            Compartilhe este link com seus clientes para que eles agendem direto pelo site.
           </p>
         </div>
       </CardContent>

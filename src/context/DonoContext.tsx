@@ -630,19 +630,20 @@ export function DonoProvider({ children }: { children: ReactNode }) {
   const atualizarConfiguracao = async (dados: Partial<ConfiguracaoBarbearia>) => {
     if (!barbeariaId) return;
     const payload: any = {};
-    if (dados.nome) payload.nome = dados.nome;
-    if (dados.telefone) payload.telefone = dados.telefone;
-    if (dados.email) payload.email = dados.email;
-    if (dados.endereco) payload.endereco = dados.endereco;
-    if (dados.cidade) payload.cidade = dados.cidade;
-    if (dados.bairro) payload.bairro = dados.bairro;
-    if (dados.cep) payload.cep = dados.cep;
-    if (dados.foto) payload.foto = dados.foto;
-    if (dados.modoConfirmacao) payload.modo_confirmacao = dados.modoConfirmacao;
+    if ("nome" in dados) payload.nome = dados.nome;
+    if ("cnpjCpf" in dados) payload.cnpj_cpf = dados.cnpjCpf;
+    if ("telefone" in dados) payload.telefone = dados.telefone;
+    if ("email" in dados) payload.email = dados.email;
+    if ("endereco" in dados) payload.endereco = dados.endereco;
+    if ("cidade" in dados) payload.cidade = dados.cidade;
+    if ("bairro" in dados) payload.bairro = dados.bairro;
+    if ("cep" in dados) payload.cep = dados.cep;
+    if ("foto" in dados) payload.foto = dados.foto ?? null;
+    if ("modoConfirmacao" in dados) payload.modo_confirmacao = dados.modoConfirmacao;
     const { error } = await supabase.from("barbearias").update(payload).eq("id", barbeariaId);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(error.message); throw error; }
     toast.success("Configuração salva");
-    carregar();
+    await carregar();
   };
 
   // ===== Promoções =====
