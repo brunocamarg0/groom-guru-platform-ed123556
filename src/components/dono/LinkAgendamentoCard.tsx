@@ -48,7 +48,9 @@ export default function LinkAgendamentoCard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [barbeariaId]);
 
-  const link = `${window.location.origin}/${slug || "sua-barbearia"}`;
+  const PUBLIC_HOST = "www.barbermaestro.com";
+  const PUBLIC_ORIGIN = `https://${PUBLIC_HOST}`;
+  const link = `${PUBLIC_ORIGIN}/${slug || "sua-barbearia"}`;
 
   const handleCopy = async () => {
     if (!slug) {
