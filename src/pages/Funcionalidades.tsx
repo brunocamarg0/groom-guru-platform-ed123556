@@ -56,7 +56,23 @@ const Funcionalidades = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Funcionalidades - Barber Maestro</title>
+        <meta
+          name="description"
+          content="Conheça todas as funcionalidades do Barber Maestro para donos de barbearias e clientes: agenda, pagamentos, fidelidade, relatórios e mais."
+        />
+        <link rel="canonical" href="https://www.barbermaestro.com/funcionalidades" />
+        <meta property="og:title" content="Funcionalidades - Barber Maestro" />
+        <meta
+          property="og:description"
+          content="Conheça todas as funcionalidades do Barber Maestro para donos de barbearias e clientes."
+        />
+        <meta property="og:url" content="https://www.barbermaestro.com/funcionalidades" />
+        <meta property="og:type" content="website" />
+      </Helmet>
       <Navbar />
+      
       
       <section className="py-16 bg-gradient-to-b from-background to-muted/20">
         <div className="container mx-auto px-4">
