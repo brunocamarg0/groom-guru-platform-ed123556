@@ -745,7 +745,7 @@ export function DonoProvider({ children }: { children: ReactNode }) {
     if ("validoAte" in dados) payload.valido_ate = dados.validoAte;
     if ("ativo" in dados) payload.ativo = dados.ativo;
     if ("aplicavelA" in dados) payload.aplicavel_a = dados.aplicavelA;
-    if ("servicoId" in dados) payload.servico_id = dados.servicoId;
+    if ("servicoId" in dados) payload.servico_id = dados.servicoId ? dados.servicoId : null;
     if ("horarioInicio" in dados) payload.horario_inicio = dados.horarioInicio;
     if ("horarioFim" in dados) payload.horario_fim = dados.horarioFim;
     const { error } = await supabase.from("promocoes").update(payload).eq("id", id);
