@@ -18,7 +18,7 @@ const slugify = (s: string) =>
     .slice(0, 60);
 
 export default function LinkAgendamentoCard() {
-  const { barbeariaId, refresh } = useDono();
+  const { barbeariaId, atualizarConfiguracao } = useDono();
   const [slug, setSlug] = useState("");
   const [original, setOriginal] = useState("");
   const [nomeBarbearia, setNomeBarbearia] = useState("");
@@ -41,7 +41,7 @@ export default function LinkAgendamentoCard() {
       // Se ainda não houver slug salvo, sugere baseado no nome da barbearia
       const fallback = s || slugify(nome);
       setSlug(fallback);
-      setOriginal(s);
+      setOriginal(fallback);
       setNomeBarbearia(nome);
       setLoading(false);
     })();
@@ -71,23 +71,19 @@ export default function LinkAgendamentoCard() {
       return;
     }
     setSaving(true);
-    const { error } = await supabase
-      .from("barbearias" as any)
-      .update({ slug: clean })
-      .eq("id", barbeariaId);
-    setSaving(false);
-    if (error) {
-      if ((error as any).code === "23505") {
+    try {
+      await atualizarConfiguracao({ linkAgendamento: `${PUBLIC_ORIGIN}/${clean}` } as any);
+      setSlug(clean);
+      setOriginal(clean);
+    } catch (error: any) {
+      if ((error as any)?.code === "23505") {
         toast.error("Este link já está em uso. Escolha outro.");
       } else {
-        toast.error("Erro ao salvar link: " + error.message);
+        toast.error("Erro ao salvar link: " + (error?.message || "tente novamente"));
       }
-      return;
+    } finally {
+      setSaving(false);
     }
-    setSlug(clean);
-    setOriginal(clean);
-    await refresh();
-    toast.success("Link de agendamento atualizado!");
   };
 
   return (

@@ -105,6 +105,80 @@ const naoImplementado = (nome: string) => async () => {
   toast.info(`${nome}: em migração para o novo backend.`);
 };
 
+const PUBLIC_ORIGIN = "https://www.barbermaestro.com";
+
+const getSlugFromLink = (value?: string) => {
+  if (!value) return "";
+
+  const normalized = value.trim();
+  if (!normalized) return "";
+
+  try {
+    const url = normalized.startsWith("http") ? new URL(normalized) : new URL(`${PUBLIC_ORIGIN}/${normalized.replace(/^\/+/, "")}`);
+    return url.pathname.replace(/^\/+|\/+$/g, "");
+  } catch {
+    return normalized.replace(/^https?:\/\/[^/]+\//, "").replace(/^\/+|\/+$/g, "");
+  }
+};
+
+const mapBarbeariaToConfiguracao = (b: any): ConfiguracaoBarbearia => {
+  const fallbackHorario = {
+    segunda: { aberto: true, inicio: "09:00", fim: "19:00" },
+    terca: { aberto: true, inicio: "09:00", fim: "19:00" },
+    quarta: { aberto: true, inicio: "09:00", fim: "19:00" },
+    quinta: { aberto: true, inicio: "09:00", fim: "19:00" },
+    sexta: { aberto: true, inicio: "09:00", fim: "19:00" },
+    sabado: { aberto: true, inicio: "09:00", fim: "17:00" },
+    domingo: { aberto: false, inicio: "09:00", fim: "13:00" },
+  };
+
+  const fallbackPolitica = { prazoMinimo: 2, multa: 0, permitirReagendamento: true };
+
+  const horarioFuncionamento = (() => {
+    const raw = b?.horario_funcionamento;
+    if (!raw) return fallbackHorario;
+    if (typeof raw === "string") {
+      try {
+        return { ...fallbackHorario, ...JSON.parse(raw) };
+      } catch {
+        return fallbackHorario;
+      }
+    }
+    return { ...fallbackHorario, ...raw };
+  })();
+
+  const politicaCancelamento = (() => {
+    const raw = b?.politica_cancelamento;
+    if (!raw) return fallbackPolitica;
+    if (typeof raw === "string") {
+      try {
+        return { ...fallbackPolitica, ...JSON.parse(raw) };
+      } catch {
+        return fallbackPolitica;
+      }
+    }
+    return { ...fallbackPolitica, ...raw };
+  })();
+
+  return {
+    id: b.id,
+    nome: b.nome,
+    cnpjCpf: b.cnpj_cpf,
+    foto: b.foto ?? undefined,
+    endereco: b.endereco ?? undefined,
+    cidade: b.cidade ?? undefined,
+    bairro: b.bairro ?? undefined,
+    cep: b.cep ?? undefined,
+    telefone: b.telefone ?? undefined,
+    email: b.email ?? undefined,
+    modoConfirmacao: (b.modo_confirmacao as any) ?? "hibrido",
+    horarioFuncionamento,
+    politicaCancelamento,
+    linkAgendamento: `${PUBLIC_ORIGIN}/${b.slug || "sua-barbearia"}`,
+    paginaPublica: true,
+  };
+};
+
 export function DonoProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const [barbeariaId, setBarbeariaId] = useState<string | null>(null);
@@ -195,58 +269,7 @@ export function DonoProvider({ children }: { children: ReactNode }) {
 
       // Configuração da barbearia
       const b = barb.data;
-      if (b) {
-        const publicOrigin = "https://www.barbermaestro.com";
-        setConfiguracao({
-          id: b.id,
-          nome: b.nome,
-          cnpjCpf: b.cnpj_cpf,
-          foto: b.foto ?? undefined,
-          endereco: b.endereco ?? undefined,
-          cidade: b.cidade ?? undefined,
-          bairro: b.bairro ?? undefined,
-          cep: b.cep ?? undefined,
-          telefone: b.telefone ?? undefined,
-          email: b.email ?? undefined,
-          modoConfirmacao: (b.modo_confirmacao as any) ?? "hibrido",
-          horarioFuncionamento: (() => {
-            const fallback = {
-              segunda: { aberto: true, inicio: "09:00", fim: "19:00" },
-              terca: { aberto: true, inicio: "09:00", fim: "19:00" },
-              quarta: { aberto: true, inicio: "09:00", fim: "19:00" },
-              quinta: { aberto: true, inicio: "09:00", fim: "19:00" },
-              sexta: { aberto: true, inicio: "09:00", fim: "19:00" },
-              sabado: { aberto: true, inicio: "09:00", fim: "17:00" },
-              domingo: { aberto: false, inicio: "09:00", fim: "13:00" },
-            };
-            const raw = (b as any).horario_funcionamento;
-            if (!raw) return fallback;
-            if (typeof raw === "string") {
-              try {
-                return { ...fallback, ...JSON.parse(raw) };
-              } catch {
-                return fallback;
-              }
-            }
-            return { ...fallback, ...raw };
-          })(),
-          politicaCancelamento: (() => {
-            const fallback = { prazoMinimo: 2, multa: 0, permitirReagendamento: true };
-            const raw = (b as any).politica_cancelamento;
-            if (!raw) return fallback;
-            if (typeof raw === "string") {
-              try {
-                return { ...fallback, ...JSON.parse(raw) };
-              } catch {
-                return fallback;
-              }
-            }
-            return { ...fallback, ...raw };
-          })(),
-          linkAgendamento: `${publicOrigin}/${b.slug || "sua-barbearia"}`,
-          paginaPublica: true,
-        });
-      }
+      if (b) setConfiguracao(mapBarbeariaToConfiguracao(b));
 
       setServicos(srv.data ?? []);
 
@@ -667,10 +690,16 @@ export function DonoProvider({ children }: { children: ReactNode }) {
     if ("modoConfirmacao" in dados) payload.modo_confirmacao = dados.modoConfirmacao;
     if ("horarioFuncionamento" in dados) payload.horario_funcionamento = dados.horarioFuncionamento;
     if ("politicaCancelamento" in dados) payload.politica_cancelamento = dados.politicaCancelamento;
-    const { error } = await supabase.from("barbearias").update(payload).eq("id", barbeariaId);
+    if ("linkAgendamento" in dados) {
+      const slug = getSlugFromLink(dados.linkAgendamento);
+      if (slug) payload.slug = slug;
+    }
+    const { data, error } = await supabase.from("barbearias").update(payload).eq("id", barbeariaId).select("*").single();
     if (error) { toast.error(error.message); throw error; }
+    if (data) {
+      setConfiguracao(mapBarbeariaToConfiguracao(data));
+    }
     toast.success("Configuração salva");
-    await carregar();
   };
 
   // ===== Promoções =====
