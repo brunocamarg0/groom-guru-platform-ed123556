@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const mpToken =
+    const fallbackToken =
       Deno.env.get("MERCADOPAGO_ACCESS_TOKEN") ||
       Deno.env.get("MERCADOPAGO_ACCESS_TOKEN_TEST");
     const webhookSecret = Deno.env.get("MERCADOPAGO_WEBHOOK_SECRET");
