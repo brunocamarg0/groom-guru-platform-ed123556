@@ -68,47 +68,25 @@ export interface DashboardStats {
 
 export async function listarBarbeariasAdmin(): Promise<BarbeariaBackend[]> {
   const token = localStorage.getItem('token');
-  
-  // Tenta primeiro a rota admin
-  try {
-    const response = await fetch(`${API_URL}/admin/barbearias`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
-    });
 
-    if (response.ok) {
-      return response.json();
-    }
-    
-    console.warn('⚠️ [ADMIN API] Rota admin falhou, tentando rota pública...');
-  } catch (err) {
-    console.warn('⚠️ [ADMIN API] Erro na rota admin:', err);
-  }
-  
-  // Fallback: tenta a rota pública de barbearias
-  try {
-    const publicResponse = await fetch(`${API_URL}/barbearias`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+  const response = await fetch(`${API_URL}/admin/barbearias`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+  });
 
-    if (publicResponse.ok) {
-      const data = await publicResponse.json();
-      console.log('✅ [ADMIN API] Carregado via rota pública:', data.length, 'barbearias');
-      return data;
-    }
-  } catch (err) {
-    console.warn('⚠️ [ADMIN API] Erro na rota pública:', err);
+  if (response.status === 401 || response.status === 403) {
+    throw new Error('Sessão admin inválida. Faça login novamente.');
   }
-  
-  // Se ambas falharem, retorna array vazio para não quebrar a UI
-  console.error('❌ [ADMIN API] Ambas as rotas falharam, retornando array vazio');
-  return [];
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: 'Erro ao listar barbearias' }));
+    throw new Error(err.error || 'Erro ao listar barbearias');
+  }
+
+  return response.json();
 }
 
 export async function buscarBarbeariaAdmin(id: string): Promise<BarbeariaBackend> {
