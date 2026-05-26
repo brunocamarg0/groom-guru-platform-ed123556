@@ -336,6 +336,12 @@ export type Database = {
           id: string
           latitude: number | null
           longitude: number | null
+          mercadopago_access_token: string | null
+          mercadopago_connected_at: string | null
+          mercadopago_public_key: string | null
+          mercadopago_refresh_token: string | null
+          mercadopago_token_expires_at: string | null
+          mercadopago_user_id: string | null
           modo_confirmacao: string
           nome: string
           plano: string
@@ -360,6 +366,12 @@ export type Database = {
           id?: string
           latitude?: number | null
           longitude?: number | null
+          mercadopago_access_token?: string | null
+          mercadopago_connected_at?: string | null
+          mercadopago_public_key?: string | null
+          mercadopago_refresh_token?: string | null
+          mercadopago_token_expires_at?: string | null
+          mercadopago_user_id?: string | null
           modo_confirmacao?: string
           nome: string
           plano?: string
@@ -384,6 +396,12 @@ export type Database = {
           id?: string
           latitude?: number | null
           longitude?: number | null
+          mercadopago_access_token?: string | null
+          mercadopago_connected_at?: string | null
+          mercadopago_public_key?: string | null
+          mercadopago_refresh_token?: string | null
+          mercadopago_token_expires_at?: string | null
+          mercadopago_user_id?: string | null
           modo_confirmacao?: string
           nome?: string
           plano?: string
@@ -1673,6 +1691,15 @@ export type Database = {
         Args: { _barbearia_id: string; _data: string }
         Returns: {
           horario: string
+        }[]
+      }
+      get_mp_connection_status: {
+        Args: { _barbearia_id: string }
+        Returns: {
+          connected: boolean
+          connected_at: string
+          mp_user_id: string
+          public_key: string
         }[]
       }
       get_profissionais_publicos_by_barbearia: {
