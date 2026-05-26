@@ -1,0 +1,10 @@
+# Barber Maestro
+
+> Plataforma SaaS de gestão para barbearias: agendamento online, pagamentos via Pix, controle de clientes, fidelidade e relatórios.
+
+Barber Maestro ajuda donos de barbearias a organizar a agenda, gerenciar profissionais e clientes, receber pagamentos e fidelizar consumidores. Clientes finais usam a plataforma para agendar horários e acompanhar seu histórico.
+
+## Pages
+
+- [Início](/): Visão geral do produto, principais recursos e planos.
+- [Funcionalidades](/funcionalidades): Lista detalhada das funcionalidades para donos de barbearias e clientes.

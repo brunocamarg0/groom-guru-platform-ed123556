@@ -12,3 +12,17 @@ Allow: /
 
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /super-admin
+Disallow: /dono
+Disallow: /cliente
+Disallow: /auth
+Disallow: /login
+Disallow: /cadastro
+Disallow: /esqueci-senha
+Disallow: /reset-password
+Disallow: /ativar-conta
+Disallow: /checkout-assinatura
+Disallow: /pagamento-assinatura
+
+Sitemap: https://www.barbermaestro.com/sitemap.xml
