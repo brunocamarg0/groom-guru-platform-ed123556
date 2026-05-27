@@ -1,6 +1,5 @@
 // Helper para obter o access token OAuth do Mercado Pago de uma barbearia.
-// Renova automaticamente se estiver expirado (refresh_token).
-// Faz fallback para o token global apenas se a barbearia não conectou (assinatura).
+// Lê de tabela privada `barbearia_mp_credentials` (somente service_role).
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 export interface MPBarbeariaToken {
@@ -43,14 +42,15 @@ async function refreshToken(
   const data = await res.json();
   const expiresAt = new Date(Date.now() + (data.expires_in ?? 0) * 1000).toISOString();
   await admin
-    .from("barbearias")
+    .from("barbearia_mp_credentials")
     .update({
-      mercadopago_access_token: data.access_token,
-      mercadopago_refresh_token: data.refresh_token ?? refresh,
-      mercadopago_token_expires_at: expiresAt,
-      mercadopago_public_key: data.public_key ?? null,
+      access_token: data.access_token,
+      refresh_token: data.refresh_token ?? refresh,
+      token_expires_at: expiresAt,
+      public_key: data.public_key ?? null,
+      updated_at: new Date().toISOString(),
     })
-    .eq("id", barbeariaId);
+    .eq("barbearia_id", barbeariaId);
   return data.access_token;
 }
 
@@ -59,35 +59,30 @@ export async function getMPTokenForBarbearia(
 ): Promise<MPBarbeariaToken | null> {
   const admin = getAdmin();
   const { data, error } = await admin
-    .from("barbearias")
-    .select(
-      "mercadopago_access_token, mercadopago_refresh_token, mercadopago_token_expires_at, mercadopago_user_id, mercadopago_public_key",
-    )
-    .eq("id", barbeariaId)
+    .from("barbearia_mp_credentials")
+    .select("access_token, refresh_token, token_expires_at, mp_user_id, public_key")
+    .eq("barbearia_id", barbeariaId)
     .maybeSingle();
 
   if (error) console.error("getMPTokenForBarbearia error:", error);
 
-  if (data?.mercadopago_access_token) {
-    const exp = data.mercadopago_token_expires_at
-      ? new Date(data.mercadopago_token_expires_at).getTime()
-      : 0;
-    // Renova se faltar menos de 1 dia para expirar
-    if (exp && exp - Date.now() < 24 * 60 * 60 * 1000 && data.mercadopago_refresh_token) {
-      const novo = await refreshToken(admin, barbeariaId, data.mercadopago_refresh_token);
+  if (data?.access_token) {
+    const exp = data.token_expires_at ? new Date(data.token_expires_at).getTime() : 0;
+    if (exp && exp - Date.now() < 24 * 60 * 60 * 1000 && data.refresh_token) {
+      const novo = await refreshToken(admin, barbeariaId, data.refresh_token);
       if (novo) {
         return {
           accessToken: novo,
-          userId: data.mercadopago_user_id,
-          publicKey: data.mercadopago_public_key,
+          userId: data.mp_user_id,
+          publicKey: data.public_key,
           source: "barbearia",
         };
       }
     }
     return {
-      accessToken: data.mercadopago_access_token,
-      userId: data.mercadopago_user_id,
-      publicKey: data.mercadopago_public_key,
+      accessToken: data.access_token,
+      userId: data.mp_user_id,
+      publicKey: data.public_key,
       source: "barbearia",
     };
   }
