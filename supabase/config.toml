@@ -9,3 +9,5 @@ project_id = "oyfgyoutpwmoqdtubveb"
     verify_jwt = false
   [functions.mercadopago-oauth-callback]
     verify_jwt = false
+  [functions.mercadopago-assinatura-checkout]
+    verify_jwt = false
