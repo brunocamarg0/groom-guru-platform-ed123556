@@ -295,6 +295,23 @@ const Cadastro = () => {
                       </div>
                     </div>
 
+                    <div className="space-y-2">
+                      <Label htmlFor="confirmarSenha">Confirmar Senha *</Label>
+                      <Input
+                        id="confirmarSenha"
+                        type="password"
+                        value={formDono.confirmarSenha}
+                        onChange={(e) => setFormDono({ ...formDono, confirmarSenha: e.target.value })}
+                        placeholder="Repita a senha"
+                        minLength={6}
+                        maxLength={15}
+                        required
+                      />
+                      {formDono.confirmarSenha && formDono.senha !== formDono.confirmarSenha && (
+                        <p className="text-xs text-destructive">As senhas não coincidem.</p>
+                      )}
+                    </div>
+
                     {/* Campos de Localização - Obrigatórios para busca */}
                     <div className="space-y-2 mt-4">
                       <Label htmlFor="endereco">Endereço (Rua e Número)</Label>
