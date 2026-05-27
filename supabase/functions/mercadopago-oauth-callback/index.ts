@@ -75,16 +75,17 @@ Deno.serve(async (req) => {
     const expiresAt = new Date(Date.now() + (data.expires_in ?? 0) * 1000).toISOString();
     const admin = createClient(supabaseUrl, serviceKey);
     const { error: upErr } = await admin
-      .from("barbearias")
-      .update({
-        mercadopago_user_id: String(data.user_id),
-        mercadopago_access_token: data.access_token,
-        mercadopago_refresh_token: data.refresh_token,
-        mercadopago_token_expires_at: expiresAt,
-        mercadopago_public_key: data.public_key ?? null,
-        mercadopago_connected_at: new Date().toISOString(),
-      })
-      .eq("id", parsed.b);
+      .from("barbearia_mp_credentials")
+      .upsert({
+        barbearia_id: parsed.b,
+        mp_user_id: String(data.user_id),
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        token_expires_at: expiresAt,
+        public_key: data.public_key ?? null,
+        connected_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "barbearia_id" });
 
     if (upErr) {
       console.error("MP save token failed:", upErr);
