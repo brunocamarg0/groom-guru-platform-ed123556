@@ -321,6 +321,47 @@ export type Database = {
           },
         ]
       }
+      barbearia_mp_credentials: {
+        Row: {
+          access_token: string | null
+          barbearia_id: string
+          connected_at: string | null
+          mp_user_id: string | null
+          public_key: string | null
+          refresh_token: string | null
+          token_expires_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token?: string | null
+          barbearia_id: string
+          connected_at?: string | null
+          mp_user_id?: string | null
+          public_key?: string | null
+          refresh_token?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string | null
+          barbearia_id?: string
+          connected_at?: string | null
+          mp_user_id?: string | null
+          public_key?: string | null
+          refresh_token?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "barbearia_mp_credentials_barbearia_id_fkey"
+            columns: ["barbearia_id"]
+            isOneToOne: true
+            referencedRelation: "barbearias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       barbearias: {
         Row: {
           bairro: string | null
@@ -336,12 +377,6 @@ export type Database = {
           id: string
           latitude: number | null
           longitude: number | null
-          mercadopago_access_token: string | null
-          mercadopago_connected_at: string | null
-          mercadopago_public_key: string | null
-          mercadopago_refresh_token: string | null
-          mercadopago_token_expires_at: string | null
-          mercadopago_user_id: string | null
           modo_confirmacao: string
           nome: string
           plano: string
@@ -366,12 +401,6 @@ export type Database = {
           id?: string
           latitude?: number | null
           longitude?: number | null
-          mercadopago_access_token?: string | null
-          mercadopago_connected_at?: string | null
-          mercadopago_public_key?: string | null
-          mercadopago_refresh_token?: string | null
-          mercadopago_token_expires_at?: string | null
-          mercadopago_user_id?: string | null
           modo_confirmacao?: string
           nome: string
           plano?: string
@@ -396,12 +425,6 @@ export type Database = {
           id?: string
           latitude?: number | null
           longitude?: number | null
-          mercadopago_access_token?: string | null
-          mercadopago_connected_at?: string | null
-          mercadopago_public_key?: string | null
-          mercadopago_refresh_token?: string | null
-          mercadopago_token_expires_at?: string | null
-          mercadopago_user_id?: string | null
           modo_confirmacao?: string
           nome?: string
           plano?: string
