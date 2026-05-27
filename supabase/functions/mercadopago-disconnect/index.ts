@@ -42,16 +42,9 @@ Deno.serve(async (req) => {
     }
 
     await admin
-      .from("barbearias")
-      .update({
-        mercadopago_user_id: null,
-        mercadopago_access_token: null,
-        mercadopago_refresh_token: null,
-        mercadopago_token_expires_at: null,
-        mercadopago_public_key: null,
-        mercadopago_connected_at: null,
-      })
-      .eq("id", barbeariaId);
+      .from("barbearia_mp_credentials")
+      .delete()
+      .eq("barbearia_id", barbeariaId);
 
     return new Response(JSON.stringify({ ok: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
