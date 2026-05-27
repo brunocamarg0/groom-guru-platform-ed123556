@@ -52,6 +52,7 @@ const Cadastro = () => {
     telefone: "",
     email: "",
     senha: "",
+    confirmarSenha: "",
     endereco: "",
     bairro: "",
     cidade: "",
@@ -63,6 +64,7 @@ const Cadastro = () => {
     nome: "",
     email: "",
     senha: "",
+    confirmarSenha: "",
     telefone: "",
     dataNascimento: "",
   });
