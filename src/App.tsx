@@ -85,6 +85,7 @@ import PagamentoAssinaturaSucesso from "./pages/PagamentoAssinaturaSucesso";
 import PagamentoAssinaturaFalha from "./pages/PagamentoAssinaturaFalha";
 import LoginAdmin from "./pages/admin/LoginAdmin";
 import BarbeariaPublica from "./pages/public/BarbeariaPublica";
+import Unsubscribe from "./pages/Unsubscribe";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -154,6 +155,7 @@ const App = () => (
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/ativar-conta" element={<AtivarConta />} />
             <Route path="/funcionalidades" element={<Funcionalidades />} />
+            <Route path="/unsubscribe" element={<Unsubscribe />} />
             <Route path="/admin/login" element={<LoginAdmin />} />
             <Route
               path="/super-admin"
