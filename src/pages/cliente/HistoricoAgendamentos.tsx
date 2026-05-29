@@ -122,6 +122,20 @@ export default function HistoricoAgendamentos() {
   };
 
   const handleCancelar = async (agendamentoId: string) => {
+    const ag = agendamentos?.find((a: any) => a.id === agendamentoId);
+    if (ag) {
+      const dataISO = typeof ag.data === "string" ? ag.data.slice(0, 10) : "";
+      const horario = (ag as any).horario || (ag as any).hora || "00:00";
+      const check = podeAlterarAgendamento(dataISO, horario, 2);
+      if (!check.ok) {
+        toast({
+          title: "Prazo mínimo de 2h",
+          description: "Cancelamentos e reagendamentos só são permitidos com pelo menos 2 horas de antecedência.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
     if (confirm("Tem certeza que deseja cancelar este agendamento?")) {
       try {
         await cancelarAgendamento(agendamentoId);
