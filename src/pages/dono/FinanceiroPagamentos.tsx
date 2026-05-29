@@ -274,18 +274,30 @@ export default function FinanceiroPagamentos() {
                 {formatarMoeda(pagamento.valor - (pagamento.taxaGateway || 0))}
               </TableCell>
               <TableCell>
-                <Badge
-                  variant={
-                    pagamento.status === "pago"
-                      ? "default"
-                      : pagamento.status === "pendente"
-                        ? "secondary"
-                        : "destructive"
-                  }
-                >
-                  {pagamento.status === "pago" ? "Pago" :
-                    pagamento.status === "pendente" ? "Pendente" : "Reembolsado"}
-                </Badge>
+                {(() => {
+                  const label: Record<string, string> = {
+                    pago: "Pago",
+                    pendente: "Pendente",
+                    processando: "Processando",
+                    cancelado: "Cancelado",
+                    reembolsado: "Reembolsado",
+                    falhou: "Falhou",
+                  };
+                  const variant: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
+                    pago: "default",
+                    pendente: "secondary",
+                    processando: "secondary",
+                    cancelado: "destructive",
+                    reembolsado: "destructive",
+                    falhou: "destructive",
+                  };
+                  const st = (pagamento.status as string) || "pendente";
+                  return (
+                    <Badge variant={variant[st] ?? "outline"}>
+                      {label[st] ?? st}
+                    </Badge>
+                  );
+                })()}
               </TableCell>
             </TableRow>
           ))
