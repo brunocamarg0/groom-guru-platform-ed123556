@@ -126,8 +126,14 @@ Deno.serve(async (req) => {
 
     // 6. envia email de boas-vindas ao dono (não bloqueia em caso de falha)
     try {
-      await admin.functions.invoke("send-transactional-email", {
-        body: {
+      const emailRes = await fetch(`${supabaseUrl}/functions/v1/send-transactional-email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${serviceRole}`,
+          apikey: serviceRole,
+        },
+        body: JSON.stringify({
           templateName: "boas-vindas-dono",
           recipientEmail: body.email.trim().toLowerCase(),
           idempotencyKey: `boas-vindas-dono-${userId}`,
@@ -135,8 +141,14 @@ Deno.serve(async (req) => {
             nomeDono: body.nomeContato,
             nomeBarbearia: body.nomeBarbearia,
           },
-        },
+        }),
       });
+      if (!emailRes.ok) {
+        const txt = await emailRes.text();
+        console.error("send-transactional-email respondeu não-OK", emailRes.status, txt);
+      } else {
+        console.log("Email de boas-vindas enfileirado com sucesso para", body.email);
+      }
     } catch (emailErr) {
       console.error("Falha ao enfileirar email de boas-vindas (não crítico)", emailErr);
     }
