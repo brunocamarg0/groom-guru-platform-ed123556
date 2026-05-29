@@ -932,7 +932,9 @@ export default function AgendaInteligente() {
                           {agendamentos.slice(0, 3).map((agendamento) => (
                             <div
                               key={agendamento.id}
-                              className={`text-xs p-1 rounded ${getStatusColor(agendamento.status)}`}
+                              className={`text-xs p-1 rounded ${getStatusColor(agendamento.status)} cursor-pointer hover:opacity-80`}
+                              onClick={(e) => { e.stopPropagation(); abrirEdicao(agendamento); }}
+                              title="Clique para reagendar"
                             >
                               <div className="font-medium truncate">{agendamento.horario}</div>
                               <div className="truncate">{agendamento.clienteNome}</div>
