@@ -87,7 +87,6 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
   const isClienteLogado = !!user && (roles.includes("client") || roles.includes("super_admin"));
 
   const [barbearias, setBarbearias] = useState<any[]>([]);
-  const [notificacoes] = useState<any[]>([]);
 
   // PERFIL do cliente
   const { data: cliente, isLoading: loadingCliente } = useQuery({
