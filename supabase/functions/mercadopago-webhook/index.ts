@@ -98,13 +98,26 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Identifica barbearia pelo external_reference (agendamento) para obter o token correto.
+    // Identifica barbearia pelo external_reference para obter o token correto.
     const admin = createClient(supabaseUrl, serviceKey);
     let mpToken: string | undefined = undefined;
 
-    // 1ª tentativa: pelo body do webhook (rápido), depois pelo agendamento.
-    const refFromBody = body?.external_reference;
-    if (refFromBody) {
+    const refFromBody: string | undefined = body?.external_reference;
+    const isPlanoCliente = typeof refFromBody === "string" && refFromBody.startsWith("plano_cliente:");
+
+    if (isPlanoCliente) {
+      const assinaturaId = refFromBody!.split(":")[1];
+      const { data: assin } = await admin
+        .from("assinaturas_cliente")
+        .select("id, plano:planos_cliente(barbearia_id)")
+        .eq("id", assinaturaId)
+        .maybeSingle();
+      const barbId = (assin as any)?.plano?.barbearia_id;
+      if (barbId) {
+        const info = await getMPTokenForBarbearia(barbId);
+        if (info) mpToken = info.accessToken;
+      }
+    } else if (refFromBody) {
       const { data: ag } = await admin
         .from("agendamentos").select("barbearia_id").eq("id", refFromBody).maybeSingle();
       if (ag?.barbearia_id) {
@@ -129,9 +142,8 @@ Deno.serve(async (req) => {
       });
     }
     const payment = await mpRes.json();
-    const agendamentoId: string | undefined = payment.external_reference;
+    const externalRef: string | undefined = payment.external_reference;
     const status = payment.status as string;
-
 
     const mapped =
       status === "approved"
@@ -142,7 +154,31 @@ Deno.serve(async (req) => {
         ? "processando"
         : status;
 
-    if (agendamentoId) {
+    if (externalRef?.startsWith("plano_cliente:")) {
+      const assinaturaId = externalRef.split(":")[1];
+      await admin
+        .from("pagamentos_assinatura")
+        .update({
+          status: mapped,
+          mercadopago_payment_id: String(paymentId),
+          mercadopago_status: status,
+          data_pagamento: status === "approved" ? new Date().toISOString() : null,
+        })
+        .eq("assinatura_id", assinaturaId);
+
+      if (status === "approved") {
+        await admin
+          .from("assinaturas_cliente")
+          .update({ status: "ativa" })
+          .eq("id", assinaturaId);
+      } else if (status === "rejected" || status === "cancelled") {
+        await admin
+          .from("assinaturas_cliente")
+          .update({ status: "cancelada" })
+          .eq("id", assinaturaId);
+      }
+    } else if (externalRef) {
+      const agendamentoId = externalRef;
       await admin
         .from("pagamentos")
         .update({

@@ -18,7 +18,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { apiGet, apiPost } from "@/services/api";
+import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -53,13 +53,30 @@ export default function PlanosDisponiveis() {
   const carregarPlanos = async () => {
     setLoading(true);
     try {
-      let data: Plano[];
-      if (barbeariaSelecionada) {
-        data = await apiGet<Plano[]>(`/cliente/planos-disponiveis/${barbeariaSelecionada}`);
-      } else {
-        data = await apiGet<Plano[]>(`/cliente/planos-disponiveis`);
-      }
-      setPlanos(data);
+      let query = supabase
+        .from("planos_cliente")
+        .select(
+          "id, nome, descricao, valor, duracao_meses, beneficios, barbearia_id, ativo, barbearia:barbearias(id, nome)"
+        )
+        .eq("ativo", true);
+      if (barbeariaSelecionada) query = query.eq("barbearia_id", barbeariaSelecionada);
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const mapped: Plano[] = (data || []).map((p: any) => ({
+        id: p.id,
+        nome: p.nome,
+        descricao: p.descricao ?? undefined,
+        valor: Number(p.valor),
+        duracaoMeses: Number(p.duracao_meses),
+        beneficios: Array.isArray(p.beneficios) ? p.beneficios : [],
+        barbearia: {
+          id: p.barbearia?.id ?? p.barbearia_id,
+          nome: p.barbearia?.nome ?? "Barbearia",
+        },
+      }));
+      setPlanos(mapped);
     } catch (error: any) {
       console.error("Erro ao carregar planos:", error);
       toast({
@@ -84,45 +101,36 @@ export default function PlanosDisponiveis() {
 
     setComprando(plano.id);
     try {
-      // Se modo teste, usar endpoint de teste
-      const endpoint = modoTeste 
-        ? "/cliente/assinaturas/comprar-teste"
-        : "/cliente/assinaturas/comprar";
-
-      const response = await apiPost<{
-        assinatura: any;
-        pagamento?: {
-          initPoint: string;
-          linkPagamento: string;
-        };
-        modo?: string;
-        mensagem?: string;
-      }>(endpoint, {
-        planoId: plano.id,
-        barbeariaId: plano.barbearia.id,
-      });
-
       if (modoTeste) {
-        // Modo teste: assinatura criada imediatamente
+        // Modo teste: cria assinatura direto via insert (RLS exige dono; usa edge function igual)
+        const { data, error } = await supabase.functions.invoke(
+          "mercadopago-plano-cliente-checkout",
+          { body: { planoId: plano.id, pagamentoRecorrente: false, modoTeste: true } },
+        );
+        if (error) throw error;
+        toast({ title: "Sucesso!", description: "Assinatura criada em modo teste" });
+        setTimeout(() => navigate("/cliente/assinatura"), 1200);
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke(
+        "mercadopago-plano-cliente-checkout",
+        { body: { planoId: plano.id, pagamentoRecorrente: false } },
+      );
+      if (error) throw error;
+      if ((data as any)?.error === "mp_nao_conectado") {
         toast({
-          title: "Sucesso!",
-          description: response.mensagem || "Assinatura criada em modo teste",
+          title: "Pagamento indisponível",
+          description: (data as any).message,
+          variant: "destructive",
         });
-        // Recarregar página ou redirecionar
-        setTimeout(() => {
-          navigate("/cliente/assinatura");
-        }, 1500);
+        return;
+      }
+      const link = (data as any)?.initPoint || (data as any)?.sandboxInitPoint;
+      if (link) {
+        window.location.href = link;
       } else {
-        // Modo real: redirecionar para pagamento
-        if (response.pagamento?.linkPagamento) {
-          window.location.href = response.pagamento.linkPagamento;
-        } else {
-          toast({
-            title: "Erro",
-            description: "Não foi possível gerar o link de pagamento",
-            variant: "destructive",
-          });
-        }
+        throw new Error((data as any)?.error || "Não foi possível gerar o link de pagamento");
       }
     } catch (error: any) {
       console.error("Erro ao comprar plano:", error);
