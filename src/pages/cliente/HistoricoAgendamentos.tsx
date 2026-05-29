@@ -29,6 +29,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { podeAlterarAgendamento } from "@/lib/horarios";
 
 interface Agendamento {
   id: string;
