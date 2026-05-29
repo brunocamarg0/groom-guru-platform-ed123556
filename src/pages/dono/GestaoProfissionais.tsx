@@ -75,9 +75,9 @@ export default function GestaoProfissionais() {
         especialidades: formData.especialidades,
         comissao: {
           tipo: formData.comissaoTipo,
-          valor: formData.comissaoValor,
+          valor: parseFloat(formData.comissaoValor) || 0,
         },
-        comissaoAssinatura: formData.comissaoAssinatura,
+        comissaoAssinatura: parseFloat(formData.comissaoAssinatura) || 0,
         ativo: true,
       } as any);
 
@@ -88,8 +88,8 @@ export default function GestaoProfissionais() {
         email: "",
         especialidades: [],
         comissaoTipo: "percentual",
-        comissaoValor: 40,
-        comissaoAssinatura: 0,
+        comissaoValor: "40",
+        comissaoAssinatura: "",
       });
     } catch (error) {
       // Erro já é tratado no contexto
@@ -106,8 +106,8 @@ export default function GestaoProfissionais() {
       email: profissional.email || "",
       especialidades: profissional.especialidades || [],
       comissaoTipo: profissional.comissao.tipo,
-      comissaoValor: profissional.comissao.valor,
-      comissaoAssinatura: (profissional as any).comissaoAssinatura || 0,
+      comissaoValor: String(profissional.comissao.valor ?? ""),
+      comissaoAssinatura: String((profissional as any).comissaoAssinatura ?? ""),
     });
     setIsEditDialogOpen(true);
   };
@@ -130,9 +130,9 @@ export default function GestaoProfissionais() {
         especialidades: formData.especialidades,
         comissao: {
           tipo: formData.comissaoTipo,
-          valor: formData.comissaoValor,
+          valor: parseFloat(formData.comissaoValor) || 0,
         },
-        comissaoAssinatura: formData.comissaoAssinatura,
+        comissaoAssinatura: parseFloat(formData.comissaoAssinatura) || 0,
       } as any);
 
       setIsEditDialogOpen(false);
@@ -143,8 +143,8 @@ export default function GestaoProfissionais() {
         email: "",
         especialidades: [],
         comissaoTipo: "percentual",
-        comissaoValor: 40,
-        comissaoAssinatura: 0,
+        comissaoValor: "40",
+        comissaoAssinatura: "",
       });
     } catch (error) {
       // Erro já é tratado no contexto
@@ -234,8 +234,11 @@ export default function GestaoProfissionais() {
                   <Input
                     id="comissaoValor"
                     type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0"
                     value={formData.comissaoValor}
-                    onChange={(e) => setFormData({ ...formData, comissaoValor: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) => setFormData({ ...formData, comissaoValor: e.target.value })}
                   />
                 </div>
               </div>
@@ -246,9 +249,9 @@ export default function GestaoProfissionais() {
                   type="number"
                   min="0"
                   step="0.01"
-                  placeholder="0.00"
+                  placeholder="0,00"
                   value={formData.comissaoAssinatura}
-                  onChange={(e) => setFormData({ ...formData, comissaoAssinatura: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => setFormData({ ...formData, comissaoAssinatura: e.target.value })}
                 />
                 <p className="text-xs text-muted-foreground">
                   Valor fixo pago ao profissional por cada pagamento de assinatura de cliente
@@ -327,8 +330,11 @@ export default function GestaoProfissionais() {
                   <Input
                     id="edit-comissaoValor"
                     type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0"
                     value={formData.comissaoValor}
-                    onChange={(e) => setFormData({ ...formData, comissaoValor: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) => setFormData({ ...formData, comissaoValor: e.target.value })}
                   />
                 </div>
               </div>
@@ -339,9 +345,9 @@ export default function GestaoProfissionais() {
                   type="number"
                   min="0"
                   step="0.01"
-                  placeholder="0.00"
+                  placeholder="0,00"
                   value={formData.comissaoAssinatura}
-                  onChange={(e) => setFormData({ ...formData, comissaoAssinatura: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => setFormData({ ...formData, comissaoAssinatura: e.target.value })}
                 />
                 <p className="text-xs text-muted-foreground">
                   Valor fixo pago ao profissional por cada pagamento de assinatura de cliente
