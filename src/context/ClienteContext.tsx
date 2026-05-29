@@ -266,6 +266,20 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
         .insert({ agendamento_id: data.id, profissional_id: novo.profissionalId });
     }
 
+    // Cria notificação para o dono da barbearia
+    try {
+      await supabase.from("notificacoes").insert({
+        barbearia_id: novo.barbeariaId,
+        tipo: autoConfirma ? "agendamento_confirmado" : "agendamento_novo",
+        titulo: autoConfirma ? "Novo agendamento confirmado" : "Novo agendamento pendente",
+        mensagem: `${cliente.nome} agendou para ${novo.data} às ${novo.hora}.`,
+        url_acao: "/dono/agenda",
+        label_acao: "Ver agenda",
+      });
+    } catch {
+      // best-effort
+    }
+
     await queryClient.invalidateQueries({ queryKey: ["cliente", "agendamentos"] });
     toast.success("Agendamento criado!");
 
