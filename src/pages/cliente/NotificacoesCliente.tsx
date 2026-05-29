@@ -65,12 +65,27 @@ export default function NotificacoesCliente() {
               </p>
             ) : (
               notificacoesArray.map((notificacao) => {
-                const notificacaoComTipo = notificacao as { id: string; titulo: string; mensagem: string; lida: boolean; data: string; tipo?: string; canal?: string };
+                const notificacaoComTipo = notificacao as { id: string; titulo: string; mensagem: string; lida: boolean; data: string; tipo?: string; canal?: string; url_acao?: string | null; label_acao?: string | null };
                 const tipoKey = notificacaoComTipo.tipo || "sistema";
                 const tipo = tipoConfig[tipoKey] || tipoConfig.sistema;
                 const TipoIcon = tipo.icon;
                 const canalKey = notificacaoComTipo.canal || "app";
                 const canal = canalConfig[canalKey] || canalConfig.app;
+                const urlAcao = notificacaoComTipo.url_acao;
+                // Define label padrão por tipo se a notificação tiver url mas não label
+                const labelPadraoPorTipo: Record<string, string> = {
+                  atendimento_concluido: "Avaliar atendimento",
+                  agendamento_confirmado: "Ver agendamento",
+                  agendamento_cancelado: "Ver agendamento",
+                  promocao: "Ver promoção",
+                  pagamento: "Pagar agora",
+                  lembrete: "Ver agendamento",
+                };
+                const labelAcao =
+                  notificacaoComTipo.label_acao ||
+                  labelPadraoPorTipo[tipoKey] ||
+                  "Abrir";
+                const isAvaliacao = tipoKey === "atendimento_concluido" || (urlAcao || "").includes("/avaliacoes");
                 return (
                   <div
                     key={notificacao.id}
@@ -78,7 +93,7 @@ export default function NotificacoesCliente() {
                       !notificacao.lida ? "bg-primary/5 border-primary" : ""
                     }`}
                   >
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start justify-between gap-3">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           <TipoIcon className="h-4 w-4" />
@@ -103,11 +118,31 @@ export default function NotificacoesCliente() {
                             {formatarData(notificacao.data || new Date().toISOString())}
                           </span>
                         </div>
+                        {urlAcao && (
+                          <Button
+                            className="mt-3"
+                            size="sm"
+                            onClick={async () => {
+                              if (!notificacao.lida && marcarNotificacaoLida) {
+                                await marcarNotificacaoLida(notificacao.id);
+                              }
+                              navigate(urlAcao);
+                            }}
+                          >
+                            {isAvaliacao ? (
+                              <Star className="h-4 w-4 mr-2" />
+                            ) : (
+                              <ArrowRight className="h-4 w-4 mr-2" />
+                            )}
+                            {labelAcao}
+                          </Button>
+                        )}
                       </div>
                       {!notificacao.lida && marcarNotificacaoLida && (
                         <Button
                           variant="ghost"
                           size="icon"
+                          title="Marcar como lida"
                           onClick={async () => {
                             if (marcarNotificacaoLida) {
                               await marcarNotificacaoLida(notificacao.id);
@@ -121,6 +156,7 @@ export default function NotificacoesCliente() {
                   </div>
                 );
               })
+
             )}
           </div>
         </CardContent>
