@@ -47,6 +47,8 @@ import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, isSameMon
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { podeAlterarAgendamento, parseHorarioFuncionamento, horarioDentroDoFuncionamento } from "@/lib/horarios";
+import { supabase } from "@/integrations/supabase/client";
+
 
 export default function AgendaInteligente() {
   const { agendamentos, profissionais, clientes, servicos, configuracao, criarAgendamento, atualizarAgendamento, confirmarAgendamento, recusarAgendamento } = useDono();
@@ -323,6 +325,40 @@ export default function AgendaInteligente() {
       toast({
         title: "Erro ao confirmar",
         description: error.message || "Não foi possível confirmar o agendamento.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleConcluir = async (id: string) => {
+    setProcessingId(id);
+    try {
+      const ag = agendamentos.find((a) => a.id === id);
+      await atualizarAgendamento(id, { status: "concluido" });
+
+      // Notifica cliente para avaliar
+      if (ag?.clienteId && configuracao?.id) {
+        await supabase.from("notificacoes").insert({
+          tipo: "atendimento_concluido",
+          titulo: "Como foi seu atendimento?",
+          mensagem: `Seu atendimento de ${ag.servicoNome} com ${ag.profissionalNome} foi concluído. Avalie agora e ganhe pontos de fidelidade!`,
+          cliente_id: ag.clienteId,
+          barbearia_id: configuracao.id,
+          url_acao: `/cliente/avaliacoes?agendamento=${id}`,
+          label_acao: "Avaliar",
+        });
+      }
+
+      toast({
+        title: "Atendimento concluído!",
+        description: "O cliente foi notificado para avaliar o atendimento.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro ao concluir",
+        description: error.message || "Não foi possível concluir o atendimento.",
         variant: "destructive",
       });
     } finally {
@@ -779,9 +815,26 @@ export default function AgendaInteligente() {
                             <span className="font-medium">{formatarMoeda(agendamento.valor)}</span>
                           </div>
                         </div>
-                        <div className="mt-2 text-sm text-muted-foreground">
-                          Profissional: {agendamento.profissionalNome} • Duração: {agendamento.duracao}min
+                        <div className="mt-2 flex items-center justify-between">
+                          <div className="text-sm text-muted-foreground">
+                            Profissional: {agendamento.profissionalNome} • Duração: {agendamento.duracao}min
+                          </div>
+                          {agendamento.status === "confirmado" && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleConcluir(agendamento.id)}
+                              disabled={processingId === agendamento.id}
+                            >
+                              {processingId === agendamento.id ? (
+                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                              ) : (
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                              )}
+                              Concluir atendimento
+                            </Button>
+                          )}
                         </div>
+
                       </div>
                     ))}
                   </div>
@@ -840,6 +893,20 @@ export default function AgendaInteligente() {
                           {agendamento.status}
                         </Badge>
                         <span className="font-medium">{formatarMoeda(agendamento.valor)}</span>
+                        {agendamento.status === "confirmado" && (
+                          <Button
+                            size="sm"
+                            onClick={(e) => { e.stopPropagation(); handleConcluir(agendamento.id); }}
+                            disabled={processingId === agendamento.id}
+                          >
+                            {processingId === agendamento.id ? (
+                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            ) : (
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                            )}
+                            Concluir
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}
