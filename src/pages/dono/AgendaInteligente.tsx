@@ -893,6 +893,20 @@ export default function AgendaInteligente() {
                           {agendamento.status}
                         </Badge>
                         <span className="font-medium">{formatarMoeda(agendamento.valor)}</span>
+                        {agendamento.status === "confirmado" && (
+                          <Button
+                            size="sm"
+                            onClick={(e) => { e.stopPropagation(); handleConcluir(agendamento.id); }}
+                            disabled={processingId === agendamento.id}
+                          >
+                            {processingId === agendamento.id ? (
+                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            ) : (
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                            )}
+                            Concluir
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}
