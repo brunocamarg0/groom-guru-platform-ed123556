@@ -650,8 +650,31 @@ export function DonoProvider({ children }: { children: ReactNode }) {
     carregar();
   };
   const atualizarAgendamento = async (id: string, dados: any) => {
-    const { error } = await supabase.from("agendamentos").update(dados).eq("id", id);
-    if (error) { toast.error(error.message); return; }
+    const payload: any = {};
+    if ("status" in dados) payload.status = dados.status;
+    if ("observacao" in dados) payload.observacao = dados.observacao;
+    if ("observacoes" in dados) payload.observacao = dados.observacoes;
+    if ("horario" in dados) payload.horario = dados.horario;
+    if ("data" in dados && dados.data) {
+      payload.data = /^\d{4}-\d{2}-\d{2}$/.test(dados.data)
+        ? `${dados.data}T12:00:00.000Z`
+        : dados.data;
+    }
+    if ("servicoId" in dados) payload.servico_id = dados.servicoId;
+    if ("clienteId" in dados) payload.cliente_id = dados.clienteId;
+    if (Object.keys(payload).length > 0) {
+      const { error } = await supabase.from("agendamentos").update(payload).eq("id", id);
+      if (error) { toast.error(error.message); return; }
+    }
+    // Atualiza vínculo profissional se enviado
+    if ("profissionalId" in dados && dados.profissionalId) {
+      await supabase.from("agendamento_profissional").delete().eq("agendamento_id", id);
+      const { error: eP } = await supabase.from("agendamento_profissional").insert({
+        agendamento_id: id,
+        profissional_id: dados.profissionalId,
+      });
+      if (eP) { toast.error(eP.message); return; }
+    }
     carregar();
   };
   const cancelarAgendamento = async (id: string) => {

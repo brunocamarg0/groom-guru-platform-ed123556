@@ -46,9 +46,10 @@ import {
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, isSameMonth, addDays, subDays, startOfMonth, endOfMonth, eachWeekOfInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
+import { podeAlterarAgendamento, parseHorarioFuncionamento, horarioDentroDoFuncionamento } from "@/lib/horarios";
 
 export default function AgendaInteligente() {
-  const { agendamentos, profissionais, clientes, servicos, criarAgendamento, confirmarAgendamento, recusarAgendamento } = useDono();
+  const { agendamentos, profissionais, clientes, servicos, configuracao, criarAgendamento, atualizarAgendamento, confirmarAgendamento, recusarAgendamento } = useDono();
   const { toast } = useToast();
   const [visualizacao, setVisualizacao] = useState<"dia" | "semana" | "mes">("dia");
   const [dataSelecionada, setDataSelecionada] = useState<Date>(new Date());
@@ -58,6 +59,8 @@ export default function AgendaInteligente() {
   const [motivoRecusa, setMotivoRecusa] = useState("");
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [modalNovoAgendamento, setModalNovoAgendamento] = useState(false);
+  const [agendamentoEditar, setAgendamentoEditar] = useState<any | null>(null);
+  const [formEditar, setFormEditar] = useState({ data: "", horario: "", profissionalId: "" });
   const [formNovoAgendamento, setFormNovoAgendamento] = useState({
     clienteId: "",
     profissionalId: "",
@@ -66,6 +69,66 @@ export default function AgendaInteligente() {
     horario: "",
     observacoes: "",
   });
+
+  const prazoMinReagendamento = configuracao?.politicaCancelamento?.prazoMinimo ?? 2;
+  const horarioFuncionamento = useMemo(
+    () => parseHorarioFuncionamento(configuracao?.horarioFuncionamento),
+    [configuracao]
+  );
+
+  const abrirEdicao = (a: any) => {
+    setAgendamentoEditar(a);
+    setFormEditar({ data: a.data, horario: a.horario, profissionalId: a.profissionalId || "" });
+  };
+
+  const handleSalvarEdicao = async () => {
+    if (!agendamentoEditar) return;
+    const { data, horario, profissionalId } = formEditar;
+    if (!data || !horario || !profissionalId) {
+      toast({ title: "Dados incompletos", description: "Preencha data, horário e profissional.", variant: "destructive" });
+      return;
+    }
+    // Política 2h em relação ao horário ORIGINAL
+    const policy = podeAlterarAgendamento(agendamentoEditar.data, agendamentoEditar.horario, prazoMinReagendamento);
+    if (!policy.ok) {
+      toast({ title: `Prazo mínimo de ${prazoMinReagendamento}h`, description: "Não é possível reagendar tão próximo ao horário.", variant: "destructive" });
+      return;
+    }
+    // Horário dentro do funcionamento
+    const duracao = agendamentoEditar.duracao || 40;
+    if (!horarioDentroDoFuncionamento(horarioFuncionamento, data, horario, duracao)) {
+      toast({ title: "Fora do funcionamento", description: "O novo horário está fora do horário de funcionamento da barbearia.", variant: "destructive" });
+      return;
+    }
+    // Conflito com outros agendamentos (exceto o próprio)
+    const conflito = agendamentos.some((a) => {
+      if (a.id === agendamentoEditar.id) return false;
+      if (a.profissionalId !== profissionalId) return false;
+      if (a.data !== data) return false;
+      if (!["confirmado", "pendente", "concluido"].includes(a.status)) return false;
+      if (!a.horario) return false;
+      const [h1, m1] = horario.split(":").map(Number);
+      const ini = h1 * 60 + m1;
+      const fim = ini + duracao;
+      const [h2, m2] = a.horario.split(":").map(Number);
+      const aIni = h2 * 60 + m2;
+      const aFim = aIni + (a.duracao || 40);
+      return ini < aFim && fim > aIni;
+    });
+    if (conflito) {
+      toast({ title: "Horário ocupado", description: "Já existe um agendamento neste horário para este profissional.", variant: "destructive" });
+      return;
+    }
+    setProcessingId(agendamentoEditar.id);
+    try {
+      await atualizarAgendamento(agendamentoEditar.id, { data, horario, profissionalId });
+      toast({ title: "Agendamento reagendado", description: "O horário antigo foi liberado." });
+      setAgendamentoEditar(null);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
 
   // Obter serviços ativos do banco de dados
   const servicosAtivos = useMemo(() => {
@@ -756,7 +819,9 @@ export default function AgendaInteligente() {
                   {agendamentosDoDia.map((agendamento) => (
                     <div
                       key={agendamento.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent"
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent cursor-pointer"
+                      onClick={() => abrirEdicao(agendamento)}
+                      title="Clique para reagendar"
                     >
                       <div className="flex items-center gap-3">
                         <Clock className="h-4 w-4 text-muted-foreground" />
@@ -779,6 +844,7 @@ export default function AgendaInteligente() {
                     </div>
                   ))}
                 </div>
+
               )}
             </CardContent>
           </Card>
@@ -810,13 +876,15 @@ export default function AgendaInteligente() {
                         <div
                           key={agendamento.id}
                           className={`text-xs p-1 rounded ${getStatusColor(agendamento.status)} cursor-pointer hover:opacity-80`}
-                          onClick={() => setDataSelecionada(dia)}
+                          onClick={(e) => { e.stopPropagation(); abrirEdicao(agendamento); }}
+                          title="Clique para reagendar"
                         >
                           <div className="font-medium">{agendamento.horario}</div>
                           <div className="truncate">{agendamento.clienteNome}</div>
                         </div>
                       ))}
                     </div>
+
                   </div>
                 ))}
               </div>
@@ -864,7 +932,9 @@ export default function AgendaInteligente() {
                           {agendamentos.slice(0, 3).map((agendamento) => (
                             <div
                               key={agendamento.id}
-                              className={`text-xs p-1 rounded ${getStatusColor(agendamento.status)}`}
+                              className={`text-xs p-1 rounded ${getStatusColor(agendamento.status)} cursor-pointer hover:opacity-80`}
+                              onClick={(e) => { e.stopPropagation(); abrirEdicao(agendamento); }}
+                              title="Clique para reagendar"
                             >
                               <div className="font-medium truncate">{agendamento.horario}</div>
                               <div className="truncate">{agendamento.clienteNome}</div>
@@ -1099,6 +1169,75 @@ export default function AgendaInteligente() {
                   Criar Agendamento
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Edição/Reagendamento */}
+      <Dialog open={!!agendamentoEditar} onOpenChange={(open) => !open && setAgendamentoEditar(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reagendar atendimento</DialogTitle>
+            <DialogDescription>
+              {agendamentoEditar && (
+                <>
+                  Cliente: <strong>{agendamentoEditar.clienteNome}</strong> · Serviço:{" "}
+                  <strong>{agendamentoEditar.servicoNome}</strong>
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Data</Label>
+                <Input
+                  type="date"
+                  value={formEditar.data}
+                  min={format(new Date(), "yyyy-MM-dd")}
+                  onChange={(e) => setFormEditar({ ...formEditar, data: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Horário</Label>
+                <Input
+                  type="time"
+                  step={600}
+                  value={formEditar.horario}
+                  onChange={(e) => setFormEditar({ ...formEditar, horario: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Profissional</Label>
+              <Select
+                value={formEditar.profissionalId}
+                onValueChange={(v) => setFormEditar({ ...formEditar, profissionalId: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o profissional" />
+                </SelectTrigger>
+                <SelectContent>
+                  {profissionais.filter((p) => p.ativo).map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Reagendamento exige antecedência mínima de {prazoMinReagendamento}h do horário original.
+              O slot antigo é liberado automaticamente.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAgendamentoEditar(null)} disabled={!!processingId}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSalvarEdicao} disabled={!!processingId}>
+              {processingId === agendamentoEditar?.id ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Salvando...</>
+              ) : "Salvar reagendamento"}
             </Button>
           </DialogFooter>
         </DialogContent>
