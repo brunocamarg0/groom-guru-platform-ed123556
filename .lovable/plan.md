@@ -1,81 +1,68 @@
-# Mercado Pago Connect — Multi-tenant
 
-Hoje existe **um único token** no sistema, então todo pagamento cai na sua conta. A solução correta é o **Mercado Pago Connect (OAuth)**: cada dono de barbearia autoriza o BarberMaestro a criar pagamentos em nome dele, e o dinheiro cai direto na conta MP do dono.
+# Painel do Cliente — Plano de Correções
 
-## Como vai funcionar (visão do usuário)
+Vou agrupar tudo em 4 frentes para conseguir entregar de forma organizada (e reversível, se algo não agradar).
 
-1. Dono entra no painel → aba **Configurações → Pagamentos**.
-2. Clica em **"Conectar Mercado Pago"**.
-3. É redirecionado para a tela oficial do MP, faz login, autoriza.
-4. Volta para o painel já conectado (mostra "✅ Conta conectada: email@dono.com").
-5. A partir daí, todo pagamento de cliente daquela barbearia cai direto na conta do dono.
+---
 
-Cliente paga normalmente — não precisa ter conta MP, pode pagar com PIX, cartão ou saldo.
+## Frente 1 — Tema claro (textos transparentes em TODO o painel)
 
-## Arquitetura técnica
+**Causa raiz:** o `ClienteLayout` força `className="light bg-white"`, mas as páginas internas usam tokens (`text-foreground`, `text-muted-foreground`, títulos sem cor explícita) que herdam o tema escuro global do app. Por isso quase tudo aparece "transparente/claro demais".
 
-```text
-Cliente paga na Barbearia A → Edge Function usa token_A (da Barbearia A) → MP credita Dono A
-Cliente paga na Barbearia B → Edge Function usa token_B (da Barbearia B) → MP credita Dono B
-```
+**O que farei:**
+- Definir um escopo CSS isolado em `index.css` para `#cliente-panel` que sobrescreve as variáveis HSL (`--background`, `--foreground`, `--card`, `--muted-foreground`, `--border`, `--sidebar-*`) com paleta clara consistente.
+- Remover as gambiarras `text-gray-900 dark:text-gray-100` espalhadas no `ClienteLayout` (vão deixar de ser necessárias).
+- Garantir contraste correto nos títulos: "Olá, fulano", "Histórico de Agendamentos", "Pagamento", "Avaliar Atendimento", "Perfil", "Notificações", "Fidelidade & Benefícios", "Planos Disponíveis", "Minha Assinatura", "Suporte & Contato", "Configurações" e no botão hamburger (`SidebarTrigger`).
 
-## Etapas de implementação
+Resultado: todo texto, ícone do menu, dialog de "Detalhes do Agendamento" e cabeçalhos ficam legíveis sem precisar tocar em cada página.
 
-### 1. Banco (migration)
-Adicionar colunas em `barbearias`:
-- `mercadopago_user_id` (text) — ID do usuário MP do dono
-- `mercadopago_access_token` (text) — token OAuth do dono (criptografado/restrito)
-- `mercadopago_refresh_token` (text) — para renovar quando expirar
-- `mercadopago_token_expires_at` (timestamptz)
-- `mercadopago_public_key` (text) — chave pública do dono (para o frontend renderizar checkout)
-- `mercadopago_connected_at` (timestamptz)
+---
 
-Acesso aos tokens: **apenas service_role** (edge functions). RLS bloqueia leitura desses campos pelo cliente/owner via frontend. O dono só vê o flag "conectado" via uma função `get_mp_connection_status(barbearia_id)`.
+## Frente 2 — Bugs funcionais
 
-### 2. Secrets novos no Lovable Cloud
-- `MERCADOPAGO_CLIENT_ID` — App ID do BarberMaestro no painel MP Connect
-- `MERCADOPAGO_CLIENT_SECRET` — App Secret
+1. **Botão "Atualizar" do Dashboard sem efeito** → trocar para invalidar queries do React Query corretamente e mostrar toast "Atualizado".
+2. **Cancelar agendamento não cancela** → investigar (provável conflito de RLS update / status). Depois do cancelamento:
+   - status vira `cancelado` (libera o slot automaticamente, pois `get_horarios_ocupados` já ignora cancelados).
+   - cria notificação para o dono da barbearia (`agendamento_cancelado`).
+3. **"Reagendar"** → ao clicar, abrir o fluxo de agendamento já com a barbearia/serviço pré-preenchidos e cancelar o agendamento original assim que o novo for confirmado (assim o slot antigo desocupa e o cliente escolhe outro horário).
+4. **Pagar → "duplicate key value violates unique constraint pagamentos_agendamento_id_key"** → existe constraint unique por `agendamento_id`. Ajustar `criarPagamento` para fazer **upsert** (ou reaproveitar pagamento existente em status `pendente`/`processando`).
 
-(O `MERCADOPAGO_ACCESS_TOKEN` atual continua só para a **assinatura** do dono pagar o BarberMaestro.)
+---
 
-### 3. Edge Functions novas
-- `mercadopago-oauth-start` — gera URL de autorização e state CSRF
-- `mercadopago-oauth-callback` — recebe `code`, troca por token, salva em `barbearias`
-- `mercadopago-disconnect` — apaga tokens da barbearia
-- `mercadopago-refresh-token` — helper usado pelas outras functions quando o token expira
+## Frente 3 — Novas features pedidas
 
-### 4. Edge Functions existentes (refatorar)
-- `mercadopago-preference` — buscar token da barbearia do agendamento (não usar mais env global), montar preferência com `marketplace_fee` opcional
-- `mercadopago-pix` — idem
-- `mercadopago-payment-status` — usar token da barbearia
-- `mercadopago-webhook` — identificar barbearia pelo `external_reference` e usar o token dela para consultar o pagamento
+5. **Confirmação de atendimento + Avaliação pelo cliente**
+   - Dono marca agendamento como `concluido` (já existe no painel do dono).
+   - No painel do cliente, agendamentos `concluido` sem avaliação ganham botão "Avaliar atendimento" → abre modal e salva em `avaliacoes` (tabela já existe com RLS pronto).
+6. **Suporte → botão WhatsApp** abre `https://wa.me/5519989482441` em nova aba.
+7. **Suporte → "Enviar Mensagem"** → encaminhar para `brunocamargocontato@hotmail.com` via edge function `send-transactional-email` (template novo: `suporte-cliente`), além de gravar em `tickets_suporte`.
+8. **Notificações** (item do menu) → explicar/realizar a função: lista as notificações que o cliente recebe (confirmações, lembretes, cancelamentos, promoções). Vou criar a tabela `notificacoes_cliente` (espelhando o que já existe para o dono) ou reaproveitar `notificacoes` com coluna `cliente_id`. Decisão técnica: **adicionar `cliente_id` em `notificacoes`** + RLS para o cliente ver as suas.
 
-### 5. UI no painel do dono
-- Nova seção em `src/pages/dono/Configuracoes.tsx` (ou criar `ConfiguracoesPagamento.tsx`):
-  - Estado "Não conectado" → botão "Conectar Mercado Pago"
-  - Estado "Conectado" → mostra email/ID MP e botão "Desconectar"
-- Componente em `src/components/pagamento/MercadoPagoConnectCard.tsx`
+---
 
-### 6. Configuração no painel MP (manual pelo usuário)
-Você precisa, no [painel de desenvolvedores do MP](https://www.mercadopago.com.br/developers/panel/app):
-1. Criar/abrir o app
-2. Pegar o **Client ID** e **Client Secret**
-3. Adicionar Redirect URI: `https://oyfgyoutpwmoqdtubveb.supabase.co/functions/v1/mercadopago-oauth-callback`
+## Frente 4 — Configurações: Preferências de Notificação
+
+9. Persistir as 5 toggles (App, Email, WhatsApp, Promoções, Lembretes) em uma nova tabela `cliente_preferencias_notificacao` (1:1 com `clientes`), com RLS própria. Hoje os switches não salvam nada.
+
+---
 
 ## Ordem de execução
 
-1. Migration (banco)
-2. Pedir secrets `MERCADOPAGO_CLIENT_ID` e `MERCADOPAGO_CLIENT_SECRET`
-3. Edge functions OAuth (start + callback + disconnect)
-4. UI no painel do dono
-5. Refatorar edge functions de pagamento para usar token por barbearia
-6. Atualizar webhook
-7. Testar fluxo ponta-a-ponta com uma conta MP de teste
+1. Frente 1 (tema) — desbloqueia visualmente quase tudo.
+2. Frente 2 (bugs) — corrige o que está realmente quebrado.
+3. Frente 4 (preferências) — pequena migração + UI.
+4. Frente 3 (features novas) — maior esforço, faço por último.
 
-## Importante
+---
 
-- A **assinatura do dono pagando o BarberMaestro** continua usando seu token global (`MERCADOPAGO_ACCESS_TOKEN`) — isso não muda.
-- Só os **pagamentos de clientes para barbearias** passam a usar o token OAuth do respectivo dono.
-- Enquanto a barbearia não conectar o MP, o botão "pagar online" fica desabilitado no painel do cliente daquela barbearia (mostra mensagem "Esta barbearia ainda não aceita pagamento online — pague presencialmente").
+## Itens técnicos (resumo para o registro)
 
-Posso começar pela **etapa 1 (migration)**?
+- Migração 1: `notificacoes.cliente_id uuid null` + policies de SELECT/UPDATE para cliente.
+- Migração 2: tabela `cliente_preferencias_notificacao` com grants + RLS.
+- Edge function: ajuste em `signup` não é necessário; criar template `suporte-cliente` em `_shared/transactional-email-templates/`.
+- Frontend: ajustes em `ClienteLayout`, `ClienteDashboard`, `DetalhesAgendamento` (componente de modal), `Pagamentos`, `SuporteCliente`, `ConfiguracoesCliente`, `NotificacoesCliente`, `Avaliacoes`, `index.css`.
+- `ClienteContext.criarPagamento` → upsert por `agendamento_id`.
+
+---
+
+Posso seguir nessa ordem? Se quiser que eu priorize só a Frente 1 (deixar tudo legível) e a Frente 2 (cancelar/pagar funcionando) nesta rodada, e fazer 3+4 depois, me avise — isso entrega valor mais rápido.

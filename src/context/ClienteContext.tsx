@@ -87,7 +87,6 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
   const isClienteLogado = !!user && (roles.includes("client") || roles.includes("super_admin"));
 
   const [barbearias, setBarbearias] = useState<any[]>([]);
-  const [notificacoes] = useState<any[]>([]);
 
   // PERFIL do cliente
   const { data: cliente, isLoading: loadingCliente } = useQuery({
@@ -187,6 +186,36 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
       desconto: concluidos >= 10 ? 15 : concluidos >= 5 ? 10 : 5,
     },
     progressoProximoNivel: ((concluidos % 5) / 5) * 100,
+  };
+
+  // NOTIFICAÇÕES do cliente
+  const { data: notificacoesRaw } = useQuery({
+    queryKey: ["cliente", "notificacoes", cliente?.id],
+    enabled: !!cliente?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("notificacoes")
+        .select("id, tipo, titulo, mensagem, lida, data, url_acao, label_acao")
+        .eq("cliente_id", cliente!.id)
+        .order("data", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+  const notificacoes = (notificacoesRaw || []).map((n: any) => ({
+    id: n.id,
+    titulo: n.titulo,
+    mensagem: n.mensagem,
+    lida: n.lida,
+    data: n.data,
+    tipo: n.tipo,
+    canal: "app",
+  }));
+
+  const marcarNotificacaoLida = async (id: string) => {
+    await supabase.from("notificacoes").update({ lida: true }).eq("id", id);
+    await queryClient.invalidateQueries({ queryKey: ["cliente", "notificacoes"] });
   };
 
   const loading = authLoading || loadingCliente || loadingAgendamentos;
@@ -310,6 +339,9 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
   };
 
   const cancelarAgendamento = async (id: string) => {
+    // Busca o agendamento para conseguir notificar o dono
+    const ag = agendamentos.find((a) => a.id === id);
+
     const { error } = await supabase
       .from("agendamentos")
       .update({ status: "cancelado" })
@@ -318,6 +350,23 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
       toast.error(error.message);
       throw error;
     }
+
+    // Notifica o dono da barbearia
+    try {
+      if (ag) {
+        await supabase.from("notificacoes").insert({
+          barbearia_id: ag.barbeariaId,
+          tipo: "agendamento_cancelado",
+          titulo: "Agendamento cancelado pelo cliente",
+          mensagem: `${cliente?.nome || "Cliente"} cancelou o agendamento de ${ag.data} às ${ag.hora}.`,
+          url_acao: "/dono/agenda",
+          label_acao: "Ver agenda",
+        });
+      }
+    } catch {
+      // best-effort
+    }
+
     await queryClient.invalidateQueries({ queryKey: ["cliente", "agendamentos"] });
     toast.success("Agendamento cancelado.");
   };
@@ -327,14 +376,20 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
     valor: number,
     metodo: MetodoPagamento
   ): Promise<Pagamento> => {
+    // Existe constraint UNIQUE em pagamentos(agendamento_id) — usamos upsert
+    // para reaproveitar pagamento já existente do agendamento (resolve o bug
+    // "duplicate key value violates unique constraint pagamentos_agendamento_id_key").
     const { data, error } = await supabase
       .from("pagamentos")
-      .insert({
-        agendamento_id: agendamentoId,
-        valor,
-        metodo,
-        status: metodo === "dinheiro" ? "pendente" : "processando",
-      })
+      .upsert(
+        {
+          agendamento_id: agendamentoId,
+          valor,
+          metodo,
+          status: metodo === "dinheiro" ? "pendente" : "processando",
+        },
+        { onConflict: "agendamento_id" }
+      )
       .select()
       .single();
     if (error) {
@@ -462,6 +517,7 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
         buscarBarbearias,
         buscarBarbeariaPorId,
         realizarPagamento,
+        marcarNotificacaoLida,
       }}
     >
       {children}

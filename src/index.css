@@ -234,3 +234,41 @@ All colors MUST be HSL.
 #cadastro-page [data-radix-alert-dialog-content] [data-radix-alert-dialog-description] {
   color: hsl(var(--muted-foreground)) !important;
 }
+
+/* =========================================================================
+   Painel do Cliente — tema claro forçado
+   O <body> aplica `text-foreground` calculado no tema escuro global, então
+   qualquer texto sem classe de cor explícita herda branco. Aqui forçamos
+   o painel a recalcular cor/fundo a partir das vars do .light wrapper.
+   ========================================================================= */
+#cliente-panel {
+  color: hsl(var(--foreground));
+  background-color: hsl(var(--background));
+}
+
+#cliente-panel [data-sidebar="trigger"],
+#cliente-panel [data-sidebar="trigger"] svg {
+  color: hsl(var(--foreground)) !important;
+  opacity: 1 !important;
+}
+
+/* Dialogs do painel (renderizam em portal, fora de #cliente-panel).
+   Marcamos cada DialogContent do cliente com a classe `cliente-dialog`. */
+[data-radix-dialog-content].cliente-dialog,
+[data-radix-alert-dialog-content].cliente-dialog {
+  background-color: hsl(0 0% 100%) !important;
+  color: hsl(0 0% 3.9%) !important;
+  --background: 0 0% 100%;
+  --foreground: 0 0% 3.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 3.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 3.9%;
+  --muted: 0 0% 96.1%;
+  --muted-foreground: 0 0% 35%;
+  --border: 0 0% 89.8%;
+  --input: 0 0% 96.1%;
+}
+.cliente-dialog * {
+  border-color: hsl(var(--border));
+}

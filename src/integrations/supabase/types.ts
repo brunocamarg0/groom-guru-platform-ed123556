@@ -437,6 +437,42 @@ export type Database = {
         }
         Relationships: []
       }
+      cliente_preferencias_notificacao: {
+        Row: {
+          cliente_id: string
+          created_at: string
+          id: string
+          lembretes: boolean
+          notificacoes_app: boolean
+          notificacoes_email: boolean
+          notificacoes_whatsapp: boolean
+          promocoes: boolean
+          updated_at: string
+        }
+        Insert: {
+          cliente_id: string
+          created_at?: string
+          id?: string
+          lembretes?: boolean
+          notificacoes_app?: boolean
+          notificacoes_email?: boolean
+          notificacoes_whatsapp?: boolean
+          promocoes?: boolean
+          updated_at?: string
+        }
+        Update: {
+          cliente_id?: string
+          created_at?: string
+          id?: string
+          lembretes?: boolean
+          notificacoes_app?: boolean
+          notificacoes_email?: boolean
+          notificacoes_whatsapp?: boolean
+          promocoes?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cliente_profissional: {
         Row: {
           ativo: boolean
@@ -935,6 +971,7 @@ export type Database = {
       notificacoes: {
         Row: {
           barbearia_id: string | null
+          cliente_id: string | null
           created_at: string
           data: string
           id: string
@@ -948,6 +985,7 @@ export type Database = {
         }
         Insert: {
           barbearia_id?: string | null
+          cliente_id?: string | null
           created_at?: string
           data?: string
           id?: string
@@ -961,6 +999,7 @@ export type Database = {
         }
         Update: {
           barbearia_id?: string | null
+          cliente_id?: string | null
           created_at?: string
           data?: string
           id?: string

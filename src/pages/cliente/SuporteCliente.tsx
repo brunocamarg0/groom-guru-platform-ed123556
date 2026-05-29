@@ -159,6 +159,25 @@ export default function SuporteCliente() {
       });
       if (error) throw error;
 
+      // Encaminha por email para o suporte
+      try {
+        await supabase.functions.invoke("send-transactional-email", {
+          body: {
+            templateName: "suporte-cliente",
+            recipientEmail: "brunocamargocontato@hotmail.com",
+            templateData: {
+              clienteNome: dadosTicket.clienteNome,
+              clienteEmail: dadosTicket.clienteEmail,
+              categoria: dadosTicket.categoria,
+              assunto: dadosTicket.assunto,
+              mensagem: dadosTicket.mensagem,
+            },
+          },
+        });
+      } catch (mailErr) {
+        console.warn("Falha ao enviar email de suporte:", mailErr);
+      }
+
       toast({
         title: "Mensagem enviada!",
         description: "Nossa equipe entrará em contato em até 24 horas.",
@@ -186,7 +205,7 @@ export default function SuporteCliente() {
   };
 
   const handleWhatsApp = () => {
-    const numero = "5511999999999"; // Substituir pelo número real
+    const numero = "5519989482441";
     const texto = encodeURIComponent("Olá! Preciso de ajuda com o aplicativo de agendamento.");
     window.open(`https://wa.me/${numero}?text=${texto}`, "_blank");
   };
@@ -236,11 +255,11 @@ export default function SuporteCliente() {
           <CardContent className="space-y-3">
             <div className="flex items-center gap-2 text-sm">
               <Mail className="h-4 w-4 text-muted-foreground" />
-              <span>suporte@barbearia.com</span>
+              <span>brunocamargocontato@hotmail.com</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
               <Phone className="h-4 w-4 text-muted-foreground" />
-              <span>(11) 9999-9999</span>
+              <span>(19) 98948-2441</span>
             </div>
           </CardContent>
         </Card>

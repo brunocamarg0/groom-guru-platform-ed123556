@@ -152,7 +152,12 @@ export default function ClienteDashboard() {
         <Button 
           variant="outline" 
           size="sm"
-          onClick={() => carregarDados && carregarDados()}
+          onClick={async () => {
+            if (carregarDados) {
+              await carregarDados();
+              toast({ title: "Atualizado", description: "Dados sincronizados." });
+            }
+          }}
         >
           <RefreshCw className="h-4 w-4 mr-2" />
           Atualizar
