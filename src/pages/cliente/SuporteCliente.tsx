@@ -159,6 +159,25 @@ export default function SuporteCliente() {
       });
       if (error) throw error;
 
+      // Encaminha por email para o suporte
+      try {
+        await supabase.functions.invoke("send-transactional-email", {
+          body: {
+            templateName: "suporte-cliente",
+            recipientEmail: "brunocamargocontato@hotmail.com",
+            templateData: {
+              clienteNome: dadosTicket.clienteNome,
+              clienteEmail: dadosTicket.clienteEmail,
+              categoria: dadosTicket.categoria,
+              assunto: dadosTicket.assunto,
+              mensagem: dadosTicket.mensagem,
+            },
+          },
+        });
+      } catch (mailErr) {
+        console.warn("Falha ao enviar email de suporte:", mailErr);
+      }
+
       toast({
         title: "Mensagem enviada!",
         description: "Nossa equipe entrará em contato em até 24 horas.",
