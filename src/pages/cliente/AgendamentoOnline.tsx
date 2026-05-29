@@ -25,28 +25,11 @@ import { NovoAgendamento } from "@/types/cliente";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { SelecaoFormaPagamento } from "@/components/pagamento/SelecaoFormaPagamento";
+import {
+  gerarHorariosDoDia,
+  parseHorarioFuncionamento,
+} from "@/lib/horarios";
 
-// Gerar horários de 40 em 40 minutos (08:00 às 19:00)
-const gerarTodosHorarios = (): string[] => {
-  const horarios: string[] = [];
-  let hora = 8;
-  let minuto = 0;
-
-  while (hora < 19 || (hora === 19 && minuto === 0)) {
-    const horarioFormatado = `${hora.toString().padStart(2, "0")}:${minuto.toString().padStart(2, "0")}`;
-    horarios.push(horarioFormatado);
-
-    minuto += 40;
-    if (minuto >= 60) {
-      hora += 1;
-      minuto = minuto % 60;
-    }
-  }
-
-  return horarios;
-};
-
-const todosHorarios = gerarTodosHorarios();
 
 export default function AgendamentoOnline() {
   const { criarAgendamento, buscarBarbeariaPorId, barbearias, buscarBarbearias } = useCliente();
