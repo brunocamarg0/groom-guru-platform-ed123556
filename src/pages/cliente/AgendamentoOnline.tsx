@@ -109,6 +109,24 @@ export default function AgendamentoOnline() {
         if (error) {
           console.warn("Erro ao carregar horários ocupados:", error.message);
           setHorariosOcupados([]);
+  // Carregar horários ocupados quando data mudar (via Supabase)
+  useEffect(() => {
+    const carregarHorariosOcupados = async () => {
+      if (!formData.barbeariaId || !formData.data) {
+        setHorariosOcupados([]);
+        return;
+      }
+
+      setLoadingHorarios(true);
+      try {
+        const { supabase } = await import("@/integrations/supabase/client");
+        const { data, error } = await supabase.rpc("get_horarios_ocupados", {
+          _barbearia_id: formData.barbeariaId,
+          _data: formData.data,
+        });
+        if (error) {
+          console.warn("Erro ao carregar horários ocupados:", error.message);
+          setHorariosOcupados([]);
         } else {
           setHorariosOcupados((data || []).map((r: any) => r.horario).filter(Boolean));
         }
@@ -123,27 +141,23 @@ export default function AgendamentoOnline() {
     carregarHorariosOcupados();
   }, [formData.barbeariaId, formData.data]);
 
+  // Horários possíveis a partir do funcionamento da barbearia + duração do serviço
+  const servicoAtual = (barbearia?.servicos || []).find((s: any) => s.id === formData.servicoId);
+  const duracaoAtual = servicoAtual?.duracao || 40;
+  const horarioFuncionamento = useMemo(
+    () => parseHorarioFuncionamento(barbearia?.horario_funcionamento),
+    [barbearia?.horario_funcionamento]
+  );
+  const todosHorarios = useMemo(
+    () => (formData.data ? gerarHorariosDoDia(horarioFuncionamento, formData.data, duracaoAtual) : []),
+    [horarioFuncionamento, formData.data, duracaoAtual]
+  );
+
   // Calcular horários disponíveis
   const horariosDisponiveis = useMemo(() => {
     return todosHorarios.filter(horario => !horariosOcupados.includes(horario));
-  }, [horariosOcupados]);
+  }, [todosHorarios, horariosOcupados]);
 
-  const servicosDisponiveis = barbearia?.servicos || [];
-  const profissionaisDisponiveis = barbearia?.profissionais || [];
-
-  const servicoSelecionado = servicosDisponiveis.find((s: any) => s.id === formData.servicoId);
-  const profissionalSelecionado = profissionaisDisponiveis.find((p: any) => p.id === formData.profissionalId);
-
-  const handleSubmit = async () => {
-    // Proteção contra duplo clique
-    if (isSubmitting) {
-      console.log('⚠️ [AGENDAMENTO] Submissão já em andamento, ignorando clique duplicado');
-      return;
-    }
-
-    if (!formData.servicoId || !formData.data || !formData.hora) {
-      toast({
-        title: "Erro",
         description: "Preencha todos os campos obrigatórios.",
         variant: "destructive",
       });
