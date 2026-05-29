@@ -191,7 +191,7 @@ export default function ConfiguracoesCliente() {
             <DialogTrigger asChild>
               <Button variant="outline">Alterar Senha</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="cliente-dialog">
               <DialogHeader>
                 <DialogTitle>Alterar Senha</DialogTitle>
                 <DialogDescription>
@@ -379,7 +379,7 @@ export default function ConfiguracoesCliente() {
                 Excluir Conta (LGPD)
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="cliente-dialog">
               <DialogHeader>
                 <DialogTitle className="text-destructive">Excluir Conta</DialogTitle>
                 <DialogDescription>

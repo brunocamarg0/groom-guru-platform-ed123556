@@ -186,7 +186,7 @@ export default function SuporteCliente() {
   };
 
   const handleWhatsApp = () => {
-    const numero = "5511999999999"; // Substituir pelo número real
+    const numero = "5519989482441";
     const texto = encodeURIComponent("Olá! Preciso de ajuda com o aplicativo de agendamento.");
     window.open(`https://wa.me/${numero}?text=${texto}`, "_blank");
   };
@@ -236,11 +236,11 @@ export default function SuporteCliente() {
           <CardContent className="space-y-3">
             <div className="flex items-center gap-2 text-sm">
               <Mail className="h-4 w-4 text-muted-foreground" />
-              <span>suporte@barbearia.com</span>
+              <span>brunocamargocontato@hotmail.com</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
               <Phone className="h-4 w-4 text-muted-foreground" />
-              <span>(11) 9999-9999</span>
+              <span>(19) 98948-2441</span>
             </div>
           </CardContent>
         </Card>
