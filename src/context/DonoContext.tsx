@@ -691,7 +691,7 @@ export function DonoProvider({ children }: { children: ReactNode }) {
     const modo = configuracao?.modoConfirmacao;
     if (modo === "hibrido" && ag) {
       const dbRow: any = (ag as any);
-      const confirmadoEm = dbRow.dataConfirmacaoAutomatica || dbRow.data_confirmacao_automatica || ag.createdAt;
+      const confirmadoEm = dbRow.dataConfirmacaoAutomatica || dbRow.data_confirmacao_automatica || dbRow.createdAt || dbRow.created_at;
       if (confirmadoEm) {
         const diffH = (Date.now() - new Date(confirmadoEm).getTime()) / 3_600_000;
         if (diffH > 2) {
