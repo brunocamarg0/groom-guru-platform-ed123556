@@ -31,6 +31,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const planoId: string | undefined = body.planoId;
     const pagamentoRecorrente: boolean = !!body.pagamentoRecorrente;
+    const modoTeste: boolean = !!body.modoTeste;
     const profissionalId: string | null = body.profissionalId ?? null;
     if (!planoId) {
       return new Response(JSON.stringify({ error: "planoId obrigatório" }), {
@@ -64,18 +65,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Token OAuth da barbearia
-    const mpInfo = await getMPTokenForBarbearia(plano.barbearia_id as string);
-    if (!mpInfo) {
-      return new Response(
-        JSON.stringify({
-          error: "mp_nao_conectado",
-          message: "Esta barbearia ainda não conectou uma conta Mercado Pago.",
-        }),
-        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
     // Cria assinatura pendente
     const agora = new Date();
     const venc = new Date(agora);
@@ -106,7 +95,7 @@ Deno.serve(async (req) => {
         .update({
           plano_id: plano.id,
           profissional_id: profissionalId,
-          status: "pendente",
+          status: modoTeste ? "ativa" : "pendente",
           pagamento_recorrente: pagamentoRecorrente,
           data_inicio: agora.toISOString(),
           data_vencimento: venc.toISOString(),
@@ -129,7 +118,7 @@ Deno.serve(async (req) => {
           cliente_id: cliente.id,
           plano_id: plano.id,
           profissional_id: profissionalId,
-          status: "pendente",
+          status: modoTeste ? "ativa" : "pendente",
           pagamento_recorrente: pagamentoRecorrente,
           data_inicio: agora.toISOString(),
           data_vencimento: venc.toISOString(),
@@ -146,6 +135,46 @@ Deno.serve(async (req) => {
       assinatura = novo;
     }
 
+
+    if (modoTeste) {
+      const { error: pagamentoTesteError } = await admin.from("pagamentos_assinatura").insert({
+        assinatura_id: assinatura.id,
+        valor: Number(plano.valor),
+        status: "paga",
+        metodo_pagamento: "teste",
+        data_vencimento: venc.toISOString(),
+        data_pagamento: agora.toISOString(),
+        observacoes: "Assinatura criada em modo teste.",
+      });
+
+      if (pagamentoTesteError) {
+        console.error("pagamento teste insert error:", pagamentoTesteError);
+        return new Response(JSON.stringify({ error: "Falha ao registrar pagamento de teste" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(
+        JSON.stringify({
+          assinaturaId: assinatura.id,
+          testMode: true,
+          message: "Assinatura criada em modo teste com sucesso.",
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Token OAuth da barbearia
+    const mpInfo = await getMPTokenForBarbearia(plano.barbearia_id as string);
+    if (!mpInfo) {
+      return new Response(
+        JSON.stringify({
+          error: "mp_nao_conectado",
+          message: "Esta barbearia ainda não conectou uma conta Mercado Pago.",
+        }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     const origin = req.headers.get("origin") || "https://barbermaestro.com";
 

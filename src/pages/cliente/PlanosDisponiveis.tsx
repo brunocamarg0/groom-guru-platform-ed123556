@@ -102,13 +102,28 @@ export default function PlanosDisponiveis() {
     setComprando(plano.id);
     try {
       if (modoTeste) {
-        // Modo teste: cria assinatura direto via insert (RLS exige dono; usa edge function igual)
         const { data, error } = await supabase.functions.invoke(
           "mercadopago-plano-cliente-checkout",
           { body: { planoId: plano.id, pagamentoRecorrente: false, modoTeste: true } },
         );
-        if (error) throw error;
-        toast({ title: "Sucesso!", description: "Assinatura criada em modo teste" });
+        let backendMessage = (data as any)?.message || "Assinatura criada em modo teste";
+        if (error) {
+          const ctx: any = (error as any).context;
+          if (ctx?.json) {
+            const body = await ctx.json().catch(() => null);
+            backendMessage = body?.message || body?.error || backendMessage;
+          } else if (ctx?.text) {
+            const text = await ctx.text().catch(() => "");
+            try {
+              const body = JSON.parse(text);
+              backendMessage = body?.message || body?.error || backendMessage;
+            } catch {
+              backendMessage = text || backendMessage;
+            }
+          }
+          throw new Error(backendMessage);
+        }
+        toast({ title: "Sucesso!", description: backendMessage });
         setTimeout(() => navigate("/cliente/assinatura"), 1200);
         return;
       }
@@ -117,7 +132,23 @@ export default function PlanosDisponiveis() {
         "mercadopago-plano-cliente-checkout",
         { body: { planoId: plano.id, pagamentoRecorrente: false } },
       );
-      if (error) throw error;
+      if (error) {
+        let backendMessage = error.message || "Erro ao processar compra do plano";
+        const ctx: any = (error as any).context;
+        if (ctx?.json) {
+          const body = await ctx.json().catch(() => null);
+          backendMessage = body?.message || body?.error || backendMessage;
+        } else if (ctx?.text) {
+          const text = await ctx.text().catch(() => "");
+          try {
+            const body = JSON.parse(text);
+            backendMessage = body?.message || body?.error || backendMessage;
+          } catch {
+            backendMessage = text || backendMessage;
+          }
+        }
+        throw new Error(backendMessage);
+      }
       if ((data as any)?.error === "mp_nao_conectado") {
         toast({
           title: "Pagamento indisponível",
